@@ -1,0 +1,38 @@
+# NewsManager pipeline configuration.
+# Every stage reads this file; override the path with NEWSMANAGER_CONFIG.
+
+[source]
+url = "https://huggingface.co/datasets/Zihan1004/FNSPID/resolve/main/Stock_news/nasdaq_exteral_data.csv"
+# Pinned from a HEAD probe on 2026-08-21. `nm probe` re-checks these and fails
+# loudly if upstream changed, so a rebuild can never silently mix two versions.
+expected_bytes = 23232979597
+expected_etag = "1a7a3eb8e6b97ec19f286f2cfca3371542bddb272ab1eb8f36e33ad98fa5c4da"
+
+[paths]
+root      = "data"
+manifest  = "data/manifest.json"
+raw       = "data/raw"        # bronze: parquet shards, 1:1 with CSV rows
+curated   = "data/curated"    # silver: deduped, typed, partitioned
+marts     = "data/marts"      # gold: analysis-ready aggregates
+db        = "data/news.duckdb"
+tmp       = "data/tmp"        # transient shard bytes, deleted after each shard
+
+[ingest]
+# Bytes per shard. Peak temp disk = shard_bytes * workers (plus the parquet
+# being written). 256 MiB * 6 = ~1.5 GiB, comfortable against 24 GiB free.
+shard_bytes = 268435456
+# Window range-fetched around each target offset to locate a record boundary.
+boundary_probe_bytes = 2097152
+workers = 6
+# DuckDB per-process budget. Total = memory_limit * workers, keep under ~60% RAM.
+memory_limit = "1500MB"
+compression = "zstd"
+# Drop the four extractive-summary columns from the raw layer. They are derived
+# from Article (regenerable) and cost ~33% of the text payload. Set false to keep.
+drop_summaries = false
+
+[curate]
+# Partition the curated layer by calendar year of publication.
+partition_by = "year"
+# Articles shorter than this are treated as stubs and flagged, not dropped.
+min_article_chars = 200

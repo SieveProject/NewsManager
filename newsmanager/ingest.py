@@ -1,0 +1,181 @@
+"""Bronze layer: shard bytes -> one Parquet file per shard.
+
+Two modes:
+
+  sharded (default)  Parallel and resumable. Each worker range-fetches one shard,
+                     writes those bytes to a temp file, has DuckDB parse it, then
+                     deletes the temp file. Peak temp disk is
+                     shard_bytes * workers -- ~1.5 GB at the defaults, never 23 GB.
+                     A crash costs one shard, not the whole run.
+
+  stream             One DuckDB `read_csv` over the URL. No temp files at all,
+                     but no resume: a drop at 90% loses the run. Measured at
+                     ~7 MB/s single-stream, so roughly 55 minutes end to end.
+
+Transformation here is deliberately nil -- this layer stays 1:1 with the CSV so
+curation bugs can be fixed without re-downloading. Typing happens in curate.
+"""
+
+from __future__ import annotations
+
+import os
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from pathlib import Path
+
+import duckdb
+
+from . import source
+from .config import CSV_HEADER, Config
+from .shard import Manifest, Shard
+
+
+def connect(cfg: Config, *, memory_limit: str | None = None, threads: int | None = None) -> duckdb.DuckDBPyConnection:
+    con = duckdb.connect()
+    con.execute(f"SET memory_limit='{memory_limit or cfg.memory_limit}'")
+    if threads:
+        con.execute(f"SET threads={threads}")
+    # The source is sorted by symbol and we re-sort during curate, so holding
+    # rows back to preserve arrival order only costs memory on a 23 GB scan.
+    con.execute("SET preserve_insertion_order=false")
+    con.execute(f"SET temp_directory='{cfg.tmp / 'duckdb_spill'}'")
+    return con
+
+
+def _columns_clause(cfg: Config) -> str:
+    inner = ", ".join(f"'{k}':'{v}'" for k, v in cfg.ingest_columns.items())
+    return "{" + inner + "}"
+
+
+def shard_path(cfg: Config, index: int) -> Path:
+    return cfg.raw / f"part-{index:05d}.parquet"
+
+
+def _done(cfg: Config, index: int) -> bool:
+    """A shard counts as done only if its Parquet footer is readable.
+
+    Size alone is not enough: a process killed mid-write leaves a plausible-looking
+    but truncated file, which would then be skipped on resume and silently drop rows.
+    """
+    p = shard_path(cfg, index)
+    if not p.exists() or p.stat().st_size == 0:
+        return False
+    try:
+        duckdb.connect().execute(f"SELECT 1 FROM read_parquet('{p}') LIMIT 1").fetchall()
+        return True
+    except Exception:
+        p.unlink(missing_ok=True)
+        return False
+
+
+def ingest_shard(cfg: Config, shard: Shard) -> tuple[int, int, float]:
+    """Fetch one shard and write it as Parquet. Returns (index, rows, seconds)."""
+    t0 = time.time()
+    out = shard_path(cfg, shard.index)
+    tmp_csv = cfg.tmp / f"shard-{shard.index:05d}.csv"
+    tmp_out = out.with_suffix(".parquet.partial")
+
+    try:
+        data = source.fetch_range(cfg.url, shard.start, shard.end)
+        # Each shard is a standalone CSV: header + whole records only.
+        with tmp_csv.open("wb") as fh:
+            fh.write(CSV_HEADER.encode())
+            fh.write(data)
+        del data
+
+        con = connect(cfg, threads=2)
+        cols = ", ".join(f'"{c}"' for c in cfg.ingest_columns)
+        con.execute(
+            f"""
+            COPY (
+                SELECT {cols}, {shard.index} AS _shard
+                FROM read_csv(
+                    '{tmp_csv}',
+                    header=true,
+                    columns={_columns_clause(cfg)},
+                    quote='"', escape='"', delim=',',
+                    strict_mode=false, ignore_errors=false, parallel=true
+                )
+            ) TO '{tmp_out}' (FORMAT parquet, COMPRESSION '{cfg.compression}', ROW_GROUP_SIZE 100000)
+            """
+        )
+        rows = con.execute(f"SELECT count(*) FROM read_parquet('{tmp_out}')").fetchone()[0]
+        con.close()
+        # Publish atomically so a kill never leaves a half-file that resume trusts.
+        os.replace(tmp_out, out)
+        return shard.index, rows, time.time() - t0
+    finally:
+        tmp_csv.unlink(missing_ok=True)
+        Path(tmp_out).unlink(missing_ok=True)
+
+
+def _worker(args: tuple[Config, Shard]) -> tuple[int, int, float]:
+    return ingest_shard(*args)
+
+
+def run_sharded(cfg: Config, manifest: Manifest, *, resume: bool = True) -> dict:
+    cfg.ensure_dirs()
+    pending = [s for s in manifest.shards if not (resume and _done(cfg, s.index))]
+    skipped = len(manifest.shards) - len(pending)
+    print(f"[ingest] {len(manifest.shards)} shards, {skipped} already done, {len(pending)} pending")
+    if not pending:
+        return {"shards": len(manifest.shards), "ingested": 0, "skipped": skipped, "rows": 0}
+
+    total_rows = 0
+    done = 0
+    t0 = time.time()
+    failures: list[tuple[int, str]] = []
+
+    with ProcessPoolExecutor(max_workers=cfg.workers) as pool:
+        futures = {pool.submit(_worker, (cfg, s)): s for s in pending}
+        for fut in as_completed(futures):
+            s = futures[fut]
+            try:
+                idx, rows, secs = fut.result()
+            except Exception as exc:  # noqa: BLE001 - collected, reported at end
+                failures.append((s.index, str(exc)))
+                print(f"[ingest] shard {s.index:05d} FAILED: {exc}")
+                continue
+            total_rows += rows
+            done += 1
+            elapsed = time.time() - t0
+            rate = done / elapsed if elapsed else 0
+            eta = (len(pending) - done) / rate if rate else 0
+            print(
+                f"[ingest] {done}/{len(pending)} shard={idx:05d} rows={rows:,} "
+                f"{secs:.0f}s elapsed={elapsed/60:.1f}m eta={eta/60:.1f}m"
+            )
+
+    if failures:
+        print(f"[ingest] {len(failures)} shard(s) failed; re-run `nm ingest` to retry only those")
+    return {
+        "shards": len(manifest.shards),
+        "ingested": done,
+        "skipped": skipped,
+        "rows": total_rows,
+        "failed": failures,
+    }
+
+
+def run_stream(cfg: Config) -> dict:
+    """Single-pass streaming ingest. No temp CSV, no resume."""
+    cfg.ensure_dirs()
+    source.verify(cfg.url, cfg.expected_bytes, cfg.expected_etag)
+    out = cfg.raw / "part-stream.parquet"
+    tmp_out = out.with_suffix(".parquet.partial")
+    con = connect(cfg, memory_limit="8GB", threads=os.cpu_count())
+    con.execute("SET http_retries=8; SET http_retry_wait_ms=2000; SET http_timeout=600000")
+    cols = ", ".join(f'"{c}"' for c in cfg.ingest_columns)
+    t0 = time.time()
+    con.execute(
+        f"""
+        COPY (
+            SELECT {cols}, 0 AS _shard
+            FROM read_csv('{cfg.url}', header=true, columns={_columns_clause(cfg)},
+                          quote='"', escape='"', delim=',', strict_mode=false)
+        ) TO '{tmp_out}' (FORMAT parquet, COMPRESSION '{cfg.compression}', ROW_GROUP_SIZE 100000)
+        """
+    )
+    rows = con.execute(f"SELECT count(*) FROM read_parquet('{tmp_out}')").fetchone()[0]
+    os.replace(tmp_out, out)
+    return {"shards": 1, "ingested": 1, "skipped": 0, "rows": rows, "seconds": time.time() - t0}
