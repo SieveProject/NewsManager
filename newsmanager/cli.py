@@ -7,6 +7,7 @@ import shutil
 import sys
 
 from . import config, curate, ingest, query, shard, source, validate
+from .config import EXIT_CONFIG, ConfigError
 
 
 def _fmt(n: float) -> str:
@@ -107,7 +108,7 @@ def cmd_reset(cfg, args) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _dispatch(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="nm", description="FNSPID news pipeline (DuckDB, remote-first)")
     p.add_argument("-c", "--config", default=None, help="path to config.toml")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -152,6 +153,16 @@ def main(argv: list[str] | None = None) -> int:
         "all": cmd_all,
         "reset": cmd_reset,
     }[args.cmd](cfg, args)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Same EXIT_CONFIG contract as the extraction CLI, so deploy scripts can
+    treat "this will never work" differently from "try again"."""
+    try:
+        return _dispatch(argv)
+    except ConfigError as e:
+        print(f"\n[nm] erro de configuração: {e}", file=sys.stderr)
+        return EXIT_CONFIG
 
 
 if __name__ == "__main__":

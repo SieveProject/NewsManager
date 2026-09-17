@@ -17,12 +17,65 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pyarrow.parquet as pq
+
 from ..config import Config
 from ..ingest import connect
+from .sink import absorb_wal
 
 
 def shard_dir(cfg: Config, prompt_version: str) -> Path:
     return cfg.root / "extractions" / f"v={prompt_version}"
+
+
+def _model_of(vdir: Path, worker_id: int) -> str:
+    """O modelo que este worker usou, lido de um segmento já gravado.
+
+    Absorver um WAL exige carimbar o modelo, e quem absorve um WAL recolhido de
+    outra VM não o conhece. Um segmento anterior do mesmo worker sabe.
+    """
+    # Primeiro os segmentos deste worker; depois os de qualquer outro, já que
+    # uma frota roda o mesmo modelo. Só sobra "unknown" se a VM tiver morrido
+    # antes do primeiro flush de todas elas.
+    patterns = (f"w{worker_id:03d}-*.parquet", "*.parquet")
+    for pattern in patterns:
+        for seg in sorted((vdir / "runs").glob(pattern)):
+            try:
+                col = pq.read_table(seg, columns=["model"])["model"].to_pylist()
+                if col and col[0]:
+                    return str(col[0])
+            except Exception:
+                continue
+    return "unknown"
+
+
+def absorb_orphan_wals(cfg: Config, prompt_version: str | None = None) -> dict:
+    """Converte em Parquet os WALs deixados por VMs que já foram destruídas.
+
+    Um worker absorve o próprio WAL ao reiniciar, mas uma VM alugada que
+    terminou e foi recolhida nunca reinicia: os últimos registros (até
+    `checkpoint-every`) ficam só no WAL que veio pelo rsync. Sem este passo o
+    `collect` não os enxerga e a run perde trabalho já pago.
+    """
+    base = cfg.root / "extractions"
+    vdirs = [base / f"v={prompt_version}"] if prompt_version else sorted(base.glob("v=*"))
+    absorbed: dict[str, int] = {}
+    for vdir in vdirs:
+        if not vdir.is_dir():
+            continue
+        version = vdir.name.split("=", 1)[1]
+        for wal in sorted(vdir.glob("wal-*.jsonl")):
+            try:
+                worker_id = int(wal.stem.split("-")[1])
+            except (IndexError, ValueError):
+                continue
+            n = absorb_wal(vdir, worker_id, version, _model_of(vdir, worker_id))
+            if n:
+                absorbed[f"{vdir.name}/w{worker_id:03d}"] = n
+                print(f"[absorb] {vdir.name} worker {worker_id}: {n} registro(s) do WAL -> parquet")
+    if not absorbed:
+        print("[absorb] nenhum WAL órfão")
+    return absorbed
 
 
 def collect(cfg: Config, prompt_version: str) -> dict:

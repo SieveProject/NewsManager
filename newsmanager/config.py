@@ -3,9 +3,35 @@
 from __future__ import annotations
 
 import os
-import tomllib
+import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+# tomllib is 3.11+. Ubuntu 22.04 LTS -- the most common rented-GPU image --
+# ships 3.10, where this module cannot even be imported. Fail with one readable
+# line instead of a ModuleNotFoundError traceback on a machine billing by the
+# hour, and say how to fix it.
+if sys.version_info < (3, 11):  # pragma: no cover - depends on the interpreter
+    raise SystemExit(
+        f"newsmanager needs Python 3.11+ (tomllib); this interpreter is "
+        f"{sys.version_info.major}.{sys.version_info.minor}.\n"
+        "  Ubuntu 22.04: sudo add-apt-repository -y ppa:deadsnakes/ppa && "
+        "sudo apt install -y python3.11 python3.11-venv\n"
+        "  then re-run with: PY=python3.11 ./deploy/run_all.sh"
+    )
+
+import tomllib  # noqa: E402  -- guarded above
+
+
+# Exit code reserved for failures a retry can never fix: a model that was never
+# pulled, a context window too small for the prompt, a corpus that was never
+# synced. `run_worker.sh` aborts on this instead of restarting, so it must stay
+# distinct from an ordinary crash (1), which restarting *does* fix.
+EXIT_CONFIG = 2
+
+
+class ConfigError(Exception):
+    """A misconfiguration. Deterministic -- the same command will fail again."""
 
 # The 12 source columns, in file order.
 #

@@ -13,13 +13,19 @@ test:     ; $(PY) tests/test_e2e_subset.py 3 32
 clean:    ; $(PY) -m newsmanager reset all
 
 # --- extraction ---
-.PHONY: units bench sweep extract collect test-extract mock
+.PHONY: units bench sweep extract collect absorb test-extract mock
 units:        ; $(PY) -m newsmanager.extract units
 bench:        ; $(PY) -m newsmanager.extract bench
 sweep:        ; $(PY) -m newsmanager.extract sweep
 extract:      ; ./deploy/run_worker.sh
 collect:      ; $(PY) -m newsmanager.extract collect
+absorb:       ; $(PY) -m newsmanager.extract absorb
 mock:         ; $(PY) tests/mock_ollama.py --port 11500
 test-extract: ; $(PY) tests/test_extract_e2e.py
 
 run-all:      ; ./deploy/run_all.sh
+
+# --- frota (HOSTS="vm0 vm1 vm2") ---
+.PHONY: push pull
+push:         ; ./deploy/gather.sh push $(HOSTS)
+pull:         ; ./deploy/gather.sh pull $(HOSTS)

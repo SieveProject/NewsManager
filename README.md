@@ -64,10 +64,14 @@ summary columns empty. Expect era-dependent nulls; don't read them as corruption
 | | |
 |---|---|
 | Source CSV | 21.6 GiB |
-| Free disk here | **24.2 GiB** |
 | Estimated curated output | ~6.5 GiB |
 | Peak temp disk during ingest | `shard_bytes × workers` ≈ 1.5 GiB |
+| Free disk actually needed | **~8 GiB** |
 | RAM | 16 GiB (10 cores) |
+
+Free space is deliberately *not* pinned here: it drifts as you work, and a
+number written once is a number that will be wrong later. `nm probe` measures it
+at run time and refuses to start if headroom is short.
 
 The CSV **does not fit** on this machine alongside its own output, which is why
 `wget`-then-parse is not an option here regardless of preference. The sharded
@@ -175,6 +179,10 @@ campos acompanhadas da data da notícia**:
 ```
 (agent_a, agent_b, relation_type, direction, strength)  +  published_at
 ```
+
+> **Para rodar numa VM alugada, siga [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md)** —
+> a sequência completa de comandos, com os portões que precisam passar antes de
+> cada gasto. O resumo abaixo assume que você já leu aquilo.
 
 ## Um comando, do zero às tuplas
 
@@ -294,7 +302,10 @@ artigos**.
 
 **`num_ctx`, que a Ollama deixa em 2048.** Um artigo de 8.000 caracteres mais
 este prompt dá ~2.600 tokens: o padrão cortaria o fim da maioria dos artigos sem
-erro nenhum. A CLI **se recusa a iniciar** se `--num-ctx` for pequeno demais.
+erro nenhum. A CLI **deriva** o `num_ctx` de `--max-chars` e do tamanho real do
+template quando você não passa `--num-ctx`, e **se recusa a iniciar** se o valor
+que você passou for pequeno demais. Editar `prompts/extraction.txt` portanto
+ajusta o contexto sozinho, em vez de silenciosamente estourá-lo.
 
 **Nunca rodar em CPU por acidente.** `run_all.sh` aborta se `ollama ps` acusar
 100% CPU. A run funcionaria — ~100x mais devagar, cobrada por hora.
@@ -316,6 +327,45 @@ Partição determinística por hash: o worker *K* de *N* pega as unidades em que
 `md5(unit_id) % N == K`. Sem coordenador, sem banco compartilhado e sem
 possibilidade de duas VMs processarem a mesma unidade — o que importa quando as
 máquinas são efêmeras. `partition -n <N>` mostra a carga antes de você alugar.
+
+### O corpus vai junto; os resultados voltam
+
+Cada VM grava só a própria partição, em `data/extractions/` local. Os segmentos
+são nomeados `w<worker>-<seq>.parquet`, portanto já são únicos entre máquinas e
+se unem num diretório só — mas **alguém precisa trazê-los para lá**. Esse é o
+`gather.sh`, e ele é o passo que separa uma run paga de uma run perdida:
+destruir as VMs sem recolher os segmentos joga fora `(N-1)/N` do que você pagou.
+
+```bash
+# 1. numa máquina BARATA (sem GPU): construa o corpus uma vez
+python -m newsmanager all && python -m newsmanager.extract units
+
+# 2. distribua o corpus para as VMs alugadas (~6,5 GB, só o curated)
+./deploy/gather.sh push vm0 vm1 vm2 vm3
+
+# 3. em cada VM (NM_SKIP_INGEST=1 pula a ingestão, que não usa GPU nenhuma)
+NM_SKIP_INGEST=1 ./deploy/run_all.sh <K> 4
+
+# 4. de volta na máquina barata, ANTES de destruir as VMs
+./deploy/gather.sh pull vm0 vm1 vm2 vm3
+```
+
+O passo 1 fora da GPU não é cosmético: a ingestão leva ~55 min limitada por
+rede, e fazê-la na VM alugada significa pagar por uma placa ociosa — numa frota,
+por *N* placas ociosas, já que as outras esperam o worker 0 terminar.
+
+O `pull` traz também os `wal-*.jsonl` e os absorve antes de consolidar: os
+últimos registros de uma VM que terminou e nunca mais vai reiniciar estão só
+neles. É incremental e idempotente — rode durante a run para ir tirando
+resultado da máquina antes do fim.
+
+### Falha de configuração não vira loop caro
+
+`run_worker.sh` reinicia um worker que caiu, porque quedas são transitórias. Mas
+um erro de configuração — modelo que não foi baixado, `num_ctx` pequeno demais,
+corpus que nunca chegou — falha exatamente igual em toda tentativa. As CLIs
+saem com **código 2** nesses casos e o `run_worker.sh` aborta na hora, em vez de
+gastar 25 minutos de GPU alugada provando cem vezes a mesma coisa.
 
 ---
 

@@ -22,7 +22,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..config import Config
+from ..config import Config, ConfigError
 from ..ingest import connect
 from .client import OllamaClient, OllamaConfig
 from .partition import assign_expr
@@ -52,6 +52,16 @@ def output_root(cfg: Config, prompt_version: str) -> Path:
 
 
 def _fetch_units(cfg: Config, worker_id: int, n_workers: int, limit: int | None, order: str) -> list[dict]:
+    # On a worker VM the corpus arrives by rsync, so "not there yet" is the
+    # normal way this goes wrong. Caught here it names the fix; left to DuckDB
+    # it surfaces as an IO error about a glob, and the restart loop retries it.
+    if not (cfg.curated / "extraction_units").exists():
+        raise ConfigError(
+            f"nenhuma unidade de extração em {cfg.curated / 'extraction_units'}. "
+            "No worker 0: python -m newsmanager.extract units. "
+            "Nos demais: sincronize data/curated/ do worker 0 primeiro "
+            "(./deploy/gather.sh --push)."
+        )
     con = connect(cfg, memory_limit="4GB")
     # Mais longos primeiro: mantém os itens lentos fora do fim da run, onde
     # deixariam a GPU processando um artigo gigante com o lote quase vazio.
@@ -111,7 +121,7 @@ async def _run_async(
         async with OllamaClient(oll) as client:
             health = await client.health()
             if not health["has_model"]:
-                raise RuntimeError(
+                raise ConfigError(
                     f"modelo {oll.model!r} ausente em {oll.host}. "
                     f"Disponíveis: {health['models']}. Rode: ollama pull {oll.model}"
                 )

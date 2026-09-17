@@ -5,9 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 from .. import config as cfgmod
+from ..config import EXIT_CONFIG, ConfigError
 from . import benchmark, collect, partition, units, worker
 from .client import OllamaConfig
 from .prompt import DEFAULT_MAX_CHARS, load as load_prompt
@@ -21,7 +23,9 @@ def _add_model_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--model", default=os.environ.get("NM_MODEL", "deepseek-r1:14b"))
     p.add_argument("--host", default=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"))
     p.add_argument("--concurrency", type=int, default=int(os.environ.get("NM_CONCURRENCY", "8")))
-    p.add_argument("--num-ctx", type=int, default=int(os.environ.get("NM_NUM_CTX", "4096")))
+    p.add_argument("--num-ctx", type=int,
+                   default=(int(os.environ["NM_NUM_CTX"]) if os.environ.get("NM_NUM_CTX") else None),
+                   help="context window; derived from --max-chars when omitted")
     p.add_argument("--num-predict", type=int, default=1024)
     p.add_argument("--timeout", type=float, default=300.0)
     p.add_argument("--prompt", default=None, help="prompt template (default prompts/extraction.txt)")
@@ -31,23 +35,42 @@ def _add_model_args(p: argparse.ArgumentParser) -> None:
                    help="liga o raciocínio (multiplica tokens de saída; desligado por padrão)")
 
 
-def _prompt_from(args):
+def _required_num_ctx(max_chars: int, template: str, num_predict: int) -> int:
+    """Smallest context that fits a capped article, the template and the output.
+
+    An article capped at max_chars is ~max_chars/4 tokens, plus the template and
+    room to generate. Exceeding num_ctx makes Ollama drop the *end of the
+    article* with no error at all, so this is computed rather than trusted.
+    """
+    return (max_chars + len(template)) // 4 + num_predict + 256
+
+
+def _resolve(args) -> tuple:
+    """Load the prompt and settle num_ctx together -- each constrains the other.
+
+    Returning both from one place keeps the two from drifting apart: num_ctx
+    depends on the template length, which is only known after the prompt loads.
+    """
     pp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "extraction.txt"
     sp = Path(args.schema) if args.schema else _repo() / "prompts" / "schema.json"
     pr = load_prompt(pp, sp, args.max_chars)
 
-    # An article capped at max_chars is ~max_chars/4 tokens, plus the template
-    # and room to generate. Silently exceeding num_ctx truncates the *article*
-    # inside Ollama with no error, so this is checked rather than trusted.
-    need = (args.max_chars + len(pr.template)) // 4 + args.num_predict + 256
-    if args.num_ctx < need:
-        raise SystemExit(
+    need = _required_num_ctx(args.max_chars, pr.template, args.num_predict)
+    if args.num_ctx is None:
+        # Derived, not defaulted: prompts/extraction.txt is meant to be edited,
+        # and a fixed default silently becomes too small as the template grows.
+        args.num_ctx = -(-need // 256) * 256
+        print(f"[extract] --num-ctx derivado de --max-chars {args.max_chars}: "
+              f"{args.num_ctx} (mínimo {need})")
+    elif args.num_ctx < need:
+        raise ConfigError(
             f"--num-ctx {args.num_ctx} is too small for --max-chars {args.max_chars}: "
             f"need ~{need} tokens (article + prompt + {args.num_predict} generated). "
-            f"Raise --num-ctx to {need} or lower --max-chars. Ollama would otherwise "
-            f"silently drop the end of each article."
+            f"Raise --num-ctx to {need}, lower --max-chars, or omit --num-ctx to "
+            f"have it derived. Ollama would otherwise silently drop the end of "
+            f"each article."
         )
-    return pr
+    return pr, _oll_from(args)
 
 
 def _oll_from(args) -> OllamaConfig:
@@ -58,7 +81,7 @@ def _oll_from(args) -> OllamaConfig:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
+def _dispatch(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="nm-extract", description="LLM relation extraction over the news corpus")
     p.add_argument("-c", "--config", default=None)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -94,6 +117,9 @@ def main(argv: list[str] | None = None) -> int:
                help="registros por segmento parquet (o WAL protege o que ainda não foi gravado)")
     r.add_argument("--order", choices=("long_first", "short_first", "natural"), default="long_first")
 
+    ab = sub.add_parser("absorb", help="absorve WALs órfãos (VMs já recolhidas) em parquet")
+    ab.add_argument("--prompt-version", default=None)
+
     c = sub.add_parser("collect", help="merge worker shards into parquet + views")
     c.add_argument("--prompt-version", default=None)
     c.add_argument("--prompt", default=None)
@@ -116,14 +142,14 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "bench":
-        pr, oll = _prompt_from(args), _oll_from(args)
+        pr, oll = _resolve(args)
         res = benchmark.run(cfg, pr, oll, args.n)
         print("\nProject cost with:")
         print(f"  python -m newsmanager.extract project --units-per-s {res['units_per_s']:.3f} --vms 4")
         return 0
 
     if args.cmd == "sweep":
-        pr, oll = _prompt_from(args), _oll_from(args)
+        pr, oll = _resolve(args)
         benchmark.sweep(cfg, pr, oll, [int(x) for x in args.levels.split(",")], args.n)
         return 0
 
@@ -132,12 +158,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "run":
-        pr, oll = _prompt_from(args), _oll_from(args)
+        pr, oll = _resolve(args)
         worker.run(
             cfg, pr, oll, args.worker_id, args.workers,
             limit=args.limit, resume=not args.no_resume,
             checkpoint_every=args.checkpoint_every, order=args.order,
         )
+        return 0
+
+    if args.cmd == "absorb":
+        collect.absorb_orphan_wals(cfg, args.prompt_version)
         return 0
 
     if args.cmd == "collect":
@@ -146,6 +176,9 @@ def main(argv: list[str] | None = None) -> int:
             pp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "extraction.txt"
             sp = Path(args.schema) if args.schema else _repo() / "prompts" / "schema.json"
             version = load_prompt(pp, sp, args.max_chars).version
+        # Antes de unir: WALs recolhidos de VMs destruídas ainda não estão em
+        # Parquet, e o collect só enxerga Parquet.
+        collect.absorb_orphan_wals(cfg, version)
         stats = collect.collect(cfg, version)
         if not args.no_views:
             collect.build_views(cfg, version)
@@ -153,6 +186,22 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     return 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Translate a misconfiguration into EXIT_CONFIG.
+
+    `run_worker.sh` restarts a worker that exits 1, because that is what a
+    transient crash looks like. A misconfiguration re-fails identically every
+    time, so it gets its own code and stops the loop instead of spending rented
+    GPU minutes proving the same point a hundred times.
+    """
+    try:
+        return _dispatch(argv)
+    except ConfigError as e:
+        print(f"\n[extract] erro de configuração: {e}", file=sys.stderr)
+        print("[extract] reiniciar não resolve isso -- corrija e rode de novo.", file=sys.stderr)
+        return EXIT_CONFIG
 
 
 if __name__ == "__main__":

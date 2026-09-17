@@ -9,6 +9,8 @@
 # retomável: se a VM cair, rode de novo o mesmo comando.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# shellcheck source=deploy/lib.sh
+source "$(dirname "$0")/lib.sh"
 
 WORKER_ID="${1:-0}"
 N_WORKERS="${2:-1}"
@@ -30,7 +32,7 @@ PY="${PY:-python3}"
 log() { printf '\n\033[1m=== %s ===\033[0m\n' "$*"; }
 
 log "0/6  ambiente"
-$PY --version
+require_python "$PY"
 if command -v nvidia-smi >/dev/null 2>&1; then
   nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
 else
@@ -70,37 +72,71 @@ log "2/6  modelo ${MODEL}"
 ollama pull "${MODEL}"
 curl -sf http://127.0.0.1:11434/api/chat \
   -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"ok\"}],\"stream\":false,\"think\":false,\"keep_alive\":-1}" >/dev/null
-ollama ps
-# Um modelo rodando 100% em CPU é o erro mais caro possível aqui: a run termina,
-# só que ~100x mais devagar, e a hora de GPU é cobrada do mesmo jeito.
-if ollama ps 2>/dev/null | grep -qi "100% cpu"; then
-  echo "ERRO: o modelo caiu inteiro na CPU. Não inicie a extração." >&2
-  echo "      Use uma quantização menor ou uma GPU com mais VRAM." >&2
-  exit 1
-fi
+# Pega também o offload *parcial* ("51%/49% CPU/GPU"), que é o caso comum
+# quando o modelo quase cabe -- e que um teste por "100% CPU" deixava passar.
+require_gpu_offload
 
 log "3/6  pipeline de notícias (download remoto + parquet)"
-# Só o worker 0 constrói o corpus; as demais VMs esperam recebê-lo por rsync/S3.
-if [ "${WORKER_ID}" = "0" ]; then
+# Esta etapa é limitada por rede, não por GPU: ~55 min em que a placa alugada
+# fica ociosa sendo cobrada, e numa frota as outras N-1 VMs esperam por ela.
+# Construa o corpus antes, numa máquina barata, e distribua com
+# `./deploy/gather.sh push <host>...`; aí NM_SKIP_INGEST=1 pula tudo isto.
+if [ -d data/curated/documents ] && [ "${NM_SKIP_INGEST:-}" != "0" ]; then
+  echo "corpus já presente em data/curated/; pulando a ingestão."
+elif [ "${NM_SKIP_INGEST:-}" = "1" ]; then
+  echo "ERRO: NM_SKIP_INGEST=1 mas data/curated/documents não existe." >&2
+  echo "      Envie o corpus do worker 0: ./deploy/gather.sh push <este-host>" >&2
+  exit "${EXIT_CONFIG}"
+elif [ "${WORKER_ID}" = "0" ]; then
+  echo "AVISO: ingerindo 21,6 GB nesta máquina. Se ela tem GPU, você está" >&2
+  echo "       pagando por ~1h de placa ociosa fazendo I/O de rede." >&2
   $PY -m newsmanager all
 else
-  echo "worker ${WORKER_ID}: usando o corpus já sincronizado em data/curated/"
-  [ -d data/curated/documents ] || { echo "data/curated ausente; sincronize do worker 0" >&2; exit 1; }
+  echo "ERRO: worker ${WORKER_ID} não tem data/curated/. Sincronize do worker 0:" >&2
+  echo "      ./deploy/gather.sh push <este-host>" >&2
+  exit "${EXIT_CONFIG}"
 fi
 
 log "4/6  deduplicação -> unidades de extração"
-$PY -m newsmanager.extract units
+# Se as unidades vieram no push, reconstruí-las só gasta tempo de placa parada.
+# E é mais seguro reusá-las: todas as VMs têm de partir do MESMO conjunto, senão
+# as partições discordam e unidades ficam sem dono (ou com dois).
+if [ -d data/curated/extraction_units ] && [ "${NM_FORCE_UNITS:-}" != "1" ]; then
+  echo "unidades já presentes; reusando (NM_FORCE_UNITS=1 força reconstrução)."
+else
+  $PY -m newsmanager.extract units
+fi
 
 log "5/6  extração  (worker ${WORKER_ID}/${N_WORKERS}, modelo ${MODEL})"
 $PY -m newsmanager.extract partition -n "${N_WORKERS}"
 # Sem thinking: em milhões de artigos a cadeia de raciocínio multiplica os
 # tokens de saída sem melhorar o preenchimento de um schema fechado.
+# MAX_CHARS entra no prompt_version, então worker e collect têm de receber o
+# mesmo valor: com valores diferentes o collect procura num diretório que os
+# workers nunca escreveram e a run parece ter produzido nada.
 NM_WORKER_ID="${WORKER_ID}" NM_WORKERS="${N_WORKERS}" \
 NM_MODEL="${MODEL}" NM_CONCURRENCY="${CONCURRENCY}" NM_NUM_CTX="${NUM_CTX}" \
+NM_MAX_CHARS="${MAX_CHARS}" \
   ./deploy/run_worker.sh
 
 log "6/6  consolidação"
-$PY -m newsmanager.extract collect --max-chars "${MAX_CHARS}"
+# Cada VM só tem a própria partição. Consolidar aqui produziria N datasets
+# parciais, cada um anunciando sucesso -- e destruir as VMs perderia (N-1)/N de
+# uma run já paga. Com frota, a consolidação acontece uma vez, no coletor.
+if [ "${N_WORKERS}" -eq 1 ]; then
+  $PY -m newsmanager.extract collect --max-chars "${MAX_CHARS}"
+else
+  cat <<EOM
+
+Worker ${WORKER_ID} terminou a SUA partição (1/${N_WORKERS} do total).
+NÃO destrua esta VM antes de recolher os resultados. Na máquina coletora:
+
+  NM_MAX_CHARS=${MAX_CHARS} ./deploy/gather.sh pull <host-0> ... <host-$((N_WORKERS - 1))>
+
+Isso traz os segmentos de cada VM, absorve os WALs e consolida uma única vez.
+EOM
+  exit 0
+fi
 
 log "pronto"
 echo "duckdb data/news.duckdb"
