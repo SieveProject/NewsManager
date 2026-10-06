@@ -31,11 +31,28 @@ from .config import CSV_HEADER, Config
 from .shard import Manifest, Shard
 
 
+def usable_cpus() -> int:
+    """CPUs this process may actually use, honouring container CPU quotas.
+
+    os.cpu_count() and DuckDB's default both report the *host*: 256 on the
+    rented 4090, whose container quota is ~30. DuckDB then opened 256 threads,
+    each buffering long article text, and `validate` hit OutOfMemory at 4 GB
+    -- 16 MB per thread. On a laptop the two numbers agree, so it never showed.
+    """
+    n = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else (os.cpu_count() or 1)
+    try:  # cgroup v2: "<quota> <period>" or "max <period>"
+        quota, period = Path("/sys/fs/cgroup/cpu.max").read_text().split()
+        if quota != "max":
+            n = min(n, max(1, int(quota) // int(period)))
+    except (OSError, ValueError):
+        pass
+    return n
+
+
 def connect(cfg: Config, *, memory_limit: str | None = None, threads: int | None = None) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
     con.execute(f"SET memory_limit='{memory_limit or cfg.memory_limit}'")
-    if threads:
-        con.execute(f"SET threads={threads}")
+    con.execute(f"SET threads={threads or usable_cpus()}")
     # The source is sorted by symbol and we re-sort during curate, so holding
     # rows back to preserve arrival order only costs memory on a 23 GB scan.
     con.execute("SET preserve_insertion_order=false")
@@ -178,7 +195,7 @@ def run_stream(cfg: Config) -> dict:
     source.verify(cfg.url, cfg.expected_bytes, cfg.expected_etag)
     out = cfg.raw / "part-stream.parquet"
     tmp_out = out.with_suffix(".parquet.partial")
-    con = connect(cfg, memory_limit="8GB", threads=os.cpu_count())
+    con = connect(cfg, memory_limit="8GB")
     con.execute("SET http_retries=8; SET http_retry_wait_ms=2000; SET http_timeout=600000")
     cols = ", ".join(f'"{c}"' for c in cfg.ingest_columns)
     t0 = time.time()
