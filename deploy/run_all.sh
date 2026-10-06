@@ -119,6 +119,6 @@ EOM
 fi
 
 log "pronto"
-echo "duckdb data/news.duckdb"
+echo "duckdb data/corpus.duckdb"
 echo "  SELECT published_at, agent_a, relation_type, direction, strength, agent_b"
 echo "  FROM news.relations ORDER BY published_at DESC LIMIT 20;"

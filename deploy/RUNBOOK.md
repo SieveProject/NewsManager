@@ -129,10 +129,10 @@ linearly, so rent for your deadline, not your budget.
 ```bash
 python3 -m newsmanager.extract run --limit 200 --worker-id 0 --workers 1
 python3 -m newsmanager.extract collect
-duckdb data/news.duckdb -c "
+duckdb data/corpus.duckdb -c "
   SELECT published_at, agent_a, relation_type, direction, strength, agent_b
   FROM news.relations ORDER BY random() LIMIT 25;"
-duckdb data/news.duckdb -c "
+duckdb data/corpus.duckdb -c "
   SELECT status, count(*), round(avg(latency_s),2) FROM news.extraction_runs GROUP BY 1;"
 ```
 
@@ -212,9 +212,9 @@ get results off the machines early.
 ### Verify coverage, then destroy
 
 ```bash
-duckdb data/news.duckdb -c "
+duckdb data/corpus.duckdb -c "
   SELECT status, count(*) FROM news.extraction_runs GROUP BY 1;"
-duckdb data/news.duckdb -c "
+duckdb data/corpus.duckdb -c "
   SELECT count(*) AS units_total FROM read_parquet('data/curated/extraction_units/**/*.parquet');"
 ```
 

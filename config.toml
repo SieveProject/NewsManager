@@ -14,7 +14,10 @@ manifest  = "data/manifest.json"
 raw       = "data/raw"        # bronze: parquet shards, 1:1 with CSV rows
 curated   = "data/curated"    # silver: deduped, typed, partitioned
 marts     = "data/marts"      # gold: analysis-ready aggregates
-db        = "data/news.duckdb"
+# Not "news.duckdb": DuckDB names the catalog after the file, and the views live
+# in a schema called `news`. Since DuckDB 1.5 `news.documents` is then an
+# ambiguous catalog-or-schema reference and `serve` fails.
+db        = "data/corpus.duckdb"
 tmp       = "data/tmp"        # transient shard bytes, deleted after each shard
 
 [ingest]

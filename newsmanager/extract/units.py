@@ -40,6 +40,15 @@ from ..ingest import connect, heavy_memory_limit
 # risk of collapsing two genuinely different articles.
 _NORM = r"lower(regexp_replace(regexp_replace(body, '[^\w\s]', '', 'g'), '\s+', ' ', 'g'))"
 
+# Sources kept in `documents` but never sent to the LLM. lenta.ru is a Russian
+# general-news portal bundled into the FNSPID CSV: 713,519 units (30.7% of all)
+# with zero tickers -- church fires, Moscow weather, Ukrainian politics --
+# making up nearly all of 1999-2009. Excluding it is a scope decision for the
+# thesis (Nasdaq news), not a quality filter; drop it from this tuple to extract
+# it anyway.
+EXCLUDED_DOMAINS: tuple[str, ...] = ("lenta.ru",)
+_DOMAIN = r"regexp_extract(lower(d.url), '^https?://(?:www\.)?([^/:]+)', 1)"
+
 
 def build(cfg: Config, *, min_chars: int | None = None, near_dedup: bool = True) -> dict:
     """Write data/curated/extraction_units/ -- one row per LLM call to make."""
@@ -70,6 +79,10 @@ def build(cfg: Config, *, min_chars: int | None = None, near_dedup: bool = True)
     )
 
     key_expr = f"md5({_NORM})" if near_dedup else "doc_id"
+    excluded_sql = (
+        f"coalesce({_DOMAIN}, '') NOT IN ({', '.join(repr(d) for d in EXCLUDED_DOMAINS)})"
+        if EXCLUDED_DOMAINS else "TRUE"
+    )
 
     con.execute(
         f"""
@@ -80,9 +93,14 @@ def build(cfg: Config, *, min_chars: int | None = None, near_dedup: bool = True)
         FROM read_parquet('{docs}') d
         LEFT JOIN doc_syms s USING (doc_id)
         WHERE d.body IS NOT NULL AND d.body_chars >= {min_chars}
+          AND {excluded_sql}
         """
     )
     n_eligible = con.execute("SELECT count(*) FROM eligible").fetchone()[0]
+    n_excluded = con.execute(
+        f"""SELECT count(*) FROM read_parquet('{docs}') d
+            WHERE d.body IS NOT NULL AND d.body_chars >= {min_chars} AND NOT ({excluded_sql})"""
+    ).fetchone()[0]
 
     # One unit per distinct text. The representative doc is chosen
     # deterministically (earliest publication, then lowest doc_id) so the unit
@@ -127,11 +145,12 @@ def build(cfg: Config, *, min_chars: int | None = None, near_dedup: bool = True)
     ).fetchone()
     con.close()
 
-    dropped = n_docs - n_eligible
+    dropped = n_docs - n_eligible - n_excluded
     collapsed = n_eligible - n_units
     print(
         f"[units] {n_docs:,} documents\n"
         f"        -{dropped:,} below {min_chars} chars or empty\n"
+        f"        -{n_excluded:,} from excluded sources {list(EXCLUDED_DOMAINS)}\n"
         f"        -{collapsed:,} collapsed as duplicate text "
         f"({100*collapsed/n_eligible if n_eligible else 0:.1f}% of eligible)\n"
         f"        = {n_units:,} extraction units ({100*n_units/n_docs if n_docs else 0:.1f}% of documents)"
@@ -142,6 +161,7 @@ def build(cfg: Config, *, min_chars: int | None = None, near_dedup: bool = True)
         "eligible": n_eligible,
         "units": n_units,
         "dropped_short": dropped,
+        "excluded_source": n_excluded,
         "collapsed_duplicate": collapsed,
         "total_chars": stats[0],
         "mean_chars": stats[1],

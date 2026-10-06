@@ -47,7 +47,9 @@ class OllamaConfig:
     num_ctx: int = 4096
     num_predict: int = 1024
     temperature: float = 0.0
-    keep_alive: str = "-1"
+    # Integer, not "-1": Ollama parses a string as a Go duration and rejects one
+    # without a unit ("time: missing unit in duration") -- every request 400'd.
+    keep_alive: int = -1
     concurrency: int = 8
     timeout_s: float = 300.0
     retries: int = 3
@@ -60,6 +62,19 @@ class OllamaConfig:
 
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
+
+# DeepSeek-R1 distills reason no matter what `think: false` says: on Ollama
+# 0.35.1, deepseek-r1:14b filled `thinking` and returned empty content with
+# think=false, with and without a schema -- every token of num_predict spent
+# reasoning. Pre-filling an *empty* think block is what makes them answer
+# directly; measured: 0 thinking tokens and schema-valid JSON in 62 tokens.
+# This is the model's own chat template (`ollama show deepseek-r1:14b
+# --template`) for one user turn, sent raw so the prefill survives.
+_R1_RAW = "<｜begin▁of▁sentence｜><｜User｜>{prompt}<｜Assistant｜><think>\n\n</think>\n\n"
+
+
+def _is_r1(model: str) -> bool:
+    return model.split(":", 1)[0].rsplit("/", 1)[-1] == "deepseek-r1"
 
 
 def _extract_content(data: dict) -> str:
@@ -118,15 +133,29 @@ class OllamaClient:
                   "options": {"num_predict": 1, "num_ctx": self.cfg.num_ctx}},
         )
 
-    async def generate(self, prompt: str, schema: dict | None = None) -> GenerationResult:
-        # /api/chat em vez de /api/generate: o parâmetro `think` só é suportado
-        # no endpoint de chat, e desligar o raciocínio é o que mantém o custo
-        # de saída sob controle em modelos DeepSeek/Qwen3.
-        payload = {
+    def _request(self, prompt: str) -> tuple[str, dict]:
+        """Endpoint and base payload for one prompt.
+
+        /api/chat with `think` for models that honour it; for DeepSeek-R1 with
+        thinking off, /api/generate in raw mode with an empty think block (see
+        _R1_RAW), because R1 ignores `think: false`.
+        """
+        if _is_r1(self.cfg.model) and not self.cfg.think:
+            return "/api/generate", {
+                "model": self.cfg.model,
+                "prompt": _R1_RAW.format(prompt=prompt),
+                "raw": True,
+            }
+        return "/api/chat", {
             "model": self.cfg.model,
             "messages": [{"role": "user", "content": prompt}],
-            "stream": False,
             "think": self.cfg.think,
+        }
+
+    async def generate(self, prompt: str, schema: dict | None = None) -> GenerationResult:
+        endpoint, payload = self._request(prompt)
+        payload.update({
+            "stream": False,
             "keep_alive": self.cfg.keep_alive,
             "options": {
                 "num_ctx": self.cfg.num_ctx,
@@ -136,7 +165,7 @@ class OllamaClient:
                 "temperature": self.cfg.temperature,
                 **self.cfg.extra_options,
             },
-        }
+        })
         if schema is not None:
             # Constrained decoding. The model cannot emit malformed JSON, which
             # removes the single largest source of failed rows in batch extraction.
@@ -147,7 +176,7 @@ class OllamaClient:
         async with self._sem:
             for attempt in range(1, self.cfg.retries + 1):
                 try:
-                    r = await self._client.post("/api/chat", json=payload)
+                    r = await self._client.post(endpoint, json=payload)
                     if r.status_code >= 500:
                         last_err = f"http {r.status_code}: {r.text[:200]}"
                         await asyncio.sleep(min(2**attempt, 20))
@@ -177,7 +206,9 @@ class OllamaClient:
                     if attempt < self.cfg.retries:
                         await asyncio.sleep(min(2**attempt, 20))
                 except httpx.HTTPStatusError as e:
-                    return GenerationResult(ok=False, error=f"http {e.response.status_code}",
+                    # Keep the server's reason: a bare "http 400" hid a bad
+                    # keep_alive behind 128 identical failures in the sweep.
+                    return GenerationResult(ok=False, error=f"http {e.response.status_code}: {e.response.text[:200]}",
                                             latency_s=time.time() - t0, attempts=attempt)
         return GenerationResult(ok=False, error=last_err or "exhausted retries",
                                 latency_s=time.time() - t0, attempts=self.cfg.retries)

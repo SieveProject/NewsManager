@@ -55,6 +55,13 @@ class Handler(BaseHTTPRequestHandler):
             self._json(503, {"error": "mock overload"})
             return
 
+        # Like real Ollama: a string keep_alive is a Go duration and needs a
+        # unit. The client once sent "-1" and every real request 400'd while
+        # this mock accepted it.
+        ka = req.get("keep_alive")
+        if isinstance(ka, str) and ka.lstrip("-").isdigit():
+            self._json(400, {"error": f'time: missing unit in duration "{ka}"'})
+            return
         msgs = req.get("messages") or []
         prompt = req.get("prompt") or (msgs[-1]["content"] if msgs else "")
         # Deterministic per article so re-runs are comparable.

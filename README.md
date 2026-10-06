@@ -9,7 +9,7 @@ ranges and writes compact Parquet instead.
 ```bash
 pip install -r requirements.txt
 python -m newsmanager all          # probe → plan → ingest → curate → validate → serve
-duckdb data/news.duckdb            # then query it
+duckdb data/corpus.duckdb            # then query it
 ```
 
 ---
@@ -57,6 +57,15 @@ extractive-summary columns populated and `Publisher`/`Author` **100% empty**.
 Older rows (toward the end of the file) are Bloomberg-style wire copy with the
 summary columns empty. Expect era-dependent nulls; don't read them as corruption.
 
+**5. Past ~17.7 GB there is a third layout — and a Russian news portal.** The
+index column goes empty (records start with `,<timestamp>,`), 63% of all rows
+carry no ticker and 76% have no article body (headline-only). Bundled in are
+799,037 articles from **lenta.ru**, a Russian general-news site (weather,
+politics, crime) with zero tickers, covering nearly all of 1999–2009. They stay
+in `documents`, but `units` excludes them from LLM extraction
+(`EXCLUDED_DOMAINS` in `newsmanager/extract/units.py`): that cut the job from
+2,321,501 to **1,607,982** calls.
+
 ---
 
 ## Sizing — read this before running
@@ -92,7 +101,7 @@ plan      find record-safe shard boundaries → data/manifest.json   (~180 MB of
 ingest    fetch shards → data/raw/*.parquet                        (parallel, resumable)
 curate    type, dedup, partition → data/curated/{documents,mentions,summaries}
 validate  data-quality gate (run against raw and curated)
-serve     build data/news.duckdb — views over Parquet, not copies
+serve     build data/corpus.duckdb — views over Parquet, not copies
 ```
 
 Each is a subcommand: `python -m newsmanager <stage>`.
@@ -112,7 +121,7 @@ if you prefer that tradeoff. It cannot resume.
 data/raw/          bronze — 1:1 with the CSV, zero transformation
 data/curated/      silver — typed, deduplicated, partitioned by year
 data/marts/        gold   — small aggregates for the analysis loop
-data/news.duckdb   views over the above (a few hundred KB, not a copy)
+data/corpus.duckdb   views over the above (a few hundred KB, not a copy)
 ```
 
 Raw stays untransformed on purpose: curation bugs get fixed with a `curate`
@@ -219,13 +228,18 @@ lento** na prática. Meça com `sweep` antes de decidir.
 
 ### O thinking vem ligado e precisa ser desligado
 
-R1 é um modelo de raciocínio e a Ollama **habilita o thinking por padrão**. Numa
-extração de milhões de artigos a cadeia de raciocínio multiplica os tokens de
-saída — que é exatamente o que se paga por hora de GPU — sem melhorar o
-preenchimento de um schema fechado. O pipeline envia `think: false` via
-`/api/chat` (o `/api/generate` não aceita esse parâmetro) e ainda remove
-qualquer bloco `<think>` que escape, para que um resíduo de raciocínio não
-derrube o parse do lote inteiro. Use `--think` só se quiser o contrário.
+R1 é um modelo de raciocínio. Numa extração de milhões de artigos a cadeia de
+raciocínio multiplica os tokens de saída — que é exatamente o que se paga por
+hora de GPU — sem melhorar o preenchimento de um schema fechado.
+
+**`think: false` não basta.** Medido no Ollama 0.35.1: o `deepseek-r1:14b`
+ignora o parâmetro, preenche o campo `thinking` e devolve a resposta vazia
+quando estoura `num_predict`. Para modelos `deepseek-r1` o cliente usa então o
+`/api/generate` em modo `raw`, com o template de chat do próprio modelo e um
+bloco `<think></think>` **vazio** já preenchido — o modelo responde direto.
+Medido: zero tokens de raciocínio e JSON válido no schema. Outros modelos seguem
+pelo `/api/chat` com `think: false`. Qualquer `<think>` que ainda escape é
+removido antes do parse. Use `--think` só se quiser o contrário.
 
 ## O prompt
 
