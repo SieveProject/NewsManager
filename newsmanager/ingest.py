@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import re
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -49,10 +50,28 @@ def usable_cpus() -> int:
     return n
 
 
+# Each scan thread holds a whole decompressed row group. One raw shard is one
+# row group whose Article column alone is ~172 MB, so a thread needs well over
+# that. Measured on the VM, 4 GB: 30 threads OOM, 8 threads fine in 2.2 s.
+_MIN_BYTES_PER_THREAD = 512 * 2**20
+
+_UNITS = {"KB": 2**10, "MB": 2**20, "GB": 2**30, "TB": 2**40}
+
+
+def _bytes(limit: str) -> int:
+    m = re.fullmatch(r"\s*([\d.]+)\s*([KMGT]i?B)\s*", limit, re.IGNORECASE)
+    if not m:
+        raise ValueError(f"unrecognised memory limit {limit!r}")
+    return int(float(m.group(1)) * _UNITS[m.group(2).upper().replace("IB", "B")])
+
+
 def connect(cfg: Config, *, memory_limit: str | None = None, threads: int | None = None) -> duckdb.DuckDBPyConnection:
+    limit = memory_limit or cfg.memory_limit
+    if threads is None:
+        threads = max(1, min(usable_cpus(), _bytes(limit) // _MIN_BYTES_PER_THREAD))
     con = duckdb.connect()
-    con.execute(f"SET memory_limit='{memory_limit or cfg.memory_limit}'")
-    con.execute(f"SET threads={threads or usable_cpus()}")
+    con.execute(f"SET memory_limit='{limit}'")
+    con.execute(f"SET threads={threads}")
     # The source is sorted by symbol and we re-sort during curate, so holding
     # rows back to preserve arrival order only costs memory on a 23 GB scan.
     con.execute("SET preserve_insertion_order=false")
