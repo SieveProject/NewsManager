@@ -58,7 +58,19 @@ class OllamaConfig:
     # multiplica os tokens de saída -- que é exatamente o que se paga por hora
     # de GPU -- sem melhorar um preenchimento de schema. Desligado por padrão.
     think: bool = False
+    # CPU threads for the llama runner. Ollama defaults to half the *host's*
+    # cores -- 128 on the rented box -- inside a ~30-CPU container quota, and
+    # the throttling capped batched decode at ~165 tok/s total no matter how
+    # many requests ran. Measured on the 4090 with 16 in flight: 128 threads
+    # 169 tok/s, 8 threads 543 tok/s, 24 threads 539 tok/s. None = derive from
+    # this machine's usable CPUs (assumes Ollama runs on the same box).
+    num_thread: int | None = None
     extra_options: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if self.num_thread is None:
+            from ..ingest import usable_cpus  # local: keeps client importable alone
+            self.num_thread = max(1, min(usable_cpus(), 16))
 
 
 _THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL)
@@ -130,7 +142,8 @@ class OllamaClient:
                   # Sem num_ctx o modelo carrega no contexto padrão do servidor
                   # (32k numa placa de 24 GB) e a primeira requisição real
                   # força um recarregamento -- ou, pior, ele transborda pra CPU.
-                  "options": {"num_predict": 1, "num_ctx": self.cfg.num_ctx}},
+                  "options": {"num_predict": 1, "num_ctx": self.cfg.num_ctx,
+                              "num_thread": self.cfg.num_thread}},
         )
 
     def _request(self, prompt: str) -> tuple[str, dict]:
@@ -163,6 +176,7 @@ class OllamaClient:
                 # Greedy decoding: this is extraction, not generation. Also makes
                 # a re-run of the same article reproducible.
                 "temperature": self.cfg.temperature,
+                "num_thread": self.cfg.num_thread,
                 **self.cfg.extra_options,
             },
         })

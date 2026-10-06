@@ -6,15 +6,40 @@
       "items": {
         "type": "object",
         "properties": {
-          "agent_a": { "type": "string" },
-          "agent_b": { "type": "string" },
-          "relation_type": { "type": "string" },
-          "direction": { "type": "string", "enum": ["positive", "negative"] },
-          "strength": { "type": "number", "minimum": 0, "maximum": 1 }
+          "agent_a": {
+            "type": "string"
+          },
+          "agent_b": {
+            "type": "string"
+          },
+          "relation_type": {
+            "type": "string"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative"
+            ]
+          },
+          "strength": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
         },
-        "required": ["agent_a", "agent_b", "relation_type", "direction", "strength"]
-      }
+        "required": [
+          "agent_a",
+          "agent_b",
+          "relation_type",
+          "direction",
+          "strength"
+        ]
+      },
+      "maxItems": 8
     }
   },
-  "required": ["tuples"]
+  "required": [
+    "tuples"
+  ]
 }

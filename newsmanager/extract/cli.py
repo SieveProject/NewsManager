@@ -89,6 +89,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
     u = sub.add_parser("units", help="build the deduplicated list of LLM calls to make")
     u.add_argument("--min-chars", type=int, default=None)
     u.add_argument("--no-near-dedup", action="store_true")
+    u.add_argument("--sample-frac", type=float, default=None,
+                   help="keep a deterministic, nested hash sample of units (e.g. 0.1)")
 
     pa = sub.add_parser("partition", help="show per-worker load for N machines")
     pa.add_argument("-n", "--workers", type=int, required=True)
@@ -132,7 +134,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
     cfg.ensure_dirs()
 
     if args.cmd == "units":
-        units.build(cfg, min_chars=args.min_chars, near_dedup=not args.no_near_dedup)
+        units.build(cfg, min_chars=args.min_chars, near_dedup=not args.no_near_dedup,
+                    sample_frac=args.sample_frac)
         return 0
 
     if args.cmd == "partition":

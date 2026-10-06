@@ -46,6 +46,9 @@ RULES
 - Use the ticker symbol when the article gives one; otherwise use the most
   specific name the article uses. Be consistent within a single article.
 - Extract only relationships the article itself supports.
+- Return AT MOST 8 tuples. If the article supports more, keep the 8 with the
+  highest strength -- the most explicit and material effects. Never pad to
+  reach 8; fewer is fine.
 - If the article contains no relationship between two economic agents, return
   an empty list. An empty list is a valid and correct answer.
 
