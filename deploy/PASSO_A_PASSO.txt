@@ -70,8 +70,11 @@ PORTÃO: o script aborta se qualquer parte do modelo cair na CPU.
 Não contorne isso.
 
 
-4. CONSTRUIR O CORPUS NA VM (~1 h, limitado pela rede)
-------------------------------------------------------
+4. CONSTRUIR O CORPUS NA VM (~15 min numa VM com boa rede)
+----------------------------------------------------------
+
+O source ~/worker.env do passo 3 já define NM_HEAVY_MEMORY (40% da RAM).
+Sem ele, curate/units usam 9 GB e estouram a memória no ano de 2023.
 
   python3 -m newsmanager probe
   python3 -m newsmanager all

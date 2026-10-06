@@ -245,6 +245,7 @@ SELECT * FROM news.relations_by_symbol WHERE symbol = 'NVDA';
 | `NM_CONCURRENCY` | `8` | match the server's `OLLAMA_NUM_PARALLEL` |
 | `NM_MAX_CHARS` | `8000` | **hashed into `prompt_version`** — same value for run and collect |
 | `NM_NUM_CTX` | derived | leave unset; derived from `max_chars` + template size |
+| `NM_HEAVY_MEMORY` | `9GB` | DuckDB budget for `curate`/`units`; bootstrap sets 40% of RAM. 2023 alone is ~6.3 GB of text |
 | `PY` | `.venv/bin/python` | interpreter the scripts use; set up by bootstrap/run_all |
 | `NM_SKIP_INGEST` | — | `1` = corpus arrived by push; never ingest here |
 | `NM_FORCE_UNITS` | — | `1` = rebuild units instead of reusing the pushed ones |

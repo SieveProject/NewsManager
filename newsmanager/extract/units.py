@@ -32,7 +32,7 @@ import time
 from pathlib import Path
 
 from ..config import Config
-from ..ingest import connect
+from ..ingest import connect, heavy_memory_limit
 
 # Normalisation for the near-duplicate key: fold case, collapse all whitespace,
 # drop punctuation. Catches re-encodings and whitespace-mangled republications
@@ -51,7 +51,7 @@ def build(cfg: Config, *, min_chars: int | None = None, near_dedup: bool = True)
     min_chars = cfg.min_article_chars if min_chars is None else min_chars
     out_dir = cfg.curated / "extraction_units"
     out_dir.mkdir(parents=True, exist_ok=True)
-    con = connect(cfg, memory_limit="9GB")
+    con = connect(cfg, memory_limit=heavy_memory_limit())
 
     n_docs = con.execute(f"SELECT count(*) FROM read_parquet('{docs}')").fetchone()[0]
     t0 = time.time()

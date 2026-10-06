@@ -58,6 +58,14 @@ curl -sf http://127.0.0.1:11434/api/generate \
 # when the model *almost* fits and which a test for "100% CPU" let through.
 require_gpu_offload
 
+# curate/units hold a whole year of article text (2023 alone is ~6.3 GB); the
+# 9 GB default is sized for a 16 GB laptop and OOMs here. Give them 40% of what
+# this container may use -- cgroup limit first, since /proc/meminfo shows the host.
+mem_bytes="$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo max)"
+[ "${mem_bytes}" = "max" ] && mem_bytes="$(awk '/MemTotal/{print $2*1024}' /proc/meminfo)"
+HEAVY_GB=$(( mem_bytes * 4 / 10 / 1024 / 1024 / 1024 ))
+[ "${HEAVY_GB}" -lt 9 ] && HEAVY_GB=9
+
 cat > "$HOME/worker.env" <<EOF
 export NM_WORKER_ID=${WORKER_ID}
 export NM_WORKERS=${N_WORKERS}
@@ -66,6 +74,8 @@ export NM_CONCURRENCY=${NUM_PARALLEL}
 # Entra no prompt_version: o worker e o collect precisam do mesmo valor.
 export NM_MAX_CHARS=${MAX_CHARS}
 export OLLAMA_HOST=http://127.0.0.1:11434
+# Orçamento de memória do curate/units (40% da RAM do container).
+export NM_HEAVY_MEMORY=${HEAVY_GB}GB
 # venv primeiro no PATH: "python3 -m newsmanager..." do RUNBOOK usa as deps dele.
 export PATH="$(pwd)/.venv/bin:\$PATH"
 export PY="$(pwd)/.venv/bin/python"

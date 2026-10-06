@@ -51,9 +51,19 @@ def usable_cpus() -> int:
 
 
 # Each scan thread holds a whole decompressed row group. One raw shard is one
-# row group whose Article column alone is ~172 MB, so a thread needs well over
-# that. Measured on the VM, 4 GB: 30 threads OOM, 8 threads fine in 2.2 s.
-_MIN_BYTES_PER_THREAD = 512 * 2**20
+# row group whose Article column alone is ~172 MB (~350 MB with the summaries),
+# so a thread needs well over that. Measured on the VM: validate at 4 GB OOMed
+# with 30 threads; curate at 9 GB OOMed with 18.
+_MIN_BYTES_PER_THREAD = 2**30
+
+
+def heavy_memory_limit() -> str:
+    """Budget for curate/units, which hold a whole year of article text.
+
+    9 GB suits the 16 GB laptop this was built on. 2023 alone is ~6.3 GB of
+    text, so on a big box raise it: NM_HEAVY_MEMORY=64GB.
+    """
+    return os.environ.get("NM_HEAVY_MEMORY", "9GB")
 
 _UNITS = {"KB": 2**10, "MB": 2**20, "GB": 2**30, "TB": 2**40}
 

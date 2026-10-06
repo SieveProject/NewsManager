@@ -33,7 +33,7 @@ import time
 from pathlib import Path
 
 from .config import SUMMARY_COLUMNS, Config
-from .ingest import connect
+from .ingest import connect, heavy_memory_limit
 
 # The Date column is 'YYYY-MM-DD HH:MM:SS UTC'. Trailing ' UTC' is stripped
 # rather than parsed as a zone: it is constant across the file, and TRY_STRPTIME
@@ -75,7 +75,7 @@ def run(cfg: Config) -> dict:
     if not list(Path(cfg.raw).glob("*.parquet")):
         raise RuntimeError(f"no raw shards in {cfg.raw}; run `nm ingest` first")
 
-    con = connect(cfg, memory_limit="9GB")
+    con = connect(cfg, memory_limit=heavy_memory_limit())
     years = _years(con, cfg)
     if not years:
         raise RuntimeError("no parseable dates in raw layer")
