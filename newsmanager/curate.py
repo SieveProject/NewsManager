@@ -119,6 +119,18 @@ def run(cfg: Config) -> dict:
         )
         rows_in = con.execute("SELECT count(*) FROM stg").fetchone()[0]
 
+        # Per-year dedup assumes copies of a story share its publication year.
+        # On the full corpus 73 body-hash doc_ids (no URL) broke that -- e.g. a
+        # piece dated 2015-11-19 re-dumped on 2016-01-03 -- and validate failed
+        # on duplicated doc_id. A document already written by an earlier year
+        # is not written again; its mentions still are, pointing at that doc.
+        # Only years < this one are read, so a stale file from a previous run
+        # of *this* year can never filter it out.
+        prev = [str(docs_dir / f"year={y}.parquet") for y in years if y < year]
+        unseen = (
+            f"doc_id NOT IN (SELECT doc_id FROM read_parquet({prev!r}))" if prev else "TRUE"
+        )
+
         # One row per article. The picked representative is deterministic:
         # earliest timestamp, then lowest symbol, so a rebuild is byte-stable.
         con.execute(
@@ -137,7 +149,7 @@ def run(cfg: Config) -> dict:
                             PARTITION BY doc_id
                             ORDER BY published_at NULLS LAST, symbol NULLS LAST
                         ) AS rn
-                    FROM stg
+                    FROM stg WHERE {unseen}
                 )
                 WHERE rn = 1
             ) TO '{docs_dir / f"year={year}"}.parquet'
@@ -163,7 +175,7 @@ def run(cfg: Config) -> dict:
                     SELECT doc_id, {cols} FROM (
                         SELECT doc_id, {cols},
                                row_number() OVER (PARTITION BY doc_id ORDER BY published_at NULLS LAST) rn
-                        FROM stg
+                        FROM stg WHERE {unseen}
                     ) WHERE rn = 1
                 ) TO '{summ_dir / f"year={year}"}.parquet'
                   (FORMAT parquet, COMPRESSION '{cfg.compression}', ROW_GROUP_SIZE 50000)

@@ -131,10 +131,11 @@ summaries   doc_id, lsa_/luhn_/textrank_/lexrank_summary  -- derived, kept separ
 URL is the stronger key: syndicated copies under different tickers share one URL,
 whereas a pure content hash breaks on trivial whitespace differences.
 
-Dedup runs **one year at a time**. Duplicates of a story always share its
-publication date, so they never straddle a year boundary — per-year processing is
-exact here, not an approximation, and it caps peak memory at the largest single
-year instead of the whole corpus.
+Dedup runs **one year at a time**, which caps peak memory at the largest single
+year instead of the whole corpus. Copies of a story almost always share its
+publication date — but on the full corpus 73 URL-less articles were re-dumped
+across a year boundary (2015-11 → 2016-01-03). Each year therefore skips any
+`doc_id` an earlier year already wrote, keeping `doc_id` unique corpus-wide.
 
 ### Querying
 
