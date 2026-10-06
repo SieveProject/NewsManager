@@ -32,7 +32,13 @@ from . import source
 from .config import Config
 
 # Anchored on a newline so the match start is always the byte before a record.
-RECORD_ANCHOR = re.compile(rb"\n\d+\.\d+,\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[^,\n]{0,12},")
+#
+# The index field is optional: from ~17.7 GB to the end (the last 21 of 87
+# shards) it is empty and records start with ",<timestamp>,". The original
+# validation sampled 2/8/15 GB and never saw that tail; requiring a float there
+# found no boundary at all past 17.7 GB. Strict-mode parses of shards on both
+# sides of the change (65, 66, 75, 86) gave zero misaligned rows.
+RECORD_ANCHOR = re.compile(rb"\n(?:\d+\.\d+)?,\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[^,\n]{0,12},")
 
 
 @dataclass

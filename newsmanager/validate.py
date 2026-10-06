@@ -72,12 +72,22 @@ def validate_raw(cfg: Config) -> list[Check]:
     nosym = con.execute(
         f"""SELECT count(*) FROM read_parquet('{glob}') WHERE NULLIF(TRIM("Stock_symbol"),'') IS NULL"""
     ).fetchone()[0]
-    checks.append(Check("symbol_present", nosym == 0, f"{nosym:,} rows without a symbol"))
+    # Informational, not a gate: the Bloomberg-era tail (2006-2013) carries
+    # general-market stories with no ticker at all. They stay in `documents`
+    # (and go to the LLM); only `mentions` skips them.
+    checks.append(Check("symbol_present", True,
+                        f"{nosym:,} rows without a symbol ({100 * nosym / n if n else 0:.1f}%)",
+                        warn_only=True))
 
     nobody = con.execute(
         f"""SELECT count(*) FROM read_parquet('{glob}') WHERE NULLIF("Article", '') IS NULL"""
     ).fetchone()[0]
-    checks.append(Check("body_present", 100 * nobody / n < 5 if n else False, f"{nobody:,} rows with empty Article"))
+    # Informational: most of the file is headline-only rows (measured: >99% of
+    # one 256 MiB shard). A 5% gate here failed every full build, an hour in.
+    # Bodyless rows are excluded from extraction by `units`, not dropped here.
+    checks.append(Check("body_present", True,
+                        f"{nobody:,} rows with empty Article ({100 * nobody / n if n else 0:.1f}%)",
+                        warn_only=True))
 
     con.close()
     return checks
@@ -111,10 +121,16 @@ def validate_curated(cfg: Config) -> list[Check]:
     # Raw rows and mentions are both one-per-(article,ticker); they should agree
     # up to exact-duplicate rows removed by DISTINCT.
     if list(Path(cfg.raw).glob("*.parquet")):
-        nraw = con.execute(f"SELECT count(*) FROM read_parquet('{cfg.raw / '*.parquet'}')").fetchone()[0]
+        # Only rows with a ticker can become mentions; counting tickerless rows
+        # in the denominator failed the check on the full corpus.
+        nraw = con.execute(
+            f"""SELECT count(*) FROM read_parquet('{cfg.raw / '*.parquet'}')
+                WHERE NULLIF(TRIM("Stock_symbol"), '') IS NOT NULL"""
+        ).fetchone()[0]
         keep = 100 * nment / nraw if nraw else 0
         checks.append(
-            Check("mention_coverage", keep > 90, f"{nment:,}/{nraw:,} raw rows retained as mentions ({keep:.1f}%)")
+            Check("mention_coverage", keep > 90,
+                  f"{nment:,}/{nraw:,} raw rows with a symbol retained as mentions ({keep:.1f}%)")
         )
 
     # On the full corpus this lands near 0.78; measured duplication over the
