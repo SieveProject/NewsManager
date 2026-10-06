@@ -43,7 +43,7 @@ class GenerationResult:
 @dataclass
 class OllamaConfig:
     host: str = "http://127.0.0.1:11434"
-    model: str = "deepseek-r1:14b"
+    model: str = "qwen2.5:14b-instruct"
     num_ctx: int = 4096
     num_predict: int = 1024
     temperature: float = 0.0

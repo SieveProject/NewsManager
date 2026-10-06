@@ -207,39 +207,35 @@ novo** e ele retoma de onde parou.
 
 ## Escolha do modelo — leia antes de alugar
 
-**`deepseek-v4-flash` e `deepseek-v4-pro` não servem aqui.** São os DeepSeek mais
-recentes do catálogo, mas todas as tags publicadas são `:cloud` — rodam na
-infraestrutura da Ollama, não na GPU que você alugou. Pagar por GPU para usá-los
-é dinheiro jogado fora.
+**Padrão: `qwen2.5:14b-instruct`** — modelo de instrução, sem raciocínio. Nos
+mesmos 200 artigos, com o mesmo prompt, foi comparado ao `deepseek-r1:14b`:
 
-Os DeepSeek com **pesos locais de verdade** são a família `r1`:
-
-| tag | tamanho | onde cabe |
+| | deepseek-r1:14b | **qwen2.5:14b-instruct** |
 |---|---|---|
-| `deepseek-r1:7b`  | 4.7 GB | 12 GB VRAM |
-| **`deepseek-r1:14b`** | **9 GB** | **24 GB — padrão do pipeline** |
-| `deepseek-r1:32b` | 20 GB | 24 GB aperta; ideal em 48 GB+ |
-| `deepseek-r1:70b` | 43 GB | 80 GB |
+| tuplas agente→agente válidas (40 sorteadas) | ~1/4 | **~2/3** |
+| artigos preenchidos até o teto de 8 | 30% | **5%** |
+| métrica como agente (EBITDA, receita…) | 7,2% | **2,8%** |
+| grupo genérico ("customers", "investors") | 10,2% | **4,1%** |
+| velocidade numa RTX 4090 | 1,19/s | **1,65/s** |
 
-O padrão é `deepseek-r1:14b` porque, numa placa de 24 GB, 9 GB de pesos deixam
-KV cache para ~8 requisições concorrentes — e é do batching que vem o
-throughput. O `:32b` cabe, mas sufoca a concorrência e costuma sair **mais
-lento** na prática. Meça com `sweep` antes de decidir.
+O R1 (destilado de raciocínio) segue o schema, mas trata o prompt de forma
+frouxa: preenche até o teto, extrai organograma ("employs Matt Flake") e
+métricas. O Qwen deixa 40% dos artigos vazios — na maioria avisos de
+ex-dividendo, listas de cotações e boilerplate, onde o R1 inventava relações.
 
-### O thinking vem ligado e precisa ser desligado
+O modelo entra no `prompt_version`: trocar de modelo abre um diretório novo em
+`data/extractions/`, nunca mistura resultados.
 
-R1 é um modelo de raciocínio. Numa extração de milhões de artigos a cadeia de
-raciocínio multiplica os tokens de saída — que é exatamente o que se paga por
-hora de GPU — sem melhorar o preenchimento de um schema fechado.
+**`deepseek-v4-flash` e `deepseek-v4-pro` não servem aqui** — todas as tags
+publicadas são `:cloud` e rodam na infraestrutura da Ollama, não na GPU alugada.
 
-**`think: false` não basta.** Medido no Ollama 0.35.1: o `deepseek-r1:14b`
-ignora o parâmetro, preenche o campo `thinking` e devolve a resposta vazia
-quando estoura `num_predict`. Para modelos `deepseek-r1` o cliente usa então o
-`/api/generate` em modo `raw`, com o template de chat do próprio modelo e um
-bloco `<think></think>` **vazio** já preenchido — o modelo responde direto.
-Medido: zero tokens de raciocínio e JSON válido no schema. Outros modelos seguem
-pelo `/api/chat` com `think: false`. Qualquer `<think>` que ainda escape é
-removido antes do parse. Use `--think` só se quiser o contrário.
+### Se usar um DeepSeek-R1: o thinking não desliga
+
+`think: false` é ignorado pelo `deepseek-r1:14b` (Ollama 0.35.1): ele preenche o
+campo `thinking` e devolve a resposta vazia ao estourar `num_predict`. Para
+modelos `deepseek-r1` o cliente usa o `/api/generate` em modo `raw` com o template
+do próprio modelo e um bloco `<think></think>` **vazio** já preenchido — zero
+tokens de raciocínio, JSON válido. Outros modelos seguem pelo `/api/chat`.
 
 ## O prompt
 

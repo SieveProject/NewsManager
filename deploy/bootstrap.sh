@@ -13,7 +13,7 @@ WORKER_ID="${1:?usage: bootstrap.sh <worker_id> <n_workers> [model]}"
 N_WORKERS="${2:?usage: bootstrap.sh <worker_id> <n_workers> [model]}"
 # Mesmo padrão do run_all.sh, run_worker.sh e da CLI. Quando divergiam, o
 # bootstrap baixava um modelo e a extração pedia outro, que não estava na VM.
-MODEL="${3:-deepseek-r1:14b}"
+MODEL="${3:-qwen2.5:14b-instruct}"
 MAX_CHARS="${NM_MAX_CHARS:-8000}"
 
 # Ollama batches concurrent requests into one forward pass; this is where most

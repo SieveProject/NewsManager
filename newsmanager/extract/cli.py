@@ -14,13 +14,19 @@ from . import benchmark, collect, partition, units, worker
 from .client import OllamaConfig
 from .prompt import DEFAULT_MAX_CHARS, load as load_prompt
 
+# Instruction model, not a reasoning one. On the same 200 articles and prompt,
+# qwen2.5:14b-instruct beat deepseek-r1:14b on every quality measure (~2/3 vs
+# ~1/4 of sampled tuples were real agent-to-agent relations; padding to the
+# 8-tuple cap 5% vs 30%; metrics as agents 2.8% vs 7.2%) and ran 39% faster.
+DEFAULT_MODEL = "qwen2.5:14b-instruct"
+
 
 def _repo() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
 def _add_model_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("--model", default=os.environ.get("NM_MODEL", "deepseek-r1:14b"))
+    p.add_argument("--model", default=os.environ.get("NM_MODEL", DEFAULT_MODEL))
     p.add_argument("--host", default=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"))
     p.add_argument("--concurrency", type=int, default=int(os.environ.get("NM_CONCURRENCY", "8")))
     p.add_argument("--num-ctx", type=int,
@@ -62,7 +68,7 @@ def _resolve(args) -> tuple:
     """
     pp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "extraction.txt"
     sp = Path(args.schema) if args.schema else _repo() / "prompts" / "schema.json"
-    pr = load_prompt(pp, sp, args.max_chars)
+    pr = load_prompt(pp, sp, args.max_chars, model=args.model)
 
     need = _required_num_ctx(args.max_chars, pr.template, args.num_predict)
     if args.num_ctx is None:
@@ -136,6 +142,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
     c.add_argument("--prompt", default=None)
     c.add_argument("--schema", default=None)
     c.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
+    c.add_argument("--model", default=os.environ.get("NM_MODEL", DEFAULT_MODEL),
+                   help="model the run used; part of prompt_version")
     c.add_argument("--no-views", action="store_true")
 
     args = p.parse_args(argv)
@@ -187,7 +195,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
         if version is None:
             pp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "extraction.txt"
             sp = Path(args.schema) if args.schema else _repo() / "prompts" / "schema.json"
-            version = load_prompt(pp, sp, args.max_chars).version
+            version = load_prompt(pp, sp, args.max_chars, model=args.model).version
         # Antes de unir: WALs recolhidos de VMs destruídas ainda não estão em
         # Parquet, e o collect só enxerga Parquet.
         collect.absorb_orphan_wals(cfg, version)

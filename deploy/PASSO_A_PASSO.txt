@@ -63,7 +63,7 @@ PORTÃO: os dois testes têm que imprimir "RESULT: PASS".
 3. OLLAMA + MODELO + VERIFICAÇÃO DE GPU
 ---------------------------------------
 
-  ./deploy/bootstrap.sh 0 1 deepseek-r1:14b
+  ./deploy/bootstrap.sh 0 1 qwen2.5:14b-instruct
   source ~/worker.env
 
 PORTÃO: o script aborta se qualquer parte do modelo cair na CPU.

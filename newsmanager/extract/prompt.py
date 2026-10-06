@@ -57,18 +57,23 @@ class Prompt:
         return out, truncated
 
 
-def load(prompt_path: Path, schema_path: Path, max_chars: int = DEFAULT_MAX_CHARS) -> Prompt:
+def load(prompt_path: Path, schema_path: Path, max_chars: int = DEFAULT_MAX_CHARS,
+         model: str | None = None) -> Prompt:
     template = Path(prompt_path).read_text(encoding="utf-8")
     if "{{ARTICLE}}" not in template:
         raise ValueError(f"{prompt_path} must contain the {{{{ARTICLE}}}} placeholder")
     schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
 
-    # Version covers prompt, schema and truncation together: all three change
-    # what the model actually saw, so all three belong in the identity.
+    # Version covers prompt, schema, truncation and model: each changes what
+    # was produced, so each belongs in the identity. Without the model, R1 and
+    # Qwen runs of one prompt shared a directory -- resume skipped units the
+    # other model had done and the two silently mixed.
     h = hashlib.sha256()
     h.update(template.encode())
     h.update(json.dumps(schema, sort_keys=True).encode())
     h.update(str(max_chars).encode())
+    if model:
+        h.update(model.encode())
     return Prompt(template=template, schema=schema, version=h.hexdigest()[:12], max_chars=max_chars)
 
 

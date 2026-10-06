@@ -15,15 +15,15 @@ source "$(dirname "$0")/lib.sh"
 WORKER_ID="${1:-0}"
 N_WORKERS="${2:-1}"
 
-# deepseek-r1:14b é o ponto de equilíbrio para uma GPU de 24 GB: 9 GB de pesos
-# deixam espaço de KV cache para ~8 requisições concorrentes, que é de onde vem
-# o throughput. O :32b (20 GB) cabe mas sufoca o batching e sai mais lento na
-# prática. Em placas de 80 GB, use :32b ou :70b.
+# qwen2.5:14b-instruct: modelo de instrução, sem raciocínio. Nos mesmos 200
+# artigos e prompt, superou o deepseek-r1:14b em todas as medidas de qualidade
+# (~2/3 contra ~1/4 de tuplas agente-agente válidas) e rodou 39% mais rápido.
+# 9 GB de pesos + KV cache q8_0 de 16 slots cabem em 24 GB (20 GB medidos).
 #
 # ATENÇÃO: deepseek-v4-flash e deepseek-v4-pro NÃO servem aqui -- todas as tags
 # publicadas são `:cloud`, ou seja, rodam na nuvem da Ollama e não na GPU que
-# você alugou. Só a família r1 (e v3/v3.1) tem pesos locais de verdade.
-MODEL="${NM_MODEL:-deepseek-r1:14b}"
+# você alugou.
+MODEL="${NM_MODEL:-qwen2.5:14b-instruct}"
 CONCURRENCY="${NM_CONCURRENCY:-8}"
 # num_ctx fica vazio de propósito: a CLI o deriva de MAX_CHARS + tamanho real
 # do prompt. Um 4096 fixo aqui ficava só 50 tokens acima do mínimo (4046) e
@@ -104,7 +104,7 @@ log "6/6  consolidação"
 # parciais, cada um anunciando sucesso -- e destruir as VMs perderia (N-1)/N de
 # uma run já paga. Com frota, a consolidação acontece uma vez, no coletor.
 if [ "${N_WORKERS}" -eq 1 ]; then
-  $PY -m newsmanager.extract collect --max-chars "${MAX_CHARS}"
+  $PY -m newsmanager.extract collect --max-chars "${MAX_CHARS}" --model "${MODEL}"
 else
   cat <<EOM
 

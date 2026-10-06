@@ -66,7 +66,7 @@ Rent **one** cheap GPU (24 GB is the design point). Do not rent the fleet yet.
 
 ```bash
 git clone <your-repo> NewsManager && cd NewsManager
-./deploy/bootstrap.sh 0 1 deepseek-r1:14b
+./deploy/bootstrap.sh 0 1 qwen2.5:14b-instruct
 ```
 
 Works on full VMs (systemd) and on container rentals like RunPod/Vast (root, no
@@ -108,7 +108,7 @@ python3 -m newsmanager.extract sweep --n 32      # find this card's concurrency 
 it and restart the server:
 
 ```bash
-NUM_PARALLEL=16 ./deploy/bootstrap.sh 0 1 deepseek-r1:14b    # idempotent
+NUM_PARALLEL=16 ./deploy/bootstrap.sh 0 1 qwen2.5:14b-instruct    # idempotent
 python3 -m newsmanager.extract bench --n 40 --concurrency 16
 ```
 
@@ -241,7 +241,7 @@ SELECT * FROM news.relations_by_symbol WHERE symbol = 'NVDA';
 
 | variable | default | what it does |
 |---|---|---|
-| `NM_MODEL` | `deepseek-r1:14b` | must match what bootstrap pulled |
+| `NM_MODEL` | `qwen2.5:14b-instruct` | must match what bootstrap pulled |
 | `NM_CONCURRENCY` | `8` | match the server's `OLLAMA_NUM_PARALLEL` |
 | `NM_MAX_CHARS` | `8000` | **hashed into `prompt_version`** — same value for run and collect |
 | `NM_NUM_CTX` | derived | leave unset; derived from `max_chars` + template size |

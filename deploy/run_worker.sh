@@ -29,7 +29,7 @@ fi
 : "${NM_WORKERS:?set NM_WORKERS}"
 # O mesmo padrão do run_all.sh e da CLI. Divergir aqui faria o bootstrap baixar
 # um modelo e a extração pedir outro -- que então nem está na máquina.
-: "${NM_MODEL:=deepseek-r1:14b}"
+: "${NM_MODEL:=qwen2.5:14b-instruct}"
 : "${NM_CONCURRENCY:=8}"
 : "${NM_MAX_CHARS:=8000}"
 : "${MAX_RESTARTS:=100}"
