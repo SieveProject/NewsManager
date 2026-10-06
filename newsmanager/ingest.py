@@ -95,7 +95,15 @@ def ingest_shard(cfg: Config, shard: Shard) -> tuple[int, int, float]:
                     header=true,
                     columns={_columns_clause(cfg)},
                     quote='"', escape='"', delim=',',
-                    strict_mode=false, ignore_errors=false, parallel=true
+                    -- parallel=false: the parallel scanner splits the shard into
+                    -- chunks and must guess whether each starts inside a quoted
+                    -- field. Articles carry raw newlines, and it guessed wrong on
+                    -- 23 of 87 shards ("Expected 12 columns, found 2"). The serial
+                    -- scan read the same shards with identical row counts at the
+                    -- same speed -- 6 shards already run in parallel above it.
+                    -- strict_mode=true so a misaligned row errors instead of
+                    -- landing in the raw layer.
+                    strict_mode=true, ignore_errors=false, parallel=false
                 )
             ) TO '{tmp_out}' (FORMAT parquet, COMPRESSION '{cfg.compression}', ROW_GROUP_SIZE 100000)
             """
