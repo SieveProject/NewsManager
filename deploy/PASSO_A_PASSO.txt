@@ -1,0 +1,144 @@
+NEWSMANAGER -- PASSO A PASSO NA VAST.AI
+=======================================
+
+Roteiro curto. O detalhe e o "porquê" de cada etapa estão em deploy/RUNBOOK.md.
+
+
+QUAL GPU ALUGAR
+---------------
+
+1x RTX 4090 (24 GB), ON-DEMAND.
+Alternativa mais barata: 1x RTX 3090 (24 GB), mais lenta.
+A100/H100 só valem se trocar para deepseek-r1:32b ou :70b.
+
+Filtros na busca da Vast:
+
+  GPU ............ 1x RTX 4090 (ou 3090)
+  Disk space ..... >= 80 GB   (NÃO dá para aumentar depois de criar)
+  RAM ............ >= 32 GB
+  CPU ............ >= 8 vCPU
+  Inet down ...... >= 500 Mbps
+  Reliability .... >= 98%
+  Tipo ........... On-demand (não Interruptible)
+  Imagem ......... pytorch/pytorch (CUDA 12.x) -- já vem com Python >= 3.11
+
+
+0. NO MAC, ANTES DE ALUGAR
+--------------------------
+
+As correções precisam estar no GitHub, porque a VM clona o repositório:
+
+  git add -A && git commit -m "Deploy: ajustes para a VM" && git push
+
+
+1. NA VM -- CHECAR O AMBIENTE
+-----------------------------
+
+A Vast já abre o SSH dentro do tmux. Se a conexão cair: tmux attach
+
+  nvidia-smi              # tem que aparecer a 4090/3090
+  python3 -V              # tem que ser 3.11+
+  df -h / && free -g      # >= 80 GB de disco, >= 32 GB de RAM
+
+Se o Python for 3.10:
+
+  apt-get update && apt-get install -y software-properties-common
+  add-apt-repository -y ppa:deadsnakes/ppa && apt-get install -y python3.11 python3.11-venv
+  export PY=python3.11    # e use python3.11 no lugar de python3 abaixo
+
+
+2. CLONAR E TESTAR (sem modelo, poucos minutos)
+-----------------------------------------------
+
+O repositório precisa estar público, ou use um token no git clone.
+
+  git clone https://github.com/SieveProject/NewsManager.git && cd NewsManager
+  python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt
+  .venv/bin/python tests/test_e2e_subset.py 3 32
+  .venv/bin/python tests/test_extract_e2e.py
+
+PORTÃO: os dois testes têm que imprimir "RESULT: PASS".
+
+
+3. OLLAMA + MODELO + VERIFICAÇÃO DE GPU
+---------------------------------------
+
+  ./deploy/bootstrap.sh 0 1 deepseek-r1:14b
+  source ~/worker.env
+
+PORTÃO: o script aborta se qualquer parte do modelo cair na CPU.
+Não contorne isso.
+
+
+4. CONSTRUIR O CORPUS NA VM (~1 h, limitado pela rede)
+------------------------------------------------------
+
+  python3 -m newsmanager probe
+  python3 -m newsmanager all
+  python3 -m newsmanager.extract units      # ANOTE o número de unidades
+
+
+5. MEDIR ANTES DE GASTAR
+------------------------
+
+  python3 -m newsmanager.extract sweep --n 32
+  python3 -m newsmanager.extract bench --n 40 --concurrency <PLATÔ>
+  python3 -m newsmanager.extract project --units-per-s <MEDIDO> --vms 1 --usd-per-gpu-hour <PREÇO>
+
+<PLATÔ> é a concorrência a partir da qual o sweep para de ganhar throughput.
+<MEDIDO> é o units/s que o bench imprime.
+<PREÇO> é o $/h da instância na Vast.
+
+PORTÃO: o project mostra custo e prazo reais. Decida aqui se segue.
+
+
+6. CONFERIR A QUALIDADE EM 200 ARTIGOS
+--------------------------------------
+
+  python3 -m newsmanager.extract run --limit 200 --worker-id 0 --workers 1 --concurrency <PLATÔ>
+  python3 -m newsmanager.extract collect
+  python3 -c "
+import duckdb; c=duckdb.connect('data/news.duckdb', read_only=True)
+for r in c.sql('SELECT published_at, agent_a, relation_type, direction, strength, agent_b FROM news.relations ORDER BY random() LIMIT 25').fetchall(): print(r)
+print(c.sql('SELECT status, count(*), round(avg(latency_s),2) FROM news.extraction_runs GROUP BY 1').fetchall())"
+
+PORTÃO: leia as 25 tuplas.
+  - Os agentes são entidades reais?
+  - A direção bate com o sentido do artigo?
+  - Quase não há falhas?
+Se precisar mudar prompts/extraction.txt, mude AGORA. Mudar depois obriga a
+refazer tudo o que já foi pago.
+
+
+7. RUN COMPLETA
+---------------
+
+Os 200 do passo 6 são reaproveitados, se o prompt não mudou.
+
+  NM_SKIP_INGEST=1 NM_CONCURRENCY=<PLATÔ> ./deploy/run_all.sh 0 1
+
+Para acompanhar, abra outra janela do tmux com Ctrl-b c:
+
+  tail -f logs/worker-0.log
+  watch -n 60 'ollama ps; nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv'
+
+PARE a run se acontecer qualquer um destes:
+  - ollama ps mostra CPU
+  - a taxa cai muito abaixo do que o bench mediu
+  - aparece exit code 2 (erro de configuração; reiniciar não resolve)
+
+Se a VM cair: rode o mesmo comando de novo. A run retoma de onde parou.
+
+
+8. TRAZER O RESULTADO PARA O MAC -- ANTES DE DESTRUIR A VM
+----------------------------------------------------------
+
+Use o IP e a porta que a Vast mostra em "Connect".
+
+  mkdir -p data/curated/relations
+  rsync -az -e "ssh -p <PORTA>" root@<IP>:NewsManager/data/curated/relations/ data/curated/relations/
+  rsync -az -e "ssh -p <PORTA>" root@<IP>:NewsManager/data/extractions/ data/extractions/
+
+PORTÃO: confira com  ls -la data/curated/relations/v=*/
+Só DEPOIS disso destrua a instância na Vast. Uma instância parada continua
+cobrando pelo disco.
