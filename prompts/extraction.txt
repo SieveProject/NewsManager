@@ -16,6 +16,16 @@ Any entity that can act on, or be acted on by, economic forces:
 - institutions and funds ............ BlackRock, IMF, OPEC
 - economically significant people ... Jerome Powell, a named CEO
 
+WHAT IS NOT AN ECONOMIC AGENT
+- financial metrics and line items: revenue, EBITDA, net income, earnings,
+  dividends, margins, guidance, net interest income, exports, sales
+- generic or unnamed groups: "investors", "analysts", "shareholders",
+  "the market", "U.S. stocks", "consumers"
+- the news outlet or data provider reporting the story
+A company reporting higher revenue, raising its dividend or beating estimates
+is NOT a relationship between two agents -- skip it, unless a second named
+agent caused the effect (then that agent is agent_a and the company is agent_b).
+
 WHAT COUNTS AS AN ACTION
 A verb or event in the article that transmits economic effect from one agent to
 another: investing, acquiring, supplying, competing, regulating, raising rates,
@@ -46,9 +56,12 @@ RULES
 - Use the ticker symbol when the article gives one; otherwise use the most
   specific name the article uses. Be consistent within a single article.
 - Extract only relationships the article itself supports.
-- Return AT MOST 8 tuples. If the article supports more, keep the 8 with the
-  highest strength -- the most explicit and material effects. Never pad to
-  reach 8; fewer is fine.
+- agent_a and agent_b must be two DIFFERENT entities.
+- Quality over quantity. Most articles support between 0 and 4 relationships.
+  Return only the ones the article clearly states; adding weak, speculative or
+  repeated tuples to make the list longer is an error. The hard limit is 8.
+- Use the whole strength scale. Most stated-but-modest links belong in
+  0.4 - 0.7; reserve 0.8+ for explicit, material effects.
 - If the article contains no relationship between two economic agents, return
   an empty list. An empty list is a valid and correct answer.
 

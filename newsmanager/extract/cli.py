@@ -26,7 +26,11 @@ def _add_model_args(p: argparse.ArgumentParser) -> None:
     p.add_argument("--num-ctx", type=int,
                    default=(int(os.environ["NM_NUM_CTX"]) if os.environ.get("NM_NUM_CTX") else None),
                    help="context window; derived from --max-chars when omitted")
-    p.add_argument("--num-predict", type=int, default=1024)
+    # 768, not 1024: with the schema capping tuples at 8 the longest response
+    # measured was 568 tokens (48 stratified articles). The spare 256 tokens
+    # are what keeps num_ctx at 4096 -- and 16 parallel slots inside 24 GB --
+    # now that the prompt is ~4k characters.
+    p.add_argument("--num-predict", type=int, default=768)
     p.add_argument("--timeout", type=float, default=300.0)
     p.add_argument("--prompt", default=None, help="prompt template (default prompts/extraction.txt)")
     p.add_argument("--schema", default=None, help="JSON schema (default prompts/schema.json)")
