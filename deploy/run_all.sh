@@ -25,7 +25,10 @@ N_WORKERS="${2:-1}"
 # você alugou. Só a família r1 (e v3/v3.1) tem pesos locais de verdade.
 MODEL="${NM_MODEL:-deepseek-r1:14b}"
 CONCURRENCY="${NM_CONCURRENCY:-8}"
-NUM_CTX="${NM_NUM_CTX:-4096}"
+# num_ctx fica vazio de propósito: a CLI o deriva de MAX_CHARS + tamanho real
+# do prompt. Um 4096 fixo aqui ficava só 50 tokens acima do mínimo (4046) e
+# derrubava a run com exit 2 na primeira edição de prompts/extraction.txt.
+NUM_CTX="${NM_NUM_CTX:-}"
 MAX_CHARS="${NM_MAX_CHARS:-8000}"
 PY="${PY:-python3}"
 
@@ -39,34 +42,11 @@ else
   echo "AVISO: nvidia-smi ausente. Sem GPU a extração roda ~100x mais lenta," >&2
   echo "       e você paga por hora. Verifique o driver antes de continuar." >&2
 fi
-$PY -m pip install --quiet --upgrade pip
-$PY -m pip install --quiet -r requirements.txt
+ensure_venv "$PY"
 
 log "1/6  Ollama"
-if ! command -v ollama >/dev/null 2>&1; then
-  curl -fsSL https://ollama.com/install.sh | sh
-fi
-if command -v systemctl >/dev/null 2>&1; then
-  sudo mkdir -p /etc/systemd/system/ollama.service.d
-  sudo tee /etc/systemd/system/ollama.service.d/override.conf >/dev/null <<EOF
-[Service]
-Environment="OLLAMA_NUM_PARALLEL=${CONCURRENCY}"
-Environment="OLLAMA_MAX_LOADED_MODELS=1"
-Environment="OLLAMA_KEEP_ALIVE=-1"
-Environment="OLLAMA_FLASH_ATTENTION=1"
-EOF
-  sudo systemctl daemon-reload
-  sudo systemctl enable --now ollama
-  sudo systemctl restart ollama
-else
-  pgrep -x ollama >/dev/null || (OLLAMA_NUM_PARALLEL=$CONCURRENCY OLLAMA_KEEP_ALIVE=-1 ollama serve &>/tmp/ollama.log &)
-fi
-
-for _ in $(seq 1 60); do
-  curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break
-  sleep 2
-done
-curl -sf http://127.0.0.1:11434/api/tags >/dev/null || { echo "Ollama não subiu" >&2; exit 1; }
+ensure_ollama
+start_ollama "${CONCURRENCY}"
 
 log "2/6  modelo ${MODEL}"
 ollama pull "${MODEL}"
@@ -116,7 +96,7 @@ $PY -m newsmanager.extract partition -n "${N_WORKERS}"
 # workers nunca escreveram e a run parece ter produzido nada.
 NM_WORKER_ID="${WORKER_ID}" NM_WORKERS="${N_WORKERS}" \
 NM_MODEL="${MODEL}" NM_CONCURRENCY="${CONCURRENCY}" NM_NUM_CTX="${NUM_CTX}" \
-NM_MAX_CHARS="${MAX_CHARS}" \
+NM_MAX_CHARS="${MAX_CHARS}" PY="${PY}" \
   ./deploy/run_worker.sh
 
 log "6/6  consolidação"

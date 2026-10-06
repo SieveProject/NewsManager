@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,7 +52,7 @@ def output_root(cfg: Config, prompt_version: str) -> Path:
     return d
 
 
-def _fetch_units(cfg: Config, worker_id: int, n_workers: int, limit: int | None, order: str) -> list[dict]:
+def _check_units(cfg: Config) -> None:
     # On a worker VM the corpus arrives by rsync, so "not there yet" is the
     # normal way this goes wrong. Caught here it names the fix; left to DuckDB
     # it surfaces as an IO error about a glob, and the restart loop retries it.
@@ -60,8 +61,27 @@ def _fetch_units(cfg: Config, worker_id: int, n_workers: int, limit: int | None,
             f"nenhuma unidade de extração em {cfg.curated / 'extraction_units'}. "
             "No worker 0: python -m newsmanager.extract units. "
             "Nos demais: sincronize data/curated/ do worker 0 primeiro "
-            "(./deploy/gather.sh --push)."
+            "(./deploy/gather.sh push <host>)."
         )
+
+
+def _count_units(cfg: Config, worker_id: int, n_workers: int, limit: int | None) -> int:
+    con = connect(cfg, memory_limit="1GB")
+    n = con.execute(
+        f"SELECT count(*) FROM read_parquet('{units_glob(cfg)}') WHERE {assign_expr(n_workers, worker_id)}"
+    ).fetchone()[0]
+    con.close()
+    return min(n, limit) if limit else n
+
+
+def _iter_units(cfg: Config, worker_id: int, n_workers: int, limit: int | None, order: str,
+                skip: set[str], batch_rows: int = 2000) -> Iterator[dict]:
+    """Stream this worker's units in batches, skipping those already done.
+
+    Never fetchall(): with one worker the partition is the whole corpus, and
+    every body as a Python str is tens of GB -- enough to OOM the VM hours into
+    a paid run. The ORDER BY spills to cfg.tmp; Python holds one batch at a time.
+    """
     con = connect(cfg, memory_limit="4GB")
     # Mais longos primeiro: mantém os itens lentos fora do fim da run, onde
     # deixariam a GPU processando um artigo gigante com o lote quase vazio.
@@ -71,15 +91,18 @@ def _fetch_units(cfg: Config, worker_id: int, n_workers: int, limit: int | None,
                all_symbols AS symbols
         FROM read_parquet('{units_glob(cfg)}')
         WHERE {assign_expr(n_workers, worker_id)}
-        ORDER BY {order_sql}
+        ORDER BY {order_sql}, unit_id
     """
     if limit:
         sql += f" LIMIT {limit}"
-    cur = con.execute(sql)
-    cols = [d[0] for d in cur.description]
-    rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-    con.close()
-    return rows
+    try:
+        reader = con.execute(sql).fetch_record_batch(batch_rows)
+        for batch in reader:
+            for row in batch.to_pylist():
+                if row["unit_id"] not in skip:
+                    yield row
+    finally:
+        con.close()
 
 
 async def _run_async(
@@ -103,14 +126,17 @@ async def _run_async(
     if absorbed:
         print(f"[worker {worker_id}] {absorbed} registro(s) recuperados do WAL da execução anterior")
 
-    units = _fetch_units(cfg, worker_id, n_workers, limit, order)
+    _check_units(cfg)
+    n_assigned = _count_units(cfg, worker_id, n_workers, limit)
     done = recover_done(root, worker_id) if resume else set()
-    todo = [u for u in units if u["unit_id"] not in done]
+    # Aproximado só com --limit (feitas fora das primeiras N também contam);
+    # serve para progresso/ETA, não para decidir o que rodar.
+    n_todo = max(n_assigned - len(done), 0)
 
-    print(f"[worker {worker_id}] {len(units):,} atribuídas, {len(done):,} já feitas, {len(todo):,} a fazer")
+    print(f"[worker {worker_id}] {n_assigned:,} atribuídas, {len(done):,} já feitas, {n_todo:,} a fazer")
     print(f"[worker {worker_id}] model={oll.model} think={oll.think} concurrency={oll.concurrency} "
           f"num_ctx={oll.num_ctx} prompt_version={prompt.version}")
-    if not todo:
+    if not n_todo:
         return WorkerStats()
 
     stats = WorkerStats()
@@ -173,9 +199,9 @@ async def _run_async(
                     if stats.attempted % progress_every == 0:
                         el = time.time() - t0
                         r = stats.attempted / el
-                        eta = (len(todo) - stats.attempted) / r if r else 0
+                        eta = max(n_todo - stats.attempted, 0) / r if r else 0
                         print(
-                            f"[worker {worker_id}] {stats.attempted:,}/{len(todo):,} "
+                            f"[worker {worker_id}] {stats.attempted:,}/{n_todo:,} "
                             f"ok={stats.ok:,} falhas={stats.failed:,} tuplas={stats.tuples:,} "
                             f"{r:.2f}/s eta={eta/3600:.2f}h"
                         )
@@ -183,7 +209,7 @@ async def _run_async(
             # Limitado pelo semáforo do cliente; um gather sobre todas as
             # unidades criaria um objeto de task por unidade -- milhões deles.
             pending: set[asyncio.Task] = set()
-            for unit in todo:
+            for unit in _iter_units(cfg, worker_id, n_workers, limit, order, done):
                 pending.add(asyncio.create_task(handle(unit)))
                 if len(pending) >= oll.concurrency * 4:
                     _, pending = await asyncio.wait(pending, return_when=asyncio.FIRST_COMPLETED)

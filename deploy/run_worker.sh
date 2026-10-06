@@ -11,7 +11,19 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck source=deploy/lib.sh
 source "$(dirname "$0")/lib.sh"
-[ -f "$HOME/worker.env" ] && source "$HOME/worker.env"
+# worker.env só preenche o que NÃO veio explícito. Antes ele era aplicado por
+# cima: com `bootstrap.sh 0 1` seguido de `run_all.sh 2 4`, a VM voltava a ser
+# worker 0/1 e extraía o corpus inteiro, duplicando o trabalho da frota.
+if [ -f "$HOME/worker.env" ]; then
+  _keep=()
+  for _v in NM_WORKER_ID NM_WORKERS NM_MODEL NM_CONCURRENCY NM_MAX_CHARS NM_NUM_CTX PY OLLAMA_HOST; do
+    [ -n "${!_v:-}" ] && _keep+=("${_v}=${!_v}")
+  done
+  # shellcheck disable=SC1091
+  source "$HOME/worker.env"
+  for _kv in "${_keep[@]+"${_keep[@]}"}"; do export "${_kv}"; done
+  unset _keep _v _kv
+fi
 
 : "${NM_WORKER_ID:?set NM_WORKER_ID (run bootstrap.sh first)}"
 : "${NM_WORKERS:?set NM_WORKERS}"
@@ -22,7 +34,9 @@ source "$(dirname "$0")/lib.sh"
 : "${NM_MAX_CHARS:=8000}"
 : "${MAX_RESTARTS:=100}"
 : "${RESTART_SLEEP:=15}"
-PY="${PY:-python3}"
+if [ -z "${PY:-}" ]; then
+  if [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY=python3; fi
+fi
 
 LOG="logs/worker-${NM_WORKER_ID}.log"
 mkdir -p logs

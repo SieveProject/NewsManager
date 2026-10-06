@@ -52,3 +52,82 @@ EOM
     return 1
   fi
 }
+
+# Start (or restart) Ollama configured for batch throughput.
+#
+#   start_ollama <num_parallel>
+#
+# Rented "VMs" are often containers (RunPod, Vast): root, no sudo, and systemd
+# not running as PID 1 even though the systemctl binary exists. Testing for the
+# binary alone sends those boxes into `sudo systemctl`, which fails under
+# `set -e` before the model is ever pulled. /run/systemd/system is the check
+# systemd itself documents for "booted with systemd".
+start_ollama() {
+  local parallel="${1:?start_ollama <num_parallel>}"
+  local sudo=""
+  [ "$(id -u)" -ne 0 ] && sudo="sudo"
+
+  if [ -d /run/systemd/system ]; then
+    ${sudo} mkdir -p /etc/systemd/system/ollama.service.d
+    ${sudo} tee /etc/systemd/system/ollama.service.d/override.conf >/dev/null <<EOC
+[Service]
+Environment="OLLAMA_NUM_PARALLEL=${parallel}"
+Environment="OLLAMA_MAX_LOADED_MODELS=1"
+Environment="OLLAMA_KEEP_ALIVE=-1"
+Environment="OLLAMA_HOST=127.0.0.1:11434"
+Environment="OLLAMA_FLASH_ATTENTION=1"
+EOC
+    ${sudo} systemctl daemon-reload
+    ${sudo} systemctl enable ollama >/dev/null 2>&1 || true
+    ${sudo} systemctl restart ollama
+  else
+    # Restart rather than reuse: a server left over from a previous call may
+    # hold a different NUM_PARALLEL, and the env is only read at startup.
+    pkill -x ollama 2>/dev/null && sleep 2 || true
+    mkdir -p logs
+    OLLAMA_NUM_PARALLEL="${parallel}" OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=-1 \
+    OLLAMA_HOST=127.0.0.1:11434 OLLAMA_FLASH_ATTENTION=1 \
+      nohup ollama serve >>logs/ollama.log 2>&1 &
+  fi
+
+  for _ in $(seq 1 60); do
+    curl -sf http://127.0.0.1:11434/api/tags >/dev/null && return 0
+    sleep 2
+  done
+  echo "ERRO: Ollama não subiu (veja logs/ollama.log ou journalctl -u ollama)" >&2
+  return 1
+}
+
+# Python deps in a repo-local venv; sets PY to its interpreter.
+#
+# Ubuntu 24.04 (PEP 668) refuses a system-wide `pip install` with
+# "externally-managed-environment" -- the scripts died there before ever
+# reaching the GPU. A venv also keeps the rented image's Python untouched.
+ensure_venv() {
+  local base="${1:-python3}"
+  if [ ! -x .venv/bin/python ]; then
+    if ! "${base}" -m venv .venv 2>/dev/null; then
+      rm -rf .venv
+      local sudo=""; [ "$(id -u)" -ne 0 ] && sudo="sudo"
+      local minor; minor="$("${base}" -c 'import sys;print(f"{sys.version_info[0]}.{sys.version_info[1]}")')"
+      echo "--- instalando python${minor}-venv ---"
+      ${sudo} apt-get update -qq && ${sudo} apt-get install -y -qq "python${minor}-venv"
+      "${base}" -m venv .venv
+    fi
+  fi
+  .venv/bin/python -m pip install --quiet --upgrade pip
+  .venv/bin/python -m pip install --quiet -r requirements.txt
+  PY="$(pwd)/.venv/bin/python"
+  echo "python deps: ${PY}"
+}
+
+# Install Ollama if absent. Its installer ships .tar.zst archives and needs
+# zstd, which minimal GPU images lack; it fails half-way without it.
+ensure_ollama() {
+  command -v ollama >/dev/null 2>&1 && return 0
+  if ! command -v zstd >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
+    local sudo=""; [ "$(id -u)" -ne 0 ] && sudo="sudo"
+    ${sudo} apt-get update -qq && ${sudo} apt-get install -y -qq zstd pciutils
+  fi
+  curl -fsSL https://ollama.com/install.sh | sh
+}

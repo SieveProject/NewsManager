@@ -32,41 +32,21 @@ else
   nvidia-smi --query-gpu=name,memory.total,driver_version --format=csv,noheader
 fi
 
-if ! command -v ollama >/dev/null 2>&1; then
-  echo "--- installing ollama ---"
-  curl -fsSL https://ollama.com/install.sh | sh
-fi
+echo "--- ollama ---"
+ensure_ollama
 
-# Keep the model resident and allow concurrent batching. OLLAMA_MAX_LOADED_MODELS=1
-# stops a second model from evicting this one mid-run.
-sudo mkdir -p /etc/systemd/system/ollama.service.d
-sudo tee /etc/systemd/system/ollama.service.d/override.conf >/dev/null <<EOF
-[Service]
-Environment="OLLAMA_NUM_PARALLEL=${NUM_PARALLEL}"
-Environment="OLLAMA_MAX_LOADED_MODELS=1"
-Environment="OLLAMA_KEEP_ALIVE=-1"
-Environment="OLLAMA_HOST=127.0.0.1:11434"
-Environment="OLLAMA_FLASH_ATTENTION=1"
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable --now ollama
-sleep 3
-sudo systemctl restart ollama
-
-echo "--- waiting for ollama ---"
-for _ in $(seq 1 60); do
-  curl -sf http://127.0.0.1:11434/api/tags >/dev/null && break
-  sleep 2
-done
-curl -sf http://127.0.0.1:11434/api/tags >/dev/null || { echo "ollama did not come up" >&2; exit 1; }
+# Keep the model resident and allow concurrent batching; MAX_LOADED_MODELS=1
+# stops a second model from evicting this one mid-run. Works with and without
+# systemd (see lib.sh).
+cd "$(dirname "$0")/.."
+echo "--- starting ollama (NUM_PARALLEL=${NUM_PARALLEL}) ---"
+start_ollama "${NUM_PARALLEL}"
 
 echo "--- pulling ${MODEL} ---"
 ollama pull "${MODEL}"
 
 echo "--- python deps ---"
-python3 -m pip install --quiet --upgrade pip
-python3 -m pip install --quiet -r "$(dirname "$0")/../requirements.txt"
+ensure_venv python3
 
 echo "--- verifying GPU offload ---"
 # Warm the model, then check it actually landed on the GPU. A model silently
@@ -86,6 +66,9 @@ export NM_CONCURRENCY=${NUM_PARALLEL}
 # Entra no prompt_version: o worker e o collect precisam do mesmo valor.
 export NM_MAX_CHARS=${MAX_CHARS}
 export OLLAMA_HOST=http://127.0.0.1:11434
+# venv primeiro no PATH: "python3 -m newsmanager..." do RUNBOOK usa as deps dele.
+export PATH="$(pwd)/.venv/bin:\$PATH"
+export PY="$(pwd)/.venv/bin/python"
 EOF
 
 echo

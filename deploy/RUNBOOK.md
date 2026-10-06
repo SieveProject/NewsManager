@@ -24,8 +24,15 @@ On your own machine (needs ~8 GiB free disk and Python 3.11+).
 ```bash
 git clone <your-repo> NewsManager && cd NewsManager
 python3 -V                                  # must be 3.11+; 3.10 has no tomllib
+python3 -m venv .venv && source .venv/bin/activate   # Homebrew/Ubuntu 24.04 refuse a global pip
 pip install -r requirements.txt
 ```
+
+> **Disk check first.** The corpus build needs ~8 GiB free plus DuckDB spill
+> space during `curate`/`units`. If `df -h .` shows less than ~15 GiB, build it on
+> the rented VM instead (run `./deploy/run_all.sh` there and skip `gather.sh push`)
+> or on a cheap CPU box. That costs ~1 h of idle GPU on one VM, which is cheaper
+> than a corpus build that dies at 95% from a full disk.
 
 Prove the plumbing offline — no GPU, no cost:
 
@@ -61,6 +68,10 @@ Rent **one** cheap GPU (24 GB is the design point). Do not rent the fleet yet.
 git clone <your-repo> NewsManager && cd NewsManager
 ./deploy/bootstrap.sh 0 1 deepseek-r1:14b
 ```
+
+Works on full VMs (systemd) and on container rentals like RunPod/Vast (root, no
+systemd, no sudo). Python deps go into `.venv/` in the repo; `source
+~/worker.env` puts it first on `PATH`, so the `python3` commands below use it.
 
 `bootstrap.sh` checks Python, installs Ollama, configures it for batching
 (`OLLAMA_NUM_PARALLEL`, `KEEP_ALIVE=-1`), pulls the model, and **verifies the
@@ -234,10 +245,14 @@ SELECT * FROM news.relations_by_symbol WHERE symbol = 'NVDA';
 | `NM_CONCURRENCY` | `8` | match the server's `OLLAMA_NUM_PARALLEL` |
 | `NM_MAX_CHARS` | `8000` | **hashed into `prompt_version`** — same value for run and collect |
 | `NM_NUM_CTX` | derived | leave unset; derived from `max_chars` + template size |
+| `PY` | `.venv/bin/python` | interpreter the scripts use; set up by bootstrap/run_all |
 | `NM_SKIP_INGEST` | — | `1` = corpus arrived by push; never ingest here |
 | `NM_FORCE_UNITS` | — | `1` = rebuild units instead of reusing the pushed ones |
 | `NM_REMOTE_DIR` | `NewsManager` | repo path on the remote host |
 | `MAX_RESTARTS` | `100` | crash restarts before giving up |
+
+Variables passed explicitly (`NM_CONCURRENCY=16 ./deploy/run_all.sh 2 4`) take
+precedence over `~/worker.env`; the file only fills in what you didn't pass.
 
 Exit codes: `0` done · `1` crashed, restart is appropriate · `2` **misconfigured,
 restarting cannot help.**
