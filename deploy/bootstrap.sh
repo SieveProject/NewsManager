@@ -53,7 +53,7 @@ echo "--- verifying GPU offload ---"
 # running on CPU is the single most expensive failure mode here: the run still
 # works, just ~100x slower, and you pay for every hour of it.
 curl -sf http://127.0.0.1:11434/api/generate \
-  -d "{\"model\":\"${MODEL}\",\"prompt\":\"ok\",\"stream\":false,\"keep_alive\":-1}" >/dev/null
+  -d "{\"model\":\"${MODEL}\",\"prompt\":\"ok\",\"stream\":false,\"keep_alive\":-1,\"options\":{\"num_ctx\":${NM_NUM_CTX:-4096}}}" >/dev/null
 # Catches partial offload ("51%/49% CPU/GPU") too, which is the common case
 # when the model *almost* fits and which a test for "100% CPU" let through.
 require_gpu_offload

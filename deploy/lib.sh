@@ -62,8 +62,15 @@ EOM
 # binary alone sends those boxes into `sudo systemctl`, which fails under
 # `set -e` before the model is ever pulled. /run/systemd/system is the check
 # systemd itself documents for "booted with systemd".
+#
+# OLLAMA_CONTEXT_LENGTH is pinned because recent Ollama picks the default
+# context from VRAM -- 32768 on a 24 GB card -- and reserves KV cache for
+# NUM_PARALLEL x that. 8 x 32k needed 62 GB on a 4090 and spilled 62% to CPU.
+# Any request that omits num_ctx (warm-ups, health checks) loads the model at
+# this default, so it must match what the extraction actually uses.
 start_ollama() {
   local parallel="${1:?start_ollama <num_parallel>}"
+  local ctx="${NM_NUM_CTX:-4096}"
   local sudo=""
   [ "$(id -u)" -ne 0 ] && sudo="sudo"
 
@@ -76,6 +83,7 @@ Environment="OLLAMA_MAX_LOADED_MODELS=1"
 Environment="OLLAMA_KEEP_ALIVE=-1"
 Environment="OLLAMA_HOST=127.0.0.1:11434"
 Environment="OLLAMA_FLASH_ATTENTION=1"
+Environment="OLLAMA_CONTEXT_LENGTH=${ctx}"
 EOC
     ${sudo} systemctl daemon-reload
     ${sudo} systemctl enable ollama >/dev/null 2>&1 || true
@@ -86,7 +94,7 @@ EOC
     pkill -x ollama 2>/dev/null && sleep 2 || true
     mkdir -p logs
     OLLAMA_NUM_PARALLEL="${parallel}" OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=-1 \
-    OLLAMA_HOST=127.0.0.1:11434 OLLAMA_FLASH_ATTENTION=1 \
+    OLLAMA_HOST=127.0.0.1:11434 OLLAMA_FLASH_ATTENTION=1 OLLAMA_CONTEXT_LENGTH="${ctx}" \
       nohup ollama serve >>logs/ollama.log 2>&1 &
   fi
 

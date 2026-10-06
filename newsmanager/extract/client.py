@@ -111,7 +111,11 @@ class OllamaClient:
             "/api/chat",
             json={"model": self.cfg.model, "messages": [{"role": "user", "content": "ok"}],
                   "stream": False, "think": self.cfg.think,
-                  "keep_alive": self.cfg.keep_alive, "options": {"num_predict": 1}},
+                  "keep_alive": self.cfg.keep_alive,
+                  # Sem num_ctx o modelo carrega no contexto padrão do servidor
+                  # (32k numa placa de 24 GB) e a primeira requisição real
+                  # força um recarregamento -- ou, pior, ele transborda pra CPU.
+                  "options": {"num_predict": 1, "num_ctx": self.cfg.num_ctx}},
         )
 
     async def generate(self, prompt: str, schema: dict | None = None) -> GenerationResult:
