@@ -18,6 +18,7 @@ curation bugs can be fixed without re-downloading. Typing happens in curate.
 
 from __future__ import annotations
 
+import multiprocessing
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -126,7 +127,13 @@ def run_sharded(cfg: Config, manifest: Manifest, *, resume: bool = True) -> dict
     t0 = time.time()
     failures: list[tuple[int, str]] = []
 
-    with ProcessPoolExecutor(max_workers=cfg.workers) as pool:
+    # spawn, never fork. Linux defaults to fork, which copies the parent with
+    # whatever locks its threads (DuckDB's pool among ~30) held at that instant;
+    # children that inherit a held lock block on a futex forever. On the VM 5
+    # of 6 workers hung silently a minute in. macOS already defaults to spawn,
+    # which is why it never showed up locally.
+    ctx = multiprocessing.get_context("spawn")
+    with ProcessPoolExecutor(max_workers=cfg.workers, mp_context=ctx) as pool:
         futures = {pool.submit(_worker, (cfg, s)): s for s in pending}
         for fut in as_completed(futures):
             s = futures[fut]
