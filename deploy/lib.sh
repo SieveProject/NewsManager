@@ -68,9 +68,24 @@ EOM
 # NUM_PARALLEL x that. 8 x 32k needed 62 GB on a 4090 and spilled 62% to CPU.
 # Any request that omits num_ctx (warm-ups, health checks) loads the model at
 # this default, so it must match what the extraction actually uses.
+#
+# OLLAMA_KV_CACHE_TYPE=q8_0 halves the KV cache. The worst-case context (~6.6k)
+# times 16 slots does not fit 24 GB in f16; in q8_0 it measured 20 GB, 100% GPU.
+# num_ctx for the extraction prompt, mirroring _required_num_ctx in
+# newsmanager/extract/cli.py (keep the two in sync): article at 2 chars/token,
+# template at 3, plus output and slack, rounded up to 256.
+derive_num_ctx() {
+  local repo; repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  local max_chars="${NM_MAX_CHARS:-8000}" predict="${NM_NUM_PREDICT:-768}"
+  local tmpl; tmpl=$(wc -c < "${repo}/prompts/extraction.txt")
+  local need=$(( max_chars / 2 + tmpl / 3 + predict + 256 ))
+  echo $(( (need + 255) / 256 * 256 ))
+}
+
 start_ollama() {
   local parallel="${1:?start_ollama <num_parallel>}"
-  local ctx="${NM_NUM_CTX:-4096}"
+  local ctx="${NM_NUM_CTX:-$(derive_num_ctx)}"
+  echo "ollama: NUM_PARALLEL=${parallel} CONTEXT_LENGTH=${ctx} KV_CACHE=q8_0"
   local sudo=""
   [ "$(id -u)" -ne 0 ] && sudo="sudo"
 
@@ -84,6 +99,7 @@ Environment="OLLAMA_KEEP_ALIVE=-1"
 Environment="OLLAMA_HOST=127.0.0.1:11434"
 Environment="OLLAMA_FLASH_ATTENTION=1"
 Environment="OLLAMA_CONTEXT_LENGTH=${ctx}"
+Environment="OLLAMA_KV_CACHE_TYPE=q8_0"
 EOC
     ${sudo} systemctl daemon-reload
     ${sudo} systemctl enable ollama >/dev/null 2>&1 || true
@@ -94,7 +110,7 @@ EOC
     pkill -x ollama 2>/dev/null && sleep 2 || true
     mkdir -p logs
     OLLAMA_NUM_PARALLEL="${parallel}" OLLAMA_MAX_LOADED_MODELS=1 OLLAMA_KEEP_ALIVE=-1 \
-    OLLAMA_HOST=127.0.0.1:11434 OLLAMA_FLASH_ATTENTION=1 OLLAMA_CONTEXT_LENGTH="${ctx}" \
+    OLLAMA_HOST=127.0.0.1:11434 OLLAMA_FLASH_ATTENTION=1 OLLAMA_CONTEXT_LENGTH="${ctx}" OLLAMA_KV_CACHE_TYPE=q8_0 \
       nohup ollama serve >>logs/ollama.log 2>&1 &
   fi
 

@@ -24,7 +24,13 @@ WHAT IS NOT AN ECONOMIC AGENT
 - the news outlet or data provider reporting the story
 A company reporting higher revenue, raising its dividend or beating estimates
 is NOT a relationship between two agents -- skip it, unless a second named
-agent caused the effect (then that agent is agent_a and the company is agent_b).
+agent caused the effect (then it is agent_a and the company is agent_b).
+
+Examples:
+  WRONG: Intuit --increases--> revenues     (metric)
+  WRONG: GNC --contracted--> gross margin   (metric)
+  WRONG: investors --buy--> AAPL            (unnamed group)
+  RIGHT: Janney --raises price target on--> Hercules Capital
 
 WHAT COUNTS AS AN ACTION
 A verb or event in the article that transmits economic effect from one agent to

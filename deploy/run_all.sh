@@ -51,7 +51,7 @@ start_ollama "${CONCURRENCY}"
 log "2/6  modelo ${MODEL}"
 ollama pull "${MODEL}"
 curl -sf http://127.0.0.1:11434/api/chat \
-  -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"ok\"}],\"stream\":false,\"think\":false,\"keep_alive\":-1,\"options\":{\"num_ctx\":${NM_NUM_CTX:-4096}}}" >/dev/null
+  -d "{\"model\":\"${MODEL}\",\"messages\":[{\"role\":\"user\",\"content\":\"ok\"}],\"stream\":false,\"think\":false,\"keep_alive\":-1,\"options\":{\"num_ctx\":${NM_NUM_CTX:-$(derive_num_ctx)}}}" >/dev/null
 # Pega também o offload *parcial* ("51%/49% CPU/GPU"), que é o caso comum
 # quando o modelo quase cabe -- e que um teste por "100% CPU" deixava passar.
 require_gpu_offload

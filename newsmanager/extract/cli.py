@@ -42,11 +42,16 @@ def _add_model_args(p: argparse.ArgumentParser) -> None:
 def _required_num_ctx(max_chars: int, template: str, num_predict: int) -> int:
     """Smallest context that fits a capped article, the template and the output.
 
-    An article capped at max_chars is ~max_chars/4 tokens, plus the template and
-    room to generate. Exceeding num_ctx makes Ollama drop the *end of the
+    An article capped at max_chars, plus the template and room to generate,
+    at worst-case token density. Exceeding num_ctx makes Ollama drop the *end of the
     article* with no error at all, so this is computed rather than trusted.
     """
-    return (max_chars + len(template)) // 4 + num_predict + 256
+    # Worst case, not average: ~4 chars/token holds for English prose, but
+    # number-dense articles (tables, filings) measured 2.1 -- a 6,502-char one
+    # took 3,997 prompt tokens and left 99 for the answer at num_ctx 4096.
+    # 2 chars/token for the article, 3 for the template. Mirrored in
+    # deploy/lib.sh (derive_num_ctx) so the server loads the same context.
+    return max_chars // 2 + len(template) // 3 + num_predict + 256
 
 
 def _resolve(args) -> tuple:
