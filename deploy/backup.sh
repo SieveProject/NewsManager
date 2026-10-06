@@ -27,8 +27,22 @@ sync_once() {
   t0=$(date +%s)
   # Extrações cruas (segmentos + WALs): a fonte da verdade, sempre primeiro.
   rclone copy data/extractions "${REMOTE}/extractions" \
-      --exclude "*.tmp" --transfers 8 --checkers 16 --retries 5 --low-level-retries 20 \
-      >>"${LOG}" 2>&1 || rc=$?
+      --exclude "*.tmp" --exclude "wal-*.jsonl" --transfers 8 --checkers 16 \
+      --retries 5 --low-level-retries 20 >>"${LOG}" 2>&1 || rc=$?
+  # WALs a partir de uma cópia instantânea: o worker anexa registros o tempo
+  # todo, e enviar o arquivo vivo falhava com "md5 hashes differ" -- o conteúdo
+  # mudava durante o upload. Uma linha final parcial na cópia é inofensiva: a
+  # absorção descarta linha truncada.
+  local snap=logs/.walsnap wal rel
+  rm -rf "${snap}"
+  while IFS= read -r wal; do
+    rel="${wal#data/extractions/}"
+    mkdir -p "${snap}/$(dirname "${rel}")"
+    cp "${wal}" "${snap}/${rel}" 2>/dev/null || continue
+  done < <(find data/extractions -name 'wal-*.jsonl' -size +0 2>/dev/null)
+  if [ -d "${snap}" ]; then
+    rclone copy "${snap}" "${REMOTE}/extractions" --retries 5 >>"${LOG}" 2>&1 || rc=$?
+  fi
   # Consolidado e logs: pequenos, úteis para inspecionar sem baixar tudo.
   if [ -d data/curated/relations ]; then
     rclone copy data/curated/relations "${REMOTE}/relations" --retries 5 >>"${LOG}" 2>&1 || rc=$?
@@ -43,6 +57,13 @@ sync_once() {
     # Falha não derruba o loop: a próxima passada tenta de novo, e o que não
     # subiu continua no disco. Mas fica registrado -- `grep FALHA logs/backup.log`.
     echo "$(date -u +%FT%TZ) FALHA rc=${rc} -- ver linhas acima; dados seguem no disco" >>"${LOG}"
+  fi
+  # Resumo legível na raiz do destino (status.txt), gerado depois da linha
+  # OK/FALHA acima para já refletir esta passada. Falhar aqui não é falha de
+  # backup -- os dados já subiram.
+  if [ -x .venv/bin/python ]; then
+    .venv/bin/python deploy/status.py > logs/status.txt 2>>"${LOG}" \
+      && rclone copyto logs/status.txt "${REMOTE}/status.txt" --retries 3 >>"${LOG}" 2>&1 || true
   fi
   return "${rc}"
 }
