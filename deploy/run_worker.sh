@@ -52,7 +52,9 @@ echo "worker ${NM_WORKER_ID}/${NM_WORKERS} model=${NM_MODEL} concurrency=${NM_CO
 attempt=0
 while true; do
   set +e
-  $PY -m newsmanager.extract run \
+  # Sem buffer: atrás do `tee` o stdout do Python vira bloco de 8 KB e o log
+  # fica sem nenhuma linha de progresso por dezenas de minutos.
+  PYTHONUNBUFFERED=1 $PY -m newsmanager.extract run \
       --worker-id "${NM_WORKER_ID}" \
       --workers "${NM_WORKERS}" \
       --model "${NM_MODEL}" \
