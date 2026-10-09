@@ -299,6 +299,36 @@ SELECT status, count(*), avg(latency_s) FROM news.extraction_runs GROUP BY 1;
 `strength` é normalizado para [0,1] na gravação: constrained decoding garante o
 *tipo* `number`, não a faixa, e modelos emitem 1.5 ou -0.2 com alguma frequência.
 
+## Filtro de ruído
+
+```bash
+python -m newsmanager.extract filter                       # exclui todos os motivos
+python -m newsmanager.extract filter --keep comparison,membership
+```
+
+Marca cada relação com o motivo de ruído — **marca, não apaga** — em
+`relations_flagged.parquet` (coluna `noise`) e cria `news.relations_clean`.
+Na run de 401.609 artigos com o Qwen:
+
+| motivo | relações | exemplo |
+|---|---|---|
+| `generic` | 7,3% | `Allakos → disappoints → investors` |
+| `comparison` | 2,1% | `Datadog → outperforms → Computer and Technology sector` |
+| `membership` | 1,5% | `Nasdaq 100 → includes → Tesla`, `iShares ETF → affects → PepsiCo` |
+| `source` | 1,1% | `Zacks Investment Research → upgrades → Kaman` |
+| `self_loop` | 0,8% | `DuPont → expands → DuPont` |
+| `metric` | 0,8% | `Comcast → raises → dividend` |
+| `orgchart` | 0,2% | `Bank of England → appoints → Mark Carney` |
+| **limpas** | **86,2%** | 761.019 relações |
+
+Precisão estimada em amostras de 10–15 por motivo: ~9/10 ou mais em todos.
+Num sorteio de 40 do conjunto limpo, ~70% são relações econômicas claras; o
+resto é ruído mais difícil de capturar por regra (produto como agente, assunto
+interno da empresa, política). **Indicadores macro e setores não são ruído**
+(`retail sales → pound`, `Fed → dividend stocks`, `→ banks`): o filtro foi
+ajustado para não marcá-los. Sinônimos (`Fed`, `the Fed`, `Federal Reserve`)
+não são resolvidos aqui — isso é resolução de entidades, outra etapa.
+
 ## O que decide a sua conta de GPU
 
 **O comprimento dos artigos, mais que a quantidade.** Medido em 19.320 artigos:

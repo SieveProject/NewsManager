@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .. import config as cfgmod
 from ..config import EXIT_CONFIG, ConfigError
-from . import benchmark, collect, partition, units, worker
+from . import benchmark, collect, noise, partition, units, worker
 from .client import OllamaConfig
 from .prompt import DEFAULT_MAX_CHARS, load as load_prompt
 
@@ -146,6 +146,16 @@ def _dispatch(argv: list[str] | None = None) -> int:
                    help="model the run used; part of prompt_version")
     c.add_argument("--no-views", action="store_true")
 
+    fl = sub.add_parser("filter", help="marca tuplas ruidosas -> news.relations_clean")
+    fl.add_argument("--prompt-version", default=None)
+    fl.add_argument("--prompt", default=None)
+    fl.add_argument("--schema", default=None)
+    fl.add_argument("--max-chars", type=int, default=DEFAULT_MAX_CHARS)
+    fl.add_argument("--model", default=os.environ.get("NM_MODEL", DEFAULT_MODEL))
+    fl.add_argument("--keep", default="",
+                    help="motivos a NÃO excluir de relations_clean, separados por vírgula "
+                         "(ex.: comparison,membership)")
+
     args = p.parse_args(argv)
     cfg = cfgmod.load(args.config)
     cfg.ensure_dirs()
@@ -188,6 +198,16 @@ def _dispatch(argv: list[str] | None = None) -> int:
 
     if args.cmd == "absorb":
         collect.absorb_orphan_wals(cfg, args.prompt_version)
+        return 0
+
+    if args.cmd == "filter":
+        version = args.prompt_version
+        if version is None:
+            pp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "extraction.txt"
+            sp = Path(args.schema) if args.schema else _repo() / "prompts" / "schema.json"
+            version = load_prompt(pp, sp, args.max_chars, model=args.model).version
+        keep = {k.strip() for k in args.keep.split(",") if k.strip()}
+        noise.build(cfg, version, exclude=tuple(r for r in noise.REASONS if r not in keep))
         return 0
 
     if args.cmd == "collect":
