@@ -7,7 +7,8 @@ kind -- what the entity is:
   company       a business, listed or private: manufacturers, banks, brokers, asset managers, insurers
   fund          an ETF, mutual fund, closed-end fund or listed trust
   index         a market index: S&P 500, Dow Jones Industrial Average, Nasdaq Composite, Nikkei
-  central_bank  Federal Reserve, European Central Bank, Bank of Japan, People's Bank of China
+  central_bank  a monetary authority ONLY: Federal Reserve, European Central Bank, Bank of
+                Japan, People's Bank of China. Regulators (SEC, FDA), the IMF and OPEC are government
   government    a government, ministry, regulator, agency, court, parliament, party or
                 international organization: U.S. government, SEC, FDA, Treasury, IMF, OPEC, EU
   country       a country, state, city or region: China, Europe, Texas, emerging markets

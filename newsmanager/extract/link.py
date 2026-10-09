@@ -549,6 +549,92 @@ def run(cfg: Config, relations_version: str, oll: OllamaConfig, template_path: P
 
 # --- link-build --------------------------------------------------------------
 
+# Evidência forte: o ticker escolhido veio do próprio nome ou da listagem.
+STRONG_EVIDENCE = ("the entity name contains", "same company name", "the name is this ticker")
+# Palavras que não identificam uma empresa: sem isso "Bank of X" casaria com
+# qualquer banco e o rótulo do candidato ("listed today as...") com tudo.
+_STOP = set("""
+and the inc corp company group holdings holding international global american national
+united financial capital bank banks technologies technology systems industries energy
+resources partners management fund funds trust etf shares index ishares spdr invesco
+vanguard proshares select sector first new general china chinese usa north south east
+west plc ltd limited corporation incorporated services service solutions communications
+pharmaceuticals therapeutics health healthcare insurance investment investments asset
+assets securities markets market equity stock stocks oil gas motor motors airlines air
+petroleum mining gold
+""".split())
+
+
+def _label_names(label: str) -> list[str]:
+    """Nome contra o qual conferir: o da listagem; o das notícias só sem listagem.
+
+    O nome das notícias vem das marcações do FNSPID, que erram: artigos da
+    Airbus são marcados AIR (nos EUA, AAR Corp.), e aceitar o apelido deixava
+    "Airbus" -> AIR passar. Ticker reutilizado (FB) passa pela evidência forte.
+    """
+    if label.startswith("(name unknown"):
+        return []
+    m = re.match(r"listed today as (.*?)(?: \(ETF\))?; in these news", label)
+    if m:
+        return [m.group(1)]
+    if label.startswith("("):
+        return re.findall(r"'([^']+)'", label)
+    return [re.sub(r" \(ETF\)$", "", label)]
+
+
+def name_matches(variants: list[str], label: str) -> bool:
+    """O nome da entidade e o do ticker têm algo distintivo em comum?
+
+    Token >= 3 letras fora de _STOP ("goldman"), token >= 5 letras prefixo de
+    outro ("quidel" ~ "quidelortho"), ou um nome contido no outro sem espaços
+    ("walmart" em "walmartstores", "exxonmobil" == "exxon mobil").
+    """
+    names = _label_names(label)
+    for v in variants:
+        nv = norm(v)
+        tv = {t for t in nv.split() if len(t) >= 3 and t not in _STOP}
+        jv = nv.replace(" ", "")
+        for nm in names:
+            nn = norm(nm)
+            tn = {t for t in nn.split() if len(t) >= 3 and t not in _STOP}
+            if tv & tn:
+                return True
+            if any(len(a) >= 5 and len(b) >= 5 and (a.startswith(b) or b.startswith(a))
+                   for a in tv for b in tn):
+                return True
+            jn = nn.replace(" ", "")
+            short, long_ = sorted((jv, jn), key=len)
+            if len(short) >= 4 and short in long_:
+                return True
+    return False
+
+
+def check_ticker(variants: list[str], candidates: list[dict], ticker: str | None) -> str | None:
+    """Por que aceitar o ticker do modelo ('name' | 'evidence'), ou None.
+
+    'name': o nome bate com o do ticker. 'evidence': o nome NÃO bate, mas o
+    ticker veio do próprio nome ou da listagem -- Google -> GOOG (Alphabet),
+    Facebook -> FB (hoje um ETF), e também Roche -> ROG (o ticker suíço; nos EUA
+    é a Rogers Corp.). Estes são os que valem revisão manual.
+
+    Medido no piloto de 400 entidades (qwen2.5:7b): o modelo acerta quase tudo
+    nas citadas e erra na cauda, escolhendo por co-menção ("companies" -> GS,
+    "Forte Capital" -> VOE, "contract drug manufacturers" -> TMO) ou pelo ticker
+    estrangeiro que conhece ("Airbus" -> AIR, que nos EUA é a AAR Corp.). Só a
+    co-menção nunca basta.
+    """
+    if not ticker:
+        return None
+    c = next((c for c in candidates if c["ticker"] == ticker), None)
+    if c is None:
+        return None
+    if name_matches(variants, c["name"]):
+        return "name"
+    if c["evidence"].startswith(STRONG_EVIDENCE):
+        return "evidence"
+    return None
+
+
 def build(cfg: Config, relations_version: str, version: str | None = None, views: bool = True) -> dict:
     d = entities_dir(cfg, relations_version)
     runs = sorted((d / "runs").glob("l=*")) if version is None else [d / "runs" / f"l={version}"]
@@ -573,21 +659,28 @@ def build(cfg: Config, relations_version: str, version: str | None = None, views
         SELECT c.key, c.n, c.variants, l.kind,
                -- ticker só para empresa/fundo: o modelo às vezes classifica
                -- "S&P 500" como índice e ainda assim escolhe um ETF
-               CASE WHEN l.kind IN ({tk}) AND l.link IN ('issuer', 'parent') THEN l.ticker END AS ticker,
-               CASE WHEN l.kind IN ({tk}) AND l.link IN ('issuer', 'parent') AND l.ticker IS NOT NULL
-                    THEN l.link ELSE 'none' END AS link,
-               l.canonical,
-               CASE WHEN l.key IS NULL THEN 'pending' ELSE 'llm' END AS method
+               CASE WHEN l.kind IN ({tk}) AND l.link IN ('issuer', 'parent') THEN l.ticker END AS llm_ticker,
+               l.link AS llm_link, l.canonical,
+               CASE WHEN l.key IS NULL THEN 'pending' ELSE 'llm' END AS method,
+               c.candidates
         FROM read_parquet('{d / 'candidates.parquet'}') c LEFT JOIN llm l USING (key)""")
-    # entity_id: o ticker; sem ticker, o nome canônico normalizado (FEDERAL_RESERVE).
-    ids = [{"key": k, "entity_id": t or slug(c or "") or slug(k)}
-           for k, t, c in con.execute("SELECT key, ticker, canonical FROM em").fetchall()]
-    con.register("ids_arrow", pa.Table.from_pylist(
-        ids, schema=pa.schema([("key", pa.string()), ("entity_id", pa.string())])))
+    # Checagem determinística do ticker do modelo, e entity_id: o ticker; sem
+    # ticker, o nome canônico normalizado (FEDERAL_RESERVE).
+    ids = []
+    for k, v, cands, lt, ll, can in con.execute(
+            "SELECT key, variants, candidates, llm_ticker, llm_link, canonical FROM em").fetchall():
+        why = check_ticker(v, cands or [], lt)
+        t = lt if why else None
+        ids.append({"key": k, "ticker": t, "link": ll if t else "none", "ticker_check": why,
+                    "entity_id": t or slug(can or "") or slug(k)})
+    con.register("ids_arrow", pa.Table.from_pylist(ids, schema=pa.schema([
+        ("key", pa.string()), ("ticker", pa.string()), ("link", pa.string()),
+        ("ticker_check", pa.string()), ("entity_id", pa.string())])))
     con.execute(f"""COPY (
-        SELECT em.*, ids.entity_id, t.has_price, '{version}' AS link_version
+        SELECT em.* EXCLUDE (candidates), ids.ticker, ids.link, ids.ticker_check, ids.entity_id,
+               t.has_price, '{version}' AS link_version
         FROM em JOIN ids_arrow ids USING (key)
-        LEFT JOIN read_parquet('{d / 'tickers.parquet'}') t ON t.ticker = em.ticker
+        LEFT JOIN read_parquet('{d / 'tickers.parquet'}') t ON t.ticker = ids.ticker
     ) TO '{tmap}' (FORMAT parquet, COMPRESSION zstd)""")
     con.execute(f"""COPY (
         SELECT r.*,
