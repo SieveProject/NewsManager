@@ -29,11 +29,17 @@ O estado de uma run em andamento, se houver, fica em `CLAUDE.local.md`.
 ```
 probe -> plan -> ingest -> curate -> validate -> serve      python -m newsmanager <etapa>
 units [--sample-frac F] -> run -> collect -> filter        python -m newsmanager.extract <etapa>
+link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-build
 ```
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
   `data/curated/extraction_units` -> `data/extractions/v=<versão>/{runs,relations}` ->
   `data/curated/relations/v=<versão>` -> views em `data/corpus.duckdb` (schema `news`).
+- `link` (`newsmanager/extract/link.py`, `prompts/link.txt`): nome do agente ->
+  ticker. O modelo leve só ESCOLHE entre candidatos fechados (enum no schema) ou
+  NONE; universo = tickers com preço no FNSPID ∪ `symbols`. Saída em
+  `data/curated/entities/v=<versão>/` -> `news.entity_map`, `news.relations_linked`.
+  O ticker entre parênteses no nome é só evidência ("crude oil (WTI)" ≠ W&T Offshore).
 - `prompt_version` = hash de prompt + schema + `max_chars` + **modelo**. Trocar
   qualquer um abre um diretório novo; resultados nunca se misturam.
 - Testes: `tests/test_e2e_subset.py 3 32` (ingestão real, ~100 MB) e

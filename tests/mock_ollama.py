@@ -64,6 +64,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         msgs = req.get("messages") or []
         prompt = req.get("prompt") or (msgs[-1]["content"] if msgs else "")
+        fmt = req.get("format") or {}
+        if isinstance(fmt, dict) and "kind" in fmt.get("properties", {}):
+            self._link(req, prompt, fmt)
+            return
         # Deterministic per article so re-runs are comparable.
         rng = random.Random(hash(prompt) & 0xFFFFFFFF)
         k = rng.randint(0, 3)
@@ -87,6 +91,19 @@ class Handler(BaseHTTPRequestHandler):
             "prompt_eval_count": max(1, len(prompt) // 4),
             "eval_count": max(1, len(text) // 4),
         })
+
+
+    def _link(self, req, prompt, fmt):
+        """Etapa link: primeiro candidato do enum, como um modelo obediente."""
+        tickers = fmt["properties"]["ticker"]["enum"]
+        t = tickers[0]
+        m = re.search(r"^ENTITY: (.*)$", prompt, re.M)
+        text = json.dumps({"kind": "company" if t != "NONE" else "other", "ticker": t,
+                           "link": "issuer" if t != "NONE" else "none",
+                           "canonical": m.group(1).strip() if m else ""})
+        self._json(200, {"model": req.get("model", MODEL),
+                         "message": {"role": "assistant", "content": text}, "response": text,
+                         "done": True, "prompt_eval_count": len(prompt) // 4, "eval_count": 20})
 
 
 def main():

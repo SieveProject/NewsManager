@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .. import config as cfgmod
 from ..config import EXIT_CONFIG, ConfigError
-from . import benchmark, collect, noise, partition, units, worker
+from . import benchmark, collect, link, noise, partition, units, worker
 from .client import OllamaConfig
 from .prompt import DEFAULT_MAX_CHARS, load as load_prompt
 
@@ -19,6 +19,8 @@ from .prompt import DEFAULT_MAX_CHARS, load as load_prompt
 # ~1/4 of sampled tuples were real agent-to-agent relations; padding to the
 # 8-tuple cap 5% vs 30%; metrics as agents 2.8% vs 7.2%) and ran 39% faster.
 DEFAULT_MODEL = "qwen2.5:14b-instruct"
+# Modelo leve da etapa link: escolhe entre candidatos fechados, não extrai.
+DEFAULT_LINK_MODEL = "qwen2.5:7b-instruct"
 
 
 def _repo() -> Path:
@@ -156,6 +158,32 @@ def _dispatch(argv: list[str] | None = None) -> int:
                     help="motivos a NÃO excluir de relations_clean, separados por vírgula "
                          "(ex.: comparison,membership)")
 
+    # Etapa link: nomes dos agentes -> tickers (ver newsmanager/extract/link.py).
+    # --relations-version identifica as tuplas; o padrão é a versão dos prompts
+    # de extração com o modelo de extração (não o modelo leve do link).
+    lp = sub.add_parser("link-prep", help="normaliza nomes e monta candidatos a ticker (sem GPU)")
+    lp.add_argument("--relations-version", default=None)
+    lp.add_argument("--refresh", action="store_true", help="baixa de novo as listas de tickers")
+
+    lr = sub.add_parser("link-run", help="modelo leve escolhe o ticker entre os candidatos")
+    lr.add_argument("--relations-version", default=None)
+    lr.add_argument("--model", default=os.environ.get("NM_LINK_MODEL", DEFAULT_LINK_MODEL))
+    lr.add_argument("--host", default=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"))
+    lr.add_argument("--concurrency", type=int, default=int(os.environ.get("NM_CONCURRENCY", "32")))
+    lr.add_argument("--num-ctx", type=int, default=int(os.environ.get("NM_NUM_CTX", "3072")))
+    lr.add_argument("--num-predict", type=int, default=128)
+    lr.add_argument("--timeout", type=float, default=120.0)
+    lr.add_argument("--prompt", default=None, help="template (padrão prompts/link.txt)")
+    lr.add_argument("--limit", type=int, default=None)
+    lr.add_argument("--order", choices=("freq", "hash"), default="freq",
+                    help="freq: nomes mais citados primeiro; hash: amostra uniforme (piloto)")
+    lr.add_argument("--min-n", type=int, default=1, help="só nomes com ao menos N menções")
+
+    lb = sub.add_parser("link-build", help="grava entity_map + relations_linked e as views")
+    lb.add_argument("--relations-version", default=None)
+    lb.add_argument("--link-version", default=None)
+    lb.add_argument("--no-views", action="store_true")
+
     args = p.parse_args(argv)
     cfg = cfgmod.load(args.config)
     cfg.ensure_dirs()
@@ -208,6 +236,23 @@ def _dispatch(argv: list[str] | None = None) -> int:
             version = load_prompt(pp, sp, args.max_chars, model=args.model).version
         keep = {k.strip() for k in args.keep.split(",") if k.strip()}
         noise.build(cfg, version, exclude=tuple(r for r in noise.REASONS if r not in keep))
+        return 0
+
+    if args.cmd.startswith("link-"):
+        rv = args.relations_version or load_prompt(
+            _repo() / "prompts" / "extraction.txt", _repo() / "prompts" / "schema.json",
+            DEFAULT_MAX_CHARS, model=DEFAULT_MODEL).version
+        if args.cmd == "link-prep":
+            link.prepare(cfg, rv, refresh=args.refresh)
+        elif args.cmd == "link-run":
+            oll = OllamaConfig(host=args.host, model=args.model, num_ctx=args.num_ctx,
+                               num_predict=args.num_predict, concurrency=args.concurrency,
+                               timeout_s=args.timeout)
+            tp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "link.txt"
+            print(json.dumps(link.run(cfg, rv, oll, tp, limit=args.limit, order=args.order,
+                                      min_n=args.min_n), indent=2))
+        else:
+            link.build(cfg, rv, args.link_version, views=not args.no_views)
         return 0
 
     if args.cmd == "collect":
