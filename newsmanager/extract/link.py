@@ -547,6 +547,105 @@ def run(cfg: Config, relations_version: str, oll: OllamaConfig, template_path: P
     return asyncio.run(_run(cfg, relations_version, oll, template, limit, order, min_n, segment))
 
 
+# --- link-verify -------------------------------------------------------------
+#
+# Segunda pergunta, só para os tickers aceitos por evidência forte com nome
+# diferente da listagem (ticker_check = 'evidence'). Medido nas 60 mais citadas
+# desse grupo: ~87% certos, e os erros são o ticker da bolsa de origem que nos
+# EUA é de outra empresa (Tesco -> TSCO = Tractor Supply, Roche -> ROG = Rogers).
+# Sem listagem atual não há nome a comparar: esses ficam como estão.
+
+# Ticker reutilizado depois do período dos preços: a listagem de hoje mostra
+# outro título e o modelo, com razão, responde "no". FB.csv do FNSPID é o
+# Facebook (2012-05 a 2020-07); desde 2022 o FB é um ETF da ProShares. Medido:
+# sem isto o link-verify derrubava Facebook e Meta Platforms (~3 mil menções).
+REUSED_TICKERS = {"FB": "Facebook, Inc. (renamed Meta Platforms in 2021; the symbol FB was later reassigned)"}
+
+_FUNDISH = re.compile(r"(?i)etf|fund|spdr|ishares|powershares|trust")
+
+
+def verify_exempt(variants: list[str], ticker: str, link: str | None, is_etf: bool) -> bool:
+    """Casos em que a resposta do link-verify não vale (medido na run c49291db2953).
+
+    - controladora (link 'parent'): o modelo rejeitava Sandoz -> NVS, Waymo ->
+      GOOG, Burger King -> QSR, Mobileye -> INTC; das 35 rejeições, quase todas
+      eram mapeamentos certos
+    - ETF citado como fundo ou pelo símbolo: "Technology Select Sector SPDR Fund
+      (XLK)" contra "State Street Technology Select Sector SPDR ETF" -> "no"
+    """
+    if link == "parent":
+        return True
+    return bool(is_etf) and (any(x.strip().upper() == ticker for x in variants)
+                             or any(_FUNDISH.search(x) for x in variants))
+
+
+VERIFY_SCHEMA = {"type": "object", "properties": {"answer": {"type": "string", "enum": ["yes", "no"]}},
+                 "required": ["answer"]}
+
+
+def verify_dir(cfg: Config, relations_version: str, version: str) -> Path:
+    return runs_dir(cfg, relations_version, version) / "verify"
+
+
+def _verify_todo(cfg: Config, relations_version: str, version: str) -> list[dict]:
+    """Chaves do grupo 'evidence' cujo ticker tem nome na listagem atual."""
+    d = entities_dir(cfg, relations_version)
+    c = duckdb.connect()
+    rows = c.execute(f"""
+        SELECT em.key, em.variants, em.ticker, t.name, t.is_etf, em.llm_link
+        FROM read_parquet('{d / 'entity_map.parquet'}') em
+        JOIN read_parquet('{d / 'tickers.parquet'}') t USING (ticker)
+        WHERE em.ticker_check = 'evidence' AND em.link_version = ?
+        ORDER BY em.n DESC, em.key""", [version]).fetchall()
+    c.close()
+    out = []
+    for k, v, t, nm, etf, lk in rows:
+        if not nm or verify_exempt(v, t, lk, etf):
+            continue
+        out.append({"key": k, "variants": v, "ticker": t, "listed": REUSED_TICKERS.get(t, nm)})
+    return out
+
+
+def render_verify(template: str, row: dict) -> str:
+    out = template
+    for ph, val in (("{{NAME}}", row["variants"][0][:80]),
+                    ("{{VARIANTS}}", "; ".join(x[:60] for x in row["variants"][1:]) or "(none)"),
+                    ("{{TICKER}}", row["ticker"]), ("{{LISTED}}", row["listed"][:80])):
+        out = out.replace(ph, val)
+    return out
+
+
+async def _verify(cfg, relations_version, version, oll, template, rows) -> dict:
+    out = verify_dir(cfg, relations_version, version)
+    out.mkdir(parents=True, exist_ok=True)
+    tv = hashlib.sha256((template + oll.model).encode()).hexdigest()[:8]
+    dst = out / f"verify-{tv}.parquet"
+    async with OllamaClient(oll) as cl:
+        h = await cl.health()
+        if not h["has_model"]:
+            raise ConfigError(f"modelo {oll.model} ausente no Ollama; `ollama pull` antes")
+        res = await asyncio.gather(*(cl.generate(render_verify(template, r), schema=VERIFY_SCHEMA)
+                                     for r in rows))
+    recs = [{"key": r["key"], "ticker": r["ticker"],
+             "answer": (g.parsed or {}).get("answer") if g.ok else None,
+             "model": oll.model, "verify_version": tv} for r, g in zip(rows, res)]
+    _write(recs, pa.schema([("key", pa.string()), ("ticker", pa.string()), ("answer", pa.string()),
+                            ("model", pa.string()), ("verify_version", pa.string())]), dst)
+    n_no = sum(r["answer"] == "no" for r in recs)
+    n_fail = sum(r["answer"] is None for r in recs)
+    print(f"[link-verify] {len(recs):,} tickers conferidos: {n_no:,} rejeitados, {n_fail:,} falhas")
+    print(f"[link-verify] {dst}")
+    return {"checked": len(recs), "rejected": n_no, "failed": n_fail, "path": str(dst)}
+
+
+def verify(cfg: Config, relations_version: str, version: str, oll: OllamaConfig,
+           template_path: Path, limit: int | None = None) -> dict:
+    """Precisa do entity_map de um link-build anterior desta versão."""
+    template = Path(template_path).read_text(encoding="utf-8")
+    rows = _verify_todo(cfg, relations_version, version)[:limit]
+    return asyncio.run(_verify(cfg, relations_version, version, oll, template, rows))
+
+
 # --- link-build --------------------------------------------------------------
 
 # Evidência forte: o ticker escolhido veio do próprio nome ou da listagem.
@@ -592,6 +691,12 @@ def name_matches(variants: list[str], label: str) -> bool:
     names = _label_names(label)
     for v in variants:
         nv = norm(v)
+        # Sigla = iniciais do nome: TSMC, IBM, UPS, AIG
+        # (iniciais do nome cru: norm() tiraria o "Company" de TSMC)
+        if re.fullmatch(r"[a-z]{3,6}", nv) and any(
+                nv == "".join(w[0] for w in re.findall(r"[a-z0-9]+", nm.lower())
+                              if w not in ("and", "of", "the"))[:len(nv)] for nm in names):
+            return True
         tv = {t for t in nv.split() if len(t) >= 3 and t not in _STOP}
         jv = nv.replace(" ", "")
         for nm in names:
@@ -666,10 +771,24 @@ def build(cfg: Config, relations_version: str, version: str | None = None, views
         FROM read_parquet('{d / 'candidates.parquet'}') c LEFT JOIN llm l USING (key)""")
     # Checagem determinística do ticker do modelo, e entity_id: o ticker; sem
     # ticker, o nome canônico normalizado (FEDERAL_RESERVE).
+    # Rejeições do link-verify (se rodou): o ticker 'evidence' que o modelo
+    # disse não ser da entidade cai, salvo os casos isentos (verify_exempt).
+    # Vale o arquivo mais recente.
+    rejected: set[str] = set()
+    vfiles = sorted((rd / "verify").glob("verify-*.parquet"), key=lambda p: p.stat().st_mtime)
+    if vfiles:
+        etf = dict(con.execute(f"SELECT ticker, is_etf FROM read_parquet('{d / 'tickers.parquet'}')").fetchall())
+        rows = con.execute(f"""SELECT v.key, v.ticker, em.variants, em.llm_link
+            FROM read_parquet('{vfiles[-1]}') v JOIN em USING (key) WHERE v.answer = 'no'""").fetchall()
+        rejected = {k for k, t, var, lk in rows if not verify_exempt(var, t, lk, etf.get(t, False))}
+        print(f"[link-build] link-verify: {len(rejected):,} tickers rejeitados "
+              f"({len(rows) - len(rejected):,} isentos) -- {vfiles[-1].name}")
     ids = []
     for k, v, cands, lt, ll, can in con.execute(
             "SELECT key, variants, candidates, llm_ticker, llm_link, canonical FROM em").fetchall():
         why = check_ticker(v, cands or [], lt)
+        if why == "evidence" and k in rejected:
+            why = None
         t = lt if why else None
         ids.append({"key": k, "ticker": t, "link": ll if t else "none", "ticker_check": why,
                     "entity_id": t or slug(can or "") or slug(k)})

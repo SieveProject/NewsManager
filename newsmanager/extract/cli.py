@@ -179,6 +179,15 @@ def _dispatch(argv: list[str] | None = None) -> int:
                     help="freq: nomes mais citados primeiro; hash: amostra uniforme (piloto)")
     lr.add_argument("--min-n", type=int, default=1, help="só nomes com ao menos N menções")
 
+    lv = sub.add_parser("link-verify", help="confere os tickers aceitos só por evidência (sim/não)")
+    lv.add_argument("--relations-version", default=None)
+    lv.add_argument("--link-version", required=True)
+    lv.add_argument("--model", default=os.environ.get("NM_LINK_MODEL", DEFAULT_LINK_MODEL))
+    lv.add_argument("--host", default=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"))
+    lv.add_argument("--concurrency", type=int, default=int(os.environ.get("NM_CONCURRENCY", "32")))
+    lv.add_argument("--prompt", default=None, help="template (padrão prompts/link_verify.txt)")
+    lv.add_argument("--limit", type=int, default=None)
+
     lb = sub.add_parser("link-build", help="grava entity_map + relations_linked e as views")
     lb.add_argument("--relations-version", default=None)
     lb.add_argument("--link-version", default=None)
@@ -251,6 +260,11 @@ def _dispatch(argv: list[str] | None = None) -> int:
             tp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "link.txt"
             print(json.dumps(link.run(cfg, rv, oll, tp, limit=args.limit, order=args.order,
                                       min_n=args.min_n), indent=2))
+        elif args.cmd == "link-verify":
+            oll = OllamaConfig(host=args.host, model=args.model, num_ctx=int(os.environ.get("NM_NUM_CTX", "3072")), num_predict=16,
+                               concurrency=args.concurrency, timeout_s=120.0)
+            tp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "link_verify.txt"
+            print(json.dumps(link.verify(cfg, rv, args.link_version, oll, tp, limit=args.limit), indent=2))
         else:
             link.build(cfg, rv, args.link_version, views=not args.no_views)
         return 0

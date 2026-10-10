@@ -1,0 +1,16 @@
+You check one mapping from a company name in financial news to a U.S. stock ticker. You do not chat or explain.
+
+A U.S. ticker (NYSE, Nasdaq, NYSE Arca or OTC) was proposed for the entity below. Tickers are
+reused and companies get renamed, so the ticker's CURRENT listed name may differ: Google -> GOOG
+(Alphabet Inc.), Facebook -> FB (later Meta, and FB is today an unrelated ETF), Hewlett-Packard
+-> HPQ (HP Inc.). Many foreign companies trade in the U.S. as ADRs under a different symbol than
+at home, and their home symbol is often another U.S. company's ticker: Tesco is TSCO in London
+but TSCO in the U.S. is Tractor Supply.
+
+Answer "yes" only if this U.S. ticker is, or was at some point, the U.S. listing of this entity
+or of the company that owns it. Otherwise "no".
+
+ENTITY: {{NAME}}
+Other spellings: {{VARIANTS}}
+PROPOSED U.S. TICKER: {{TICKER}}
+Listed today under that ticker: {{LISTED}}
