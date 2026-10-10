@@ -29,7 +29,7 @@ O estado de uma run em andamento, se houver, fica em `CLAUDE.local.md`.
 ```
 probe -> plan -> ingest -> curate -> validate -> serve      python -m newsmanager <etapa>
 units [--sample-frac F] -> run -> collect -> filter        python -m newsmanager.extract <etapa>
-link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-build
+link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> link-build (Mac)
 ```
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
@@ -40,6 +40,13 @@ link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-build
   NONE; universo = tickers com preço no FNSPID ∪ `symbols`. Saída em
   `data/curated/entities/v=<versão>/` -> `news.entity_map`, `news.relations_linked`.
   O ticker entre parênteses no nome é só evidência ("crude oil (WTI)" ≠ W&T Offshore).
+  Depois do LLM: só `company`/`fund` levam ticker; `check_ticker` exige nome
+  compatível ('name') ou evidência forte ('evidence'); `link-verify` (sim/não,
+  `prompts/link_verify.txt`) derruba colisões com tickers estrangeiros, exceto
+  `verify_exempt` (controladoras e ETFs). Use `news.relations_linked` no backtest.
+- `link_version` = hash de template + modelo + KINDS + universo (`ref_hash`) +
+  `CANDIDATES_REV`. As listagens da Nasdaq Trader mudam todo dia: a cópia usada
+  fica em `data/reference/` (também no Drive).
 - `prompt_version` = hash de prompt + schema + `max_chars` + **modelo**. Trocar
   qualquer um abre um diretório novo; resultados nunca se misturam.
 - Testes: `tests/test_e2e_subset.py 3 32` (ingestão real, ~100 MB) e
@@ -59,6 +66,24 @@ link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-build
   pelo `filter` (`newsmanager/extract/noise.py`), que **marca** e não apaga:
   use `news.relations_clean` (86,2% das relações) na análise. Indicadores
   macro e setores NÃO são ruído — não amplie as listas sem medir amostras.
+- **Link: `qwen2.5:7b-instruct`** (só escolhe num enum fechado). No piloto de
+  400 entidades o 3B teve a mesma velocidade e classificou tipos pior.
+
+## Estado atual (2026-10-10)
+
+- Extração `v=a05d0c0dc189` concluída: 401.609 unidades, 882.914 relações,
+  `relations_flagged` com coluna `noise`. Tudo no Drive (`gdrive:NewsManager`).
+- Link concluído para essa versão: 234.406 entidades, 0 falhas, run final
+  `l=c49291db2953` (+ verify). Resultado: 538.070 menções com ticker (33,9%),
+  533.631 com preço; relações limpas com ticker em ≥1 lado 52,3%, nos dois 13,3%.
+  Precisão estimada ~94% numa amostra. `data/curated/entities/` e
+  `data/reference/` estão no Mac e no Drive. Runs `l=863c9944d819` e
+  `l=0a3720a0b0ce` são do piloto (prompt antigo): não usar no build.
+- Nenhuma instância Vast ativa.
+- Limitações conhecidas: tickers pequenos usados como nome (AVGO, DHI, RIG, ~250
+  menções) e empresas renomeadas (Momo, FTI) ficam sem ticker; IDs canônicos não
+  fundem todos os sinônimos ("U.S. Federal Reserve" vs "Federal Reserve"); o
+  painel de preços do FNSPID não tem UNH, VZ, MRNA, SPG, CELG, SNY, YHOO, BRK, SNAP.
 
 ## Armadilhas já encontradas (o código já trata; não desfaça)
 
