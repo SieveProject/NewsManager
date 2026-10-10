@@ -1,0 +1,142 @@
+python: Python 3.11.10
+python deps: /root/NewsManager/.venv/bin/python
+ollama: NUM_PARALLEL=32 CONTEXT_LENGTH=3072 KV_CACHE=q8_0
+[?2026h[?25l[1Gpulling manifest ⠋ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠙ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠹ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠸ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠼ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠴ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠦ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠧ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest ⠇ [K[?25h[?2026l[?2026h[?25l[1Gpulling manifest [K
+pulling 2bada8a74506: 100% ▕██████████████████▏ 4.7 GB                         [K
+pulling 66b9ea09bd5b: 100% ▕██████████████████▏   68 B                         [K
+pulling eb4402837c78: 100% ▕██████████████████▏ 1.5 KB                         [K
+pulling 832dd9e00a68: 100% ▕██████████████████▏  11 KB                         [K
+pulling 2f15b3218f05: 100% ▕██████████████████▏  487 B                         [K
+verifying sha256 digest [K
+writing manifest [K
+removing unused layers [K
+success [K[?25h[?2026l
+NAME                   ID              SIZE      PROCESSOR    CONTEXT    RUNNER      UNTIL   
+qwen2.5:7b-instruct    845dbda0ea48    7.9 GB    100% GPU     3072       llamacpp    Forever    
+[link-run] l=c49291db2953  modelo qwen2.5:7b-instruct  já feitas 0  a fazer 234,406 (n >= 1, ordem freq)
+[link-run] /root/NewsManager/data/curated/entities/v=a05d0c0dc189/runs/l=c49291db2953
+[link-run] 2,000/234,406  ok 2,000  falhas 0  6.4/s  ETA 609 min
+[link-run] 4,000/234,406  ok 4,000  falhas 0  6.5/s  ETA 589 min
+[link-run] 6,000/234,406  ok 6,000  falhas 0  6.6/s  ETA 578 min
+[link-run] 8,000/234,406  ok 8,000  falhas 0  6.6/s  ETA 568 min
+[link-run] 10,000/234,406  ok 10,000  falhas 0  6.7/s  ETA 559 min
+[link-run] 12,000/234,406  ok 12,000  falhas 0  6.7/s  ETA 551 min
+[link-run] 14,000/234,406  ok 14,000  falhas 0  6.8/s  ETA 544 min
+[link-run] 16,000/234,406  ok 16,000  falhas 0  6.8/s  ETA 537 min
+[link-run] 18,000/234,406  ok 18,000  falhas 0  6.8/s  ETA 530 min
+[link-run] 20,000/234,406  ok 20,000  falhas 0  6.8/s  ETA 523 min
+[link-run] 22,000/234,406  ok 22,000  falhas 0  6.9/s  ETA 517 min
+[link-run] 24,000/234,406  ok 24,000  falhas 0  6.9/s  ETA 510 min
+[link-run] 26,000/234,406  ok 26,000  falhas 0  6.9/s  ETA 504 min
+[link-run] 28,000/234,406  ok 28,000  falhas 0  6.9/s  ETA 497 min
+[link-run] 30,000/234,406  ok 30,000  falhas 0  6.9/s  ETA 491 min
+[link-run] 32,000/234,406  ok 32,000  falhas 0  7.0/s  ETA 485 min
+[link-run] 34,000/234,406  ok 34,000  falhas 0  7.0/s  ETA 479 min
+[link-run] 36,000/234,406  ok 36,000  falhas 0  7.0/s  ETA 473 min
+[link-run] 38,000/234,406  ok 38,000  falhas 0  7.0/s  ETA 467 min
+[link-run] 40,000/234,406  ok 40,000  falhas 0  7.0/s  ETA 462 min
+[link-run] 42,000/234,406  ok 42,000  falhas 0  7.0/s  ETA 456 min
+[link-run] 44,000/234,406  ok 44,000  falhas 0  7.0/s  ETA 451 min
+[link-run] 46,000/234,406  ok 46,000  falhas 0  7.1/s  ETA 445 min
+[link-run] 48,000/234,406  ok 48,000  falhas 0  7.1/s  ETA 440 min
+[link-run] 50,000/234,406  ok 50,000  falhas 0  7.1/s  ETA 434 min
+[link-run] 52,000/234,406  ok 52,000  falhas 0  7.1/s  ETA 429 min
+[link-run] 54,000/234,406  ok 54,000  falhas 0  7.1/s  ETA 424 min
+[link-run] 56,000/234,406  ok 56,000  falhas 0  7.1/s  ETA 418 min
+[link-run] 58,000/234,406  ok 58,000  falhas 0  7.1/s  ETA 413 min
+[link-run] 60,000/234,406  ok 60,000  falhas 0  7.1/s  ETA 408 min
+[link-run] 62,000/234,406  ok 62,000  falhas 0  7.2/s  ETA 402 min
+[link-run] 64,000/234,406  ok 64,000  falhas 0  7.2/s  ETA 396 min
+[link-run] 66,000/234,406  ok 66,000  falhas 0  7.2/s  ETA 391 min
+[link-run] 68,000/234,406  ok 68,000  falhas 0  7.2/s  ETA 385 min
+[link-run] 70,000/234,406  ok 70,000  falhas 0  7.2/s  ETA 380 min
+[link-run] 72,000/234,406  ok 72,000  falhas 0  7.2/s  ETA 375 min
+[link-run] 74,000/234,406  ok 74,000  falhas 0  7.2/s  ETA 370 min
+[link-run] 76,000/234,406  ok 76,000  falhas 0  7.2/s  ETA 364 min
+[link-run] 78,000/234,406  ok 78,000  falhas 0  7.3/s  ETA 359 min
+[link-run] 80,000/234,406  ok 80,000  falhas 0  7.3/s  ETA 354 min
+[link-run] 82,000/234,406  ok 82,000  falhas 0  7.3/s  ETA 349 min
+[link-run] 84,000/234,406  ok 84,000  falhas 0  7.3/s  ETA 344 min
+[link-run] 86,000/234,406  ok 86,000  falhas 0  7.3/s  ETA 339 min
+[link-run] 88,000/234,406  ok 88,000  falhas 0  7.3/s  ETA 334 min
+[link-run] 90,000/234,406  ok 90,000  falhas 0  7.3/s  ETA 329 min
+[link-run] 92,000/234,406  ok 92,000  falhas 0  7.3/s  ETA 324 min
+[link-run] 94,000/234,406  ok 94,000  falhas 0  7.3/s  ETA 319 min
+[link-run] 96,000/234,406  ok 96,000  falhas 0  7.3/s  ETA 314 min
+[link-run] 98,000/234,406  ok 98,000  falhas 0  7.3/s  ETA 309 min
+[link-run] 100,000/234,406  ok 100,000  falhas 0  7.4/s  ETA 304 min
+[link-run] 102,000/234,406  ok 102,000  falhas 0  7.4/s  ETA 299 min
+[link-run] 104,000/234,406  ok 104,000  falhas 0  7.4/s  ETA 294 min
+[link-run] 106,000/234,406  ok 106,000  falhas 0  7.4/s  ETA 290 min
+[link-run] 108,000/234,406  ok 108,000  falhas 0  7.4/s  ETA 285 min
+[link-run] 110,000/234,406  ok 110,000  falhas 0  7.4/s  ETA 280 min
+[link-run] 112,000/234,406  ok 112,000  falhas 0  7.4/s  ETA 275 min
+[link-run] 114,000/234,406  ok 114,000  falhas 0  7.4/s  ETA 270 min
+[link-run] 116,000/234,406  ok 116,000  falhas 0  7.4/s  ETA 265 min
+[link-run] 118,000/234,406  ok 118,000  falhas 0  7.5/s  ETA 260 min
+[link-run] 120,000/234,406  ok 120,000  falhas 0  7.5/s  ETA 255 min
+[link-run] 122,000/234,406  ok 122,000  falhas 0  7.5/s  ETA 251 min
+[link-run] 124,000/234,406  ok 124,000  falhas 0  7.5/s  ETA 246 min
+[link-run] 126,000/234,406  ok 126,000  falhas 0  7.5/s  ETA 241 min
+[link-run] 128,000/234,406  ok 128,000  falhas 0  7.5/s  ETA 237 min
+[link-run] 130,000/234,406  ok 130,000  falhas 0  7.5/s  ETA 232 min
+[link-run] 132,000/234,406  ok 132,000  falhas 0  7.5/s  ETA 227 min
+[link-run] 134,000/234,406  ok 134,000  falhas 0  7.5/s  ETA 223 min
+[link-run] 136,000/234,406  ok 136,000  falhas 0  7.5/s  ETA 218 min
+[link-run] 138,000/234,406  ok 138,000  falhas 0  7.5/s  ETA 213 min
+[link-run] 140,000/234,406  ok 140,000  falhas 0  7.5/s  ETA 209 min
+[link-run] 142,000/234,406  ok 142,000  falhas 0  7.5/s  ETA 204 min
+[link-run] 144,000/234,406  ok 144,000  falhas 0  7.6/s  ETA 200 min
+[link-run] 146,000/234,406  ok 146,000  falhas 0  7.6/s  ETA 195 min
+[link-run] 148,000/234,406  ok 148,000  falhas 0  7.6/s  ETA 190 min
+[link-run] 150,000/234,406  ok 150,000  falhas 0  7.6/s  ETA 186 min
+[link-run] 152,000/234,406  ok 152,000  falhas 0  7.6/s  ETA 181 min
+[link-run] 154,000/234,406  ok 154,000  falhas 0  7.6/s  ETA 177 min
+[link-run] 156,000/234,406  ok 156,000  falhas 0  7.6/s  ETA 172 min
+[link-run] 158,000/234,406  ok 158,000  falhas 0  7.6/s  ETA 168 min
+[link-run] 160,000/234,406  ok 160,000  falhas 0  7.6/s  ETA 163 min
+[link-run] 162,000/234,406  ok 162,000  falhas 0  7.6/s  ETA 159 min
+[link-run] 164,000/234,406  ok 164,000  falhas 0  7.6/s  ETA 154 min
+[link-run] 166,000/234,406  ok 166,000  falhas 0  7.6/s  ETA 150 min
+[link-run] 168,000/234,406  ok 168,000  falhas 0  7.6/s  ETA 145 min
+[link-run] 170,000/234,406  ok 170,000  falhas 0  7.6/s  ETA 141 min
+[link-run] 172,000/234,406  ok 172,000  falhas 0  7.6/s  ETA 136 min
+[link-run] 174,000/234,406  ok 174,000  falhas 0  7.6/s  ETA 132 min
+[link-run] 176,000/234,406  ok 176,000  falhas 0  7.6/s  ETA 128 min
+[link-run] 178,000/234,406  ok 178,000  falhas 0  7.6/s  ETA 123 min
+[link-run] 180,000/234,406  ok 180,000  falhas 0  7.6/s  ETA 119 min
+[link-run] 182,000/234,406  ok 182,000  falhas 0  7.6/s  ETA 114 min
+[link-run] 184,000/234,406  ok 184,000  falhas 0  7.6/s  ETA 110 min
+[link-run] 186,000/234,406  ok 186,000  falhas 0  7.6/s  ETA 106 min
+[link-run] 188,000/234,406  ok 188,000  falhas 0  7.7/s  ETA 101 min
+[link-run] 190,000/234,406  ok 190,000  falhas 0  7.7/s  ETA 97 min
+[link-run] 192,000/234,406  ok 192,000  falhas 0  7.7/s  ETA 92 min
+[link-run] 194,000/234,406  ok 194,000  falhas 0  7.7/s  ETA 88 min
+[link-run] 196,000/234,406  ok 196,000  falhas 0  7.7/s  ETA 84 min
+[link-run] 198,000/234,406  ok 198,000  falhas 0  7.7/s  ETA 79 min
+[link-run] 200,000/234,406  ok 200,000  falhas 0  7.7/s  ETA 75 min
+[link-run] 202,000/234,406  ok 202,000  falhas 0  7.7/s  ETA 70 min
+[link-run] 204,000/234,406  ok 204,000  falhas 0  7.7/s  ETA 66 min
+[link-run] 206,000/234,406  ok 206,000  falhas 0  7.7/s  ETA 62 min
+[link-run] 208,000/234,406  ok 208,000  falhas 0  7.7/s  ETA 57 min
+[link-run] 210,000/234,406  ok 210,000  falhas 0  7.7/s  ETA 53 min
+[link-run] 212,000/234,406  ok 212,000  falhas 0  7.7/s  ETA 49 min
+[link-run] 214,000/234,406  ok 214,000  falhas 0  7.7/s  ETA 44 min
+[link-run] 216,000/234,406  ok 216,000  falhas 0  7.7/s  ETA 40 min
+[link-run] 218,000/234,406  ok 218,000  falhas 0  7.7/s  ETA 36 min
+[link-run] 220,000/234,406  ok 220,000  falhas 0  7.7/s  ETA 31 min
+[link-run] 222,000/234,406  ok 222,000  falhas 0  7.7/s  ETA 27 min
+[link-run] 224,000/234,406  ok 224,000  falhas 0  7.7/s  ETA 23 min
+[link-run] 226,000/234,406  ok 226,000  falhas 0  7.7/s  ETA 18 min
+[link-run] 228,000/234,406  ok 228,000  falhas 0  7.7/s  ETA 14 min
+[link-run] 230,000/234,406  ok 230,000  falhas 0  7.7/s  ETA 10 min
+[link-run] 232,000/234,406  ok 232,000  falhas 0  7.7/s  ETA 5 min
+[link-run] 234,000/234,406  ok 234,000  falhas 0  7.7/s  ETA 1 min
+[link-run] 234,406/234,406  ok 234,406  falhas 0  7.7/s  ETA 0 min
+{
+  "version": "c49291db2953",
+  "ok": 234406,
+  "failed": 0,
+  "seconds": 30385.90645956993
+}
+EXIT=0

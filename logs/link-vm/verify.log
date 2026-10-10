@@ -1,0 +1,8 @@
+[link-verify] 2,947 tickers conferidos: 839 rejeitados, 0 falhas
+[link-verify] /root/NewsManager/data/curated/entities/v=a05d0c0dc189/runs/l=c49291db2953/verify/verify-cf60d646.parquet
+{
+  "checked": 2947,
+  "rejected": 839,
+  "failed": 0,
+  "path": "/root/NewsManager/data/curated/entities/v=a05d0c0dc189/runs/l=c49291db2953/verify/verify-cf60d646.parquet"
+}
