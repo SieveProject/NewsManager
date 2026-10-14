@@ -367,14 +367,34 @@ todos os modelos.
    não dá para separar o tipo da relação do fato de as empresas aparecerem
    juntas.
 
-**Consequências para o modelo (seção 4).** O alvo V2 passa a usar exposição +
-co-ocorrência (+ co-menção) como núcleo. As classes de relação entram como
-teste secundário. Antes do backtest, faltam três verificações:
+**Controle de setor** (SIC da SEC → Fama-French 49 e SIC de 2 dígitos,
+`python -m newsmanager sectors`; cobre 99,7% das ações-mês do universo):
 
+| comparação fora da amostra | ganho | t (NW) | meses melhores |
+|---|---|---|---|
+| setor sobre persistência (Elton e Gruber) | +0,0030 | 4,5 | 67% |
+| notícias sobre persistência | +0,0053 | 4,8 | 75% |
+| co-menção FNSPID sobre persistência + setor | +0,0008 | 1,8 | 63% |
+| **notícias sobre persistência + setor** | **+0,0031** | **4,0** | **74%** |
+| **notícias sobre persistência + setor + co-menção** | **+0,0023** | **5,2** | **73%** |
+
+5. **As notícias acrescentam além do setor, e sozinhas valem mais que ele.**
+   A co-menção do FNSPID quase some depois do setor (t = 1,8); o grafo do LLM,
+   não. No Fama-MacBeth completo (S4), co-ocorrência (t = 10,3) e exposição
+   (t = 6,3) continuam fortes ao lado do setor, cujos coeficientes caem à
+   metade: parte do que o setor explica, as notícias também explicam, mas não
+   o contrário.
+
+**Consequências para o modelo (seção 4).**
+- O alvo V2 passa a usar exposição + co-ocorrência (+ co-menção) como núcleo,
+  **com setor como controle**: o alvo de referência a bater é "persistência +
+  setor", não só Ledoit e Wolf.
+- As classes de relação entram como teste secundário.
+
+Antes do backtest, faltam duas verificações:
 - (a) sensibilidade a horizonte (63 dias), janela e meia-vida, calibrando só
   em 2011–2013;
-- (b) controle de setor (Elton e Gruber), se houver classificação setorial;
-- (c) refazer com a amostra ampliada quando a run terminar.
+- (b) refazer com a amostra ampliada quando a run terminar.
 
 ## Referências
 

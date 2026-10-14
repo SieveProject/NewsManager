@@ -38,13 +38,31 @@ from .. import query
 from . import data, features
 
 DIRECT = [f for f in features.FEATURES if f.startswith("direct_")]
+SECTOR = ["same_ff49", "same_sic2"]
+NEWS = ["comention", "cooccur", *DIRECT, "exposure"]
 MODELS = {
     "M0 persistência": ["z_hist"],
     "M1 + co-menção FNSPID": ["z_hist", "comention"],
     "M2 + co-ocorrência LLM": ["z_hist", "cooccur"],
     "M3 + relações e exposição": ["z_hist", *DIRECT, "exposure"],
-    "M4 tudo": ["z_hist", "comention", "cooccur", *DIRECT, "exposure"],
+    "M4 notícias": ["z_hist", *NEWS],
+    "S0 persistência + setor": ["z_hist", *SECTOR],
+    "S1 + co-menção FNSPID": ["z_hist", *SECTOR, "comention"],
+    "S4 + notícias": ["z_hist", *SECTOR, *NEWS],
 }
+# (modelo, base): o ganho de cada modelo é medido contra a base certa. As
+# linhas S* respondem se as notícias acrescentam ALÉM do setor.
+COMPARISONS = [
+    ("M1 + co-menção FNSPID", "M0 persistência"),
+    ("M2 + co-ocorrência LLM", "M0 persistência"),
+    ("M3 + relações e exposição", "M0 persistência"),
+    ("M4 notícias", "M0 persistência"),
+    ("M4 notícias", "M1 + co-menção FNSPID"),
+    ("S0 persistência + setor", "M0 persistência"),
+    ("S1 + co-menção FNSPID", "S0 persistência + setor"),
+    ("S4 + notícias", "S0 persistência + setor"),
+    ("S4 + notícias", "S1 + co-menção FNSPID"),
+]
 MIN_TRAIN = 24
 NW_LAGS = 4
 
@@ -84,7 +102,7 @@ def build_panel(cfg: Config, n: int = 100, news_days: int = 365, half_life_days:
         cols["n_fut"].append(Nf[i, j])
         for f in features.FEATURES:
             v = F[f][i, j]
-            cols[f].append(v if f == "exposure" else np.log1p(v))
+            cols[f].append(v if f == "exposure" or f in features.BINARY else np.log1p(v))
     con.close()
     panel = {k: (np.array(v, dtype=object) if k in ("date", "a", "b") else np.concatenate(v))
              for k, v in cols.items()}
@@ -127,47 +145,39 @@ def fama_macbeth(panel: dict, regs: list[str]) -> dict:
             "r2": round(float(np.mean(r2)), 4), "dates": len(r2)}
 
 
-def oos(panel: dict, models: dict[str, list[str]], min_train: int = MIN_TRAIN) -> dict:
-    """R² cross-section fora da amostra (janela expansiva) e SSE por data."""
+def oos(panel: dict, models: dict[str, list[str]], comparisons: list[tuple[str, str]],
+        min_train: int = MIN_TRAIN) -> dict:
+    """R² cross-section fora da amostra (janela expansiva) e ganhos entre modelos."""
     dates = panel["date"]
     ud = np.unique(dates)
     masks = [dates == d for d in ud]
     yc = [panel["z_fut"][m] - panel["z_fut"][m].mean() for m in masks]
-    sse = {name: [] for name in models}
-    sst = []
+    sst = np.array([y @ y for y in yc[min_train:]])
+    sse = {}
     for name, regs in models.items():
         Xc = [np.column_stack([panel[r][m] for r in regs]) for m in masks]
         Xc = [x - x.mean(axis=0) for x in Xc]
-        XtX = np.zeros((len(regs), len(regs)))
-        Xty = np.zeros(len(regs))
+        XtX, Xty, e2 = np.zeros((len(regs), len(regs))), np.zeros(len(regs)), []
         for k in range(len(ud)):
             if k >= min_train:
                 b = np.linalg.solve(XtX + 1e-9 * np.eye(len(regs)), Xty)
                 e = yc[k] - Xc[k] @ b
-                sse[name].append(e @ e)
-                if name == next(iter(models)):
-                    sst.append(yc[k] @ yc[k])
+                e2.append(e @ e)
             XtX += Xc[k].T @ Xc[k]
             Xty += Xc[k].T @ yc[k]
-    base = next(iter(models))
-    sst = np.array(sst)
+        sse[name] = np.array(e2)
     test_dates = ud[min_train:]
-    out = {}
-    for name in models:
-        s = np.array(sse[name])
-        out[name] = {"r2_oos": round(1 - s.sum() / sst.sum(), 4)}
-        if name != base:
-            diff = np.array(sse[base]) - s          # > 0: o modelo erra menos que M0
-            out[name]["gain_vs_M0"] = round((np.array(sse[base]).sum() - s.sum()) / sst.sum(), 5)
-            out[name]["t_gain"] = round(_nw_t(diff), 2)
-            out[name]["frac_dates_better"] = round(float(np.mean(diff > 0)), 3)
-            # por subperíodo
-            per = {}
-            for lo, hi in (("2013", "2016"), ("2017", "2019"), ("2020", "2023")):
-                m = np.array([lo <= str(d)[:4] <= hi for d in test_dates])
-                if m.any():
-                    per[f"{lo}-{hi}"] = round((np.array(sse[base])[m].sum() - s[m].sum()) / sst[m].sum(), 5)
-            out[name]["gain_by_period"] = per
+    periods = (("2013", "2016"), ("2017", "2019"), ("2020", "2023"))
+    out = {"r2_oos": {n: round(1 - s.sum() / sst.sum(), 4) for n, s in sse.items()}, "gains": []}
+    for model, base in comparisons:
+        diff = sse[base] - sse[model]               # > 0: o modelo erra menos que a base
+        per = {}
+        for lo, hi in periods:
+            m = np.array([lo <= str(d)[:4] <= hi for d in test_dates])
+            per[f"{lo}-{hi}"] = round(float(diff[m].sum() / sst[m].sum()), 5)
+        out["gains"].append({"model": model, "base": base, "gain": round(float(diff.sum() / sst.sum()), 5),
+                             "t": round(_nw_t(diff), 2), "frac_better": round(float(np.mean(diff > 0)), 3),
+                             "by_period": per})
     out["_test"] = {"first": str(test_dates[0]), "last": str(test_dates[-1]), "dates": len(test_dates)}
     return out
 
@@ -183,7 +193,7 @@ def run(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float =
     res = {"params": {"n": n, "news_days": news_days, "half_life_days": half_life_days},
            "pairs": int(len(panel["z_fut"])), "coverage": cov,
            "fama_macbeth": {name: fama_macbeth(panel, regs) for name, regs in MODELS.items()},
-           "oos": oos(panel, MODELS)}
+           "oos": oos(panel, MODELS, COMPARISONS)}
     (d / f"results_{tag}.json").write_text(json.dumps(res, indent=2, ensure_ascii=False))
     report(res)
     print(f"[h1] {d / f'results_{tag}.json'}")
@@ -199,10 +209,10 @@ def report(res: dict) -> None:
         print(f"  {name:28} R²={r['r2']:.4f}  {terms}")
     o = res["oos"]
     print(f"\nfora da amostra, {o['_test']['dates']} datas ({o['_test']['first']} a {o['_test']['last']})")
-    for name, r in o.items():
-        if name.startswith("_"):
-            continue
-        extra = (f"  ganho sobre M0 {r['gain_vs_M0']:+.4f} (t={r['t_gain']:+.1f}, melhor em "
-                 f"{r['frac_dates_better']:.0%} das datas)  por período {r['gain_by_period']}"
-                 if "gain_vs_M0" in r else "")
-        print(f"  {name:28} R²oos={r['r2_oos']:.4f}{extra}")
+    for name, r2 in o["r2_oos"].items():
+        print(f"  {name:28} R²oos={r2:.4f}")
+    print("\nganhos fora da amostra (fração de SST; t de Newey-West da diferença de SSE por data)")
+    for g in o["gains"]:
+        per = "  ".join(f"{k} {v:+.4f}" for k, v in g["by_period"].items())
+        print(f"  {g['model']:26} vs {g['base']:26} {g['gain']:+.4f} (t={g['t']:+.1f}, "
+              f"melhor em {g['frac_better']:.0%})  {per}")

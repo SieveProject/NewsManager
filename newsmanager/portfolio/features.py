@@ -11,6 +11,8 @@ simétricas, na ordem de `tickers`, com diagonal 0.
   cooccur         artigos (da amostra extraída) em que i e j aparecem em algum
                   evento, com qualquer relação entre eles ou nenhuma: o controle
                   que separa "o LLM achou a relação" de "saíram no mesmo texto"
+  same_ff49/sic2  mesmo setor (Fama-French 49 / SIC de 2 dígitos): controle de
+                  Elton e Gruber, não vem das notícias
   comention       artigos do FNSPID marcados com os dois tickers (a variável de
                   Tang, Zhou e Hong 2019). A marcação é irregular: em 2018 XOM
                   tem 101 artigos marcados, CVX 839 e AAPL nenhum
@@ -34,7 +36,10 @@ GROUPS = {
     "impact": ("impact",),
 }
 OTHER = "other_rel"
-FEATURES = tuple(f"direct_{g}" for g in (*GROUPS, OTHER)) + ("exposure", "cooccur", "comention")
+FEATURES = tuple(f"direct_{g}" for g in (*GROUPS, OTHER)) + ("exposure", "cooccur", "comention",
+                                                                "same_ff49", "same_sic2")
+# Setor não é notícia: entra cru (0/1), não em log.
+BINARY = ("same_ff49", "same_sic2")
 
 
 def _group_case() -> str:
@@ -117,6 +122,14 @@ def pair_features(con: duckdb.DuckDBPyConnection, cfg: Config, asof: date, ticke
             SELECT x.node, y.node, count(*) FROM m x JOIN m y ON x.doc_id = y.doc_id AND x.node < y.node
             GROUP BY 1, 2""", [list(alias), list(alias.values())]).fetchall():
         out["comention"][idx[a], idx[b]] = out["comention"][idx[b], idx[a]] = n
+
+    # 5. mesmo setor (SIC atual da SEC; ver newsmanager/sectors.py). Sem setor = 0.
+    sec = dict((t, (f49, s2)) for t, f49, s2 in con.execute(
+        "SELECT ticker, ff49, sic2 FROM news.sectors WHERE ticker IN (SELECT unnest(?))", [tickers]).fetchall())
+    f49 = np.array([sec.get(t, (None, None))[0] or -1 for t in tickers])
+    s2 = np.array([sec.get(t, (None, None))[1] or -1 for t in tickers])
+    out["same_ff49"] = ((f49[:, None] == f49[None, :]) & (f49[:, None] >= 0)).astype(float)
+    out["same_sic2"] = ((s2[:, None] == s2[None, :]) & (s2[:, None] >= 0)).astype(float)
 
     for m in out.values():
         np.fill_diagonal(m, 0.0)

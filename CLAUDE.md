@@ -31,7 +31,7 @@ probe -> plan -> ingest -> curate -> validate -> serve      python -m newsmanage
 units [--sample-frac F] -> run -> collect -> filter        python -m newsmanager.extract <etapa>
 link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> link-build (Mac)
 graph-build (Mac, ~15 s)                                   python -m newsmanager.extract graph-build
-prices -> universe --n N (Mac, ~1 min cada)                python -m newsmanager <etapa>
+prices -> universe --n N -> sectors -> h1 (Mac)             python -m newsmanager <etapa>
 ```
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
@@ -58,7 +58,11 @@ prices -> universe --n N (Mac, ~1 min cada)                python -m newsmanager
   `news.returns` (só retornos válidos), `news.price_quality`, `news.trading_calendar`.
   O arquivo são coletas emendadas em 4 datas (`SPLICE_DATES`, retorno do dia inválido) e
   3.137 tickers acabam em 2020-04/07 (`truncated`). `universe` (`newsmanager/universe.py`):
-  top-n ações por eventos no grafo, point-in-time. Método da tese em `docs/metodo_covariancia.md`.
+  top-n ações por eventos no grafo, point-in-time. Método da tese e resultados em `docs/metodo_covariancia.md`.
+- `sectors` (`newsmanager/sectors.py`): CIK pela SEC (ticker atual, senão busca
+  de nomes do EDGAR, conferida contra formerNames) -> SIC -> Fama-French 12/49.
+  Exige `NM_SEC_USER_AGENT="Nome e-mail"` (o e-mail NÃO vai para o código).
+  `h1` (`newsmanager/portfolio/h1.py`): Fama-MacBeth e R² fora da amostra.
 - `link_version` = hash de template + modelo + KINDS + universo (`ref_hash`) +
   `CANDIDATES_REV`. As listagens da Nasdaq Trader mudam todo dia: a cópia usada
   fica em `data/reference/` (também no Drive).

@@ -6,7 +6,7 @@ import argparse
 import shutil
 import sys
 
-from . import config, curate, ingest, prices, query, shard, source, universe, validate
+from . import config, curate, ingest, prices, query, sectors, shard, source, universe, validate
 from .config import EXIT_CONFIG, ConfigError
 
 
@@ -114,6 +114,11 @@ def cmd_universe(cfg, args) -> int:
     return 0
 
 
+def cmd_sectors(cfg, args) -> int:
+    sectors.build(cfg)
+    return 0
+
+
 def cmd_h1(cfg, args) -> int:
     from .portfolio import h1
     h1.run(cfg, n=args.n, news_days=args.news_days, half_life_days=args.half_life)
@@ -175,6 +180,9 @@ def _dispatch(argv: list[str] | None = None) -> int:
     su.add_argument("--min-price", type=float, default=None)
     su.add_argument("--min-dollar-volume", type=float, default=None)
 
+    sub.add_parser("sectors", help="SIC da SEC + indústrias Fama-French dos tickers do universo "
+                                   '(exige NM_SEC_USER_AGENT="Nome e-mail")')
+
     sh = sub.add_parser("h1", help="H1: notícias preveem a correlação futura além da histórica?")
     sh.add_argument("--n", type=int, default=100)
     sh.add_argument("--news-days", type=int, default=365)
@@ -197,6 +205,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
         "all": cmd_all,
         "prices": cmd_prices,
         "universe": cmd_universe,
+        "sectors": cmd_sectors,
         "h1": cmd_h1,
         "reset": cmd_reset,
     }[args.cmd](cfg, args)
