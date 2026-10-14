@@ -312,6 +312,70 @@ efeito de Σ.
    2011–2023. Se as notícias não preverem a correlação além da persistência,
    revemos as features antes de construir o resto.
 
+## 8. Resultado do primeiro marco: H1 (2026-10-14)
+
+`python -m newsmanager h1 --n 100` (`newsmanager/portfolio/h1.py`).
+
+**Configuração.**
+- 156 rebalanceamentos (2011-01 a 2023-12), universo de 100 ações e 772.200
+  pares-data.
+- y = z(ρ) no mês de carteira seguinte; ρ_hist em 252 pregões antes de t.
+- Notícias dos 365 dias antes de t, com meia-vida de 90 dias. Esses valores
+  NÃO foram calibrados; ficam para a calibração em 2011–2013.
+- Amostra de artigos de 25%: a ampliação para ~34% ainda não entrou.
+
+**Cobertura dos pares:**
+
+| atributo | pares-data com valor > 0 |
+|---|---|
+| exposição comum | 64,3% |
+| co-menção FNSPID | 34,7% |
+| co-ocorrência no artigo extraído | 23,7% |
+| vínculo direto, qualquer classe | 1–4% por grupo |
+
+**Fora da amostra** (janela expansiva, 132 meses de teste, 2013–2023; R² da
+cross-section de z(ρ_fut)):
+
+| modelo | R²oos | ganho sobre M0 | t (NW) | meses melhores |
+|---|---|---|---|---|
+| M0 persistência | 0,1858 | — | — | — |
+| M1 + co-menção FNSPID (Tang et al.) | 0,1873 | +0,0015 | 2,5 | 67% |
+| M2 + co-ocorrência no artigo extraído | 0,1900 | +0,0042 | 5,7 | 74% |
+| M3 + relações tipadas + exposição | 0,1891 | +0,0033 | 5,4 | 76% |
+| M4 tudo | **0,1911** | **+0,0053** | 4,8 | 75% |
+
+O ganho é positivo nos três subperíodos (2013–16, 2017–19, 2020–23) para
+todos os modelos.
+
+**Leitura.**
+
+1. **H1 se confirma.** As notícias preveem a correlação futura além da
+   persistência, de forma estável. O ganho absoluto é pequeno (+0,5 ponto de
+   R² sobre 18,6%, ~3% relativo), mas y é uma correlação de 21 dias,
+   dominada por ruído. O teste econômico que interessa é o da carteira
+   (seção 5).
+2. **O grafo do LLM domina a co-menção do FNSPID.** A co-ocorrência no artigo
+   extraído rende quase 3× o ganho da co-menção marcada (0,0042 contra
+   0,0015), e as duas somam.
+3. **A exposição comum às entidades é o sinal semântico que sobrevive.** No
+   Fama-MacBeth com tudo (M4), ela fica com t = 7,4 mesmo controlando
+   co-ocorrência e co-menção.
+4. **As relações diretas tipadas quase não acrescentam.** Isoladas, rivalidade
+   e "outras" são significantes (t de 3,8 e 4,0), mas somem quando a
+   co-ocorrência entra. A cadeia (`supply_chain`, `partnership`) chega a
+   ficar negativa (t = −3,2). Com 1–4% de cobertura e alvo mensal ruidoso,
+   não dá para separar o tipo da relação do fato de as empresas aparecerem
+   juntas.
+
+**Consequências para o modelo (seção 4).** O alvo V2 passa a usar exposição +
+co-ocorrência (+ co-menção) como núcleo. As classes de relação entram como
+teste secundário. Antes do backtest, faltam três verificações:
+
+- (a) sensibilidade a horizonte (63 dias), janela e meia-vida, calibrando só
+  em 2011–2013;
+- (b) controle de setor (Elton e Gruber), se houver classificação setorial;
+- (c) refazer com a amostra ampliada quando a run terminar.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
