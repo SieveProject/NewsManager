@@ -61,8 +61,13 @@ require_gpu_offload
 # curate/units hold a whole year of article text (2023 alone is ~6.3 GB); the
 # 9 GB default is sized for a 16 GB laptop and OOMs here. Give them 40% of what
 # this container may use -- cgroup limit first, since /proc/meminfo shows the host.
-mem_bytes="$(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo max)"
-[ "${mem_bytes}" = "max" ] && mem_bytes="$(awk '/MemTotal/{print $2*1024}' /proc/meminfo)"
+# cgroup v2, senão v1 (sem limite o v1 dá ~2^63), senão o host. printf "%d":
+# o print do awk sai em notação científica (3.3e+10) e quebra a aritmética.
+mem_bytes="$(cat /sys/fs/cgroup/memory.max 2>/dev/null || cat /sys/fs/cgroup/memory/memory.limit_in_bytes 2>/dev/null || echo max)"
+host_bytes="$(awk '/MemTotal/{printf "%d", $2*1024}' /proc/meminfo)"
+if [ "${mem_bytes}" = "max" ] || [ "${#mem_bytes}" -gt 15 ] || [ "${mem_bytes}" -gt "${host_bytes}" ]; then
+  mem_bytes="${host_bytes}"
+fi
 HEAVY_GB=$(( mem_bytes * 4 / 10 / 1024 / 1024 / 1024 ))
 [ "${HEAVY_GB}" -lt 9 ] && HEAVY_GB=9
 

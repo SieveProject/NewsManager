@@ -1,0 +1,13 @@
+# Fusões manuais de nós do grafo (etapa graph-build). Entra no graph_version.
+# from: um nó (ticker ou ID sem ticker) ou key:<chave normalizada do link>.
+# to:   o nó de destino. Aplicadas depois das regras automáticas
+#       (canônico compatível, prefixo US_, classes de ação).
+from,to,note
+FEDERAL_OPEN_MARKET_COMMITTEE,FEDERAL_RESERVE,o comitê de política monetária do Fed
+FOMC,FEDERAL_RESERVE,
+key:fomc,FEDERAL_RESERVE,
+META,FB,Meta Platforms: o FNSPID tem o preço histórico sob FB
+key:usd,US_DOLLAR,
+key:btc,BITCOIN,
+key:wti,CRUDE_OIL,West Texas Intermediate: o LLM já juntou "brent crude" e "oil prices" em crude oil
+key:brent,CRUDE_OIL,

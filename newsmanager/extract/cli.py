@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .. import config as cfgmod
 from ..config import EXIT_CONFIG, ConfigError
-from . import benchmark, collect, link, noise, partition, units, worker
+from . import benchmark, collect, graph, link, noise, partition, units, worker
 from .client import OllamaConfig
 from .prompt import DEFAULT_MAX_CHARS, load as load_prompt
 
@@ -170,7 +170,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
     lr.add_argument("--model", default=os.environ.get("NM_LINK_MODEL", DEFAULT_LINK_MODEL))
     lr.add_argument("--host", default=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"))
     lr.add_argument("--concurrency", type=int, default=int(os.environ.get("NM_CONCURRENCY", "32")))
-    lr.add_argument("--num-ctx", type=int, default=int(os.environ.get("NM_NUM_CTX", "3072")))
+    lr.add_argument("--num-ctx", type=int, default=int(os.environ.get("NM_NUM_CTX") or "3072"))
     lr.add_argument("--num-predict", type=int, default=128)
     lr.add_argument("--timeout", type=float, default=120.0)
     lr.add_argument("--prompt", default=None, help="template (padrão prompts/link.txt)")
@@ -192,6 +192,12 @@ def _dispatch(argv: list[str] | None = None) -> int:
     lb.add_argument("--relations-version", default=None)
     lb.add_argument("--link-version", default=None)
     lb.add_argument("--no-views", action="store_true")
+
+    # Grafo dinâmico: nós únicos + eventos datados (ver newsmanager/extract/graph.py).
+    gb = sub.add_parser("graph-build", help="nós únicos + eventos datados -> news.graph_*")
+    gb.add_argument("--relations-version", default=None)
+    gb.add_argument("--aliases", default=None, help="fusões manuais (padrão prompts/graph_aliases.csv)")
+    gb.add_argument("--no-views", action="store_true")
 
     args = p.parse_args(argv)
     cfg = cfgmod.load(args.config)
@@ -247,6 +253,14 @@ def _dispatch(argv: list[str] | None = None) -> int:
         noise.build(cfg, version, exclude=tuple(r for r in noise.REASONS if r not in keep))
         return 0
 
+    if args.cmd == "graph-build":
+        rv = args.relations_version or load_prompt(
+            _repo() / "prompts" / "extraction.txt", _repo() / "prompts" / "schema.json",
+            DEFAULT_MAX_CHARS, model=DEFAULT_MODEL).version
+        ap = Path(args.aliases) if args.aliases else _repo() / "prompts" / "graph_aliases.csv"
+        graph.build(cfg, rv, ap, views=not args.no_views)
+        return 0
+
     if args.cmd.startswith("link-"):
         rv = args.relations_version or load_prompt(
             _repo() / "prompts" / "extraction.txt", _repo() / "prompts" / "schema.json",
@@ -261,7 +275,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
             print(json.dumps(link.run(cfg, rv, oll, tp, limit=args.limit, order=args.order,
                                       min_n=args.min_n), indent=2))
         elif args.cmd == "link-verify":
-            oll = OllamaConfig(host=args.host, model=args.model, num_ctx=int(os.environ.get("NM_NUM_CTX", "3072")), num_predict=16,
+            oll = OllamaConfig(host=args.host, model=args.model, num_ctx=int(os.environ.get("NM_NUM_CTX") or "3072"), num_predict=16,
                                concurrency=args.concurrency, timeout_s=120.0)
             tp = Path(args.prompt) if args.prompt else _repo() / "prompts" / "link_verify.txt"
             print(json.dumps(link.verify(cfg, rv, args.link_version, oll, tp, limit=args.limit), indent=2))

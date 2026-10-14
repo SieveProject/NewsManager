@@ -46,8 +46,12 @@ mkdir -p logs
 # assim que prompts/extraction.txt crescer.
 CTX_ARG=()
 [ -n "${NM_NUM_CTX:-}" ] && CTX_ARG=(--num-ctx "${NM_NUM_CTX}")
+# natural = ordem do unit_id (hash): parar no meio deixa uma amostra uniforme.
+# long_first (padrão) é mais rápido no fim, mas um corte no meio fica enviesado
+# para artigos longos -- use natural quando o crédito pode acabar antes.
+ORDER="${NM_ORDER:-long_first}"
 
-echo "worker ${NM_WORKER_ID}/${NM_WORKERS} model=${NM_MODEL} concurrency=${NM_CONCURRENCY} max_chars=${NM_MAX_CHARS}" | tee -a "$LOG"
+echo "worker ${NM_WORKER_ID}/${NM_WORKERS} model=${NM_MODEL} concurrency=${NM_CONCURRENCY} max_chars=${NM_MAX_CHARS} order=${ORDER}" | tee -a "$LOG"
 
 attempt=0
 while true; do
@@ -60,6 +64,7 @@ while true; do
       --model "${NM_MODEL}" \
       --concurrency "${NM_CONCURRENCY}" \
       --max-chars "${NM_MAX_CHARS}" \
+      --order "${ORDER}" \
       "${CTX_ARG[@]}" 2>&1 | tee -a "$LOG"
   rc=${PIPESTATUS[0]}
   set -e

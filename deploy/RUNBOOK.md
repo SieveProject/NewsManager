@@ -249,6 +249,7 @@ SELECT * FROM news.relations_by_symbol WHERE symbol = 'NVDA';
 | `PY` | `.venv/bin/python` | interpreter the scripts use; set up by bootstrap/run_all |
 | `NM_SKIP_INGEST` | — | `1` = corpus arrived by push; never ingest here |
 | `NM_FORCE_UNITS` | — | `1` = rebuild units instead of reusing the pushed ones |
+| `NM_ORDER` | `long_first` | `natural` = unit_id (hash) order: a run cut short by credit is still a uniform sample |
 | `NM_REMOTE_DIR` | `NewsManager` | repo path on the remote host |
 | `MAX_RESTARTS` | `100` | crash restarts before giving up |
 

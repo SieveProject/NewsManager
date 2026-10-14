@@ -6,7 +6,7 @@ import argparse
 import shutil
 import sys
 
-from . import config, curate, ingest, query, shard, source, validate
+from . import config, curate, ingest, prices, query, shard, source, universe, validate
 from .config import EXIT_CONFIG, ConfigError
 
 
@@ -94,6 +94,26 @@ def cmd_all(cfg, args) -> int:
     return 0
 
 
+def cmd_prices(cfg, args) -> int:
+    prices.fetch(cfg)
+    if not args.fetch_only:
+        prices.build(cfg)
+    return 0
+
+
+def cmd_universe(cfg, args) -> int:
+    kw = {k: v for k, v in vars(args).items()
+          if k in universe.DEFAULTS and v is not None}
+    if args.asof:
+        con = query.connect(cfg)
+        for r in universe.select(con, args.asof, **kw):
+            print(f"{r[7]:4d}  {r[1]:6} eventos={r[2]:5,}  docs={r[3]:5,}  preço={r[5]:9.2f}  "
+                  f"vol.fin.mediano=US$ {r[6] / 1e6:,.0f} mi")
+        return 0
+    universe.build(cfg, start=args.start, end=args.end, **kw)
+    return 0
+
+
 def cmd_reset(cfg, args) -> int:
     targets = {"raw": cfg.raw, "curated": cfg.curated, "marts": cfg.marts, "tmp": cfg.tmp}
     chosen = targets if args.what == "all" else {args.what: targets[args.what]}
@@ -136,6 +156,19 @@ def _dispatch(argv: list[str] | None = None) -> int:
     sa.add_argument("--no-verify", action="store_true")
     sa.add_argument("--marts", action="store_true")
 
+    spp = sub.add_parser("prices", help="baixa o zip de preços do FNSPID e monta o painel limpo")
+    spp.add_argument("--fetch-only", action="store_true", help="só baixa e confere o zip")
+
+    su = sub.add_parser("universe", help="universo point-in-time por rebalanceamento mensal")
+    su.add_argument("--asof", default=None, help="mostra o universo de uma data em vez de montar o painel")
+    su.add_argument("--start", default="2011-01-01")
+    su.add_argument("--end", default="2023-12-31")
+    su.add_argument("--n", type=int, default=None, help="ações por data (padrão 100)")
+    su.add_argument("--insample-days", type=int, default=None)
+    su.add_argument("--news-days", type=int, default=None)
+    su.add_argument("--min-price", type=float, default=None)
+    su.add_argument("--min-dollar-volume", type=float, default=None)
+
     sr = sub.add_parser("reset", help="delete a layer so it can be rebuilt")
     sr.add_argument("what", choices=("all", "raw", "curated", "marts", "tmp"))
 
@@ -151,6 +184,8 @@ def _dispatch(argv: list[str] | None = None) -> int:
         "validate": cmd_validate,
         "serve": cmd_serve,
         "all": cmd_all,
+        "prices": cmd_prices,
+        "universe": cmd_universe,
         "reset": cmd_reset,
     }[args.cmd](cfg, args)
 

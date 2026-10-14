@@ -30,6 +30,8 @@ O estado de uma run em andamento, se houver, fica em `CLAUDE.local.md`.
 probe -> plan -> ingest -> curate -> validate -> serve      python -m newsmanager <etapa>
 units [--sample-frac F] -> run -> collect -> filter        python -m newsmanager.extract <etapa>
 link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> link-build (Mac)
+graph-build (Mac, ~15 s)                                   python -m newsmanager.extract graph-build
+prices -> universe --n N (Mac, ~1 min cada)                python -m newsmanager <etapa>
 ```
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
@@ -44,6 +46,19 @@ link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> li
   compatível ('name') ou evidência forte ('evidence'); `link-verify` (sim/não,
   `prompts/link_verify.txt`) derruba colisões com tickers estrangeiros, exceto
   `verify_exempt` (controladoras e ETFs). Use `news.relations_linked` no backtest.
+- `graph` (`newsmanager/extract/graph.py`, API em `newsmanager/graph.py`): nós
+  únicos por cima do `entity_id` (canônico só se `compatible` com o nome, prefixo
+  `US_`, classes de ação, colisão slug×ticker -> `CORN_COMMODITY`, manuais em
+  `prompts/graph_aliases.csv`) + eventos datados com `rel_class` (16 classes) e
+  `w = ±strength`. `graph.snapshot(con, asof, window_days, half_life_days)` usa
+  só `dt < asof` (não há hora em `published_at`). Use `news.graph_*` para o
+  grafo, não `entity_a/entity_b` de `relations_linked` (colidem com tickers).
+- `prices` (`newsmanager/prices.py`): `Stock_price/full_history.zip` do FNSPID
+  (sha256 = oid LFS `03da4f…`, não o etag xet do CDN) -> `news.prices`,
+  `news.returns` (só retornos válidos), `news.price_quality`, `news.trading_calendar`.
+  O arquivo são coletas emendadas em 4 datas (`SPLICE_DATES`, retorno do dia inválido) e
+  3.137 tickers acabam em 2020-04/07 (`truncated`). `universe` (`newsmanager/universe.py`):
+  top-n ações por eventos no grafo, point-in-time. Método da tese em `docs/metodo_covariancia.md`.
 - `link_version` = hash de template + modelo + KINDS + universo (`ref_hash`) +
   `CANDIDATES_REV`. As listagens da Nasdaq Trader mudam todo dia: a cópia usada
   fica em `data/reference/` (também no Drive).
@@ -109,6 +124,10 @@ Todas apareceram só no corpus inteiro ou só no Linux/container da Vast:
 - **DuckDB 1.5**: banco não pode se chamar `news.duckdb` (catálogo `news`
   conflita com o schema `news`); é `data/corpus.duckdb`.
 - Doc sem URL pode reaparecer em outro ano: `curate` pula `doc_id` já gravado.
+- **Disco do Mac**: tabelas intermediárias do DuckDB sobre 21 milhões de linhas
+  transbordaram para `.tmp/` e encheram o disco (nem o Claude Code conseguia
+  rodar comandos). Consultas grandes no Mac: CTEs + COPY direto para Parquet,
+  `memory_limit` e `max_temp_directory_size` (ver `prices.build`).
 
 ## Acompanhar uma run
 

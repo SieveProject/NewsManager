@@ -410,11 +410,156 @@ gastar 25 minutos de GPU alugada provando cem vezes a mesma coisa.
 
 ---
 
+# Parte 3 — Grafo de conhecimento dinâmico
+
+```bash
+python -m newsmanager.extract graph-build      # ~15 s no Mac, sem GPU
+```
+
+Cada tupla vira um **evento datado** `src --classe(sinal × força)--> dst` entre
+**nós únicos**: um por empresa (o ticker), um para o Fed, um para o petróleo. O
+grafo "em t" não é materializado: `newsmanager.graph.snapshot` agrega os eventos
+de uma janela antes de t, com decaimento exponencial opcional.
+
+```python
+from newsmanager import config, query, graph
+con = query.connect(config.load())
+g = graph.snapshot(con, "2020-03-16", window_days=90, half_life_days=30, tickers_only=True)
+for asof, edges in graph.snapshots(con, "2019-01-01", "2020-12-31", freq="1 week"):
+    ...                                   # ~40 ms por snapshot
+nxg = graph.to_networkx(con, g)           # opcional: pip install networkx
+```
+
+**Sem look-ahead.** Todo `published_at` do corpus é meia-noite: não há hora. Uma
+notícia do dia d pode ter saído depois do fechamento, então o snapshot em `asof`
+usa só `dt < asof` e serve para prever o retorno do próprio dia `asof`.
+
+## Nós: um por agente
+
+O `entity_id` do link não serve direto como nó (medido na run `v=a05d0c0dc189`):
+
+| problema | exemplo | regra |
+|---|---|---|
+| canônico do LLM junta demais | "mexico central bank", "nigerian banks", "dfs" → Federal Reserve; "moderna" → Merck | sem ticker, o canônico só vale se for `compatible` com o nome (token, prefixo, sigla); senão o nó é o próprio nome |
+| junta de menos | `US_FEDERAL_RESERVE` ≠ `FEDERAL_RESERVE`, `US_DOLLAR` ≠ `DOLLAR` | prefixo de país cai quando o nome sem ele existe com o mesmo tipo (não para empresas: "US Steel") |
+| classes de ação | GOOG/GOOGL, NWS/NWSA | mesmo nome na listagem → o ticker mais citado com preço; `tickers` guarda todos |
+| slug colide com ticker | CORN (milho) = ETF CORN, FTC (agência) = FTC Solar, GDP | sem ticker, o nó leva o tipo: `CORN_COMMODITY` |
+| o resto | FOMC → Fed, META → FB, WTI/Brent → petróleo, USD, BTC | manual: `prompts/graph_aliases.csv` |
+
+Resultado: **197.550 nós** (5.654 com ticker e evento). O Fed é um nó com 151
+grafias (fed, us federal reserve, fomc, new york fed…) e 21.456 menções.
+Há mais nós que `entity_id`s porque os nomes separados do canônico errado
+viram nós próprios, quase todos na cauda.
+
+## Arestas: eventos e classes
+
+`direction` é binária, então `w = ±strength`. Os 137 mil `relation_type`
+distintos são mapeados por regex (`REL_CLASSES` em `newsmanager/extract/graph.py`)
+para 16 classes, e `relation_type` original fica no evento:
+
+```
+impact 32,1%  competition 9,2%  ownership 7,4%  ma 7,1%  supply_chain 6,1%
+partnership 4,4%  legal_regulatory 4,1%  stance 3,2%  analyst 3,1%  business 2,9%
+financing 2,3%  monetary 2,0%  trade_policy 0,9%  governance 0,9%  capital_return 0,3%
+other 14,0%
+```
+
+Laço criado pela fusão (Snap → "Snapchat shares", ambos `SNAP`) vira ruído
+`self_loop`: 26.426 eventos, quase todos "empresa → as próprias ações". Não são
+arestas, mas ficam em `news.graph_events_all` como sinal sobre o próprio nó.
+
+## Saída
+
+```
+data/curated/graph/v=<versão>/
+  nodes.parquet        node_id, label, kind, ticker, tickers, has_price, n_mentions,
+                       n_keys, n_events, degree, first_dt, last_dt, graph_version
+  node_keys.parquet    chave do link -> node_id, method (ticker|canonical|key|manual)
+  events.parquet       event_id, dt, doc_id, src, dst, relation_type, rel_class,
+                       sign, strength, w, agent_a, agent_b, noise
+  rel_classes.parquet  relation_type -> rel_class
+  meta.json            graph_version = hash(GRAPH_REV, link_version, classes, aliases)
+```
+
+Views: `news.graph_nodes`, `news.graph_events` (limpos: 741.409, 496.223 pares
+distintos), `news.graph_events_all`, `news.graph_edges_weekly`,
+`news.graph_edges_monthly`. Cada view de período tem uma linha por
+(período, src, dst, classe).
+
+---
+
+# Parte 4 — Preços e universo de ativos
+
+```bash
+python -m newsmanager prices                 # baixa o zip (590 MB, ~25 s) e monta o painel (~45 s)
+python -m newsmanager universe --n 100       # universo point-in-time de cada mês, 2011-2023
+python -m newsmanager universe --asof 2020-08-03 --n 20   # inspecionar uma data
+```
+
+A fonte é o `Stock_price/full_history.zip` do próprio FNSPID (7.693 tickers,
+1962–2023), conferido pelo sha256 do LFS. O zip é a camada bruta e nunca é
+extraído (2,9 GB de CSV): a limpeza lê membro a membro e grava
+`data/curated/prices/{daily,quality,calendar}.parquet` (627 MB a partir de 2005).
+
+## O que o arquivo tem de errado (medido)
+
+| problema | tamanho | tratamento |
+|---|---|---|
+| duas ordens de coluna | 5.705 × 1.988 arquivos | lido pelo cabeçalho |
+| **coletas emendadas** em 2015-01-02, 2020-04-02, 2020-07-02 e 2020-07-06 | 22,7 mil retornos | retorno desses dias = inválido (`splice`) |
+| lote antigo termina em 2020-07-02 | 3.137 tickers, entre eles BAC, FB, NFLX, MA, CSCO, MCD | `truncated` em `quality` |
+| pico de cotação que se reverte | 7,8 mil dias | os dois dias inválidos (`spike`, `spike_revert`) |
+| ticker reutilizado (ACB 2006–2016 intercala dois papéis) | — | pego pela regra de pico; o universo exclui quem tem pico na janela |
+| preço parado com volume 0 | 437 mil dias, quase só small caps | `stale` |
+| pregão faltando na série | 81 mil | retorno de vários dias inválido (`gap`) |
+
+**A emenda é o erro grave.** Cada lote foi ajustado por desdobramentos e
+dividendos só até a própria coleta. No dia 2020-07-06 aparecem AAPL −74,9%
+(4:1), GOOG −94,9% (20:1), TSLA −92,4% (15:1), e também KO −9,5%, XOM −15,5%
+e PFE −17%, pelos dividendos pagos depois de 2020. Dentro de cada lote os
+retornos estão certos. As datas de emenda saem do fator de ajuste
+f = adj_close/close, que numa série consistente só muda em data ex-dividendo.
+Contando os tickers com salto de f acima de 5% no dia: 2020-07-06 (1.918),
+2015-01-02 (481: AT&T "sobe" 95%), 2020-04-02 (151: NEE "cai" 76%) e 2020-07-02
+(100). O resto do histórico fica em até 60, que são ex-dividendos de fundos. O
+build recalcula essa contagem e avisa se surgir outra data. Grandes quedas
+reais ficam (AAPL −52% em 2000-09-29).
+
+`news.returns` (`ticker, date, ret`) só tem retornos válidos entre pregões
+consecutivos. `news.prices` traz `ret_raw` e `flag` para auditoria.
+
+## Universo
+
+Em cada primeiro pregão do mês t entram as n **ações** (nó `company`, não ETF)
+com mais eventos limpos no grafo nos 365 dias antes de t, entre as que têm,
+na janela de 252 pregões antes de t:
+
+- ≥ 95% de retornos válidos e nenhum pico;
+- preço ≥ US$ 5 e volume financeiro mediano ≥ US$ 5 mi.
+
+Tudo usa só dados < t, **com uma exceção declarada**: quem é truncado pelo fim
+da coleta antes do fim do mês de carteira fica de fora. Isso é informação
+sobre o arquivo, não sobre retornos. Deslistagens reais não são filtradas: o
+backtest tem de tratá-las.
+
+| n | tickers distintos | troca/mês |
+|---|---|---|
+| 50 | 166 | 4,9% |
+| 100 | 334 | 5,0% |
+| 200 | 681 | 5,6% |
+
+**Limitação:** depois de 2020-07, 39 das 200 ações mais noticiadas (BAC, FB,
+NFLX, MA, CSCO, MCD, SBUX, BLK…) não têm preço no FNSPID e saem do universo.
+
+---
+
 ## Testing
 
 ```bash
 python tests/test_e2e_subset.py 4 48   # pipeline de ingestão, arquivo real, ~200 MB
 python tests/test_extract_e2e.py       # pipeline de extração, Ollama simulado
+python tests/test_graph.py             # grafo: regras de nó, classes, snapshot sem look-ahead
+python tests/test_prices.py            # preços: zip sintético com cada anomalia do FNSPID
 ```
 
 The ingest test runs every stage for real: range fetch, boundary contiguity,
