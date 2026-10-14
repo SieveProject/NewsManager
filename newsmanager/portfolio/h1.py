@@ -72,7 +72,10 @@ def out_dir(cfg: Config):
 
 
 def build_panel(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float = 90.0,
-                insample_days: int = 252, min_fut_obs: int = 15) -> dict[str, np.ndarray]:
+                insample_days: int = 252, min_fut_obs: int = 15, residual: bool = False) -> dict[str, np.ndarray]:
+    """Painel de pares-data. `residual`: correlações dos resíduos ao fator de
+    mercado (seção 10 do método); b estimado só na janela in-sample e aplicado
+    ao mês seguinte com o m_t do próprio mês."""
     con = query.connect(cfg)
     dates = [d for (d,) in con.execute(
         "SELECT DISTINCT rebalance_date FROM news.universe WHERE n_target = ? ORDER BY 1", [n]).fetchall()]
@@ -88,8 +91,15 @@ def build_panel(cfg: Config, n: int = 100, news_days: int = 365, half_life_days:
         nxt = dates[k + 1] if k + 1 < len(dates) else None
         f_end = (con.execute("SELECT max(date) FROM news.trading_calendar WHERE date < ?", [nxt]).fetchone()[0]
                  if nxt else end_of_data)
-        Ch, _ = data.pairwise_corr(data.returns_matrix(con, tk, *w_in), min_obs=insample_days // 2)
-        Cf, Nf = data.pairwise_corr(data.returns_matrix(con, tk, d, f_end), min_obs=min_fut_obs)
+        X_in = data.returns_matrix(con, tk, *w_in)
+        X_out = data.returns_matrix(con, tk, d, f_end)
+        if residual:
+            m_in = data.market_factor(X_in)
+            a, b = data.market_betas(X_in, m_in)
+            X_in = data.residuals(X_in, b, m_in, a)
+            X_out = data.residuals(X_out, b, data.market_factor(X_out))
+        Ch, _ = data.pairwise_corr(X_in, min_obs=insample_days // 2)
+        Cf, Nf = data.pairwise_corr(X_out, min_obs=min_fut_obs)
         F = features.pair_features(con, cfg, d, tk, news_days=news_days, half_life_days=half_life_days)
         i, j = np.triu_indices(len(tk), 1)
         ok = np.isfinite(Ch[i, j]) & np.isfinite(Cf[i, j]) & (np.abs(Ch[i, j]) < 1) & (np.abs(Cf[i, j]) < 1)
@@ -106,7 +116,7 @@ def build_panel(cfg: Config, n: int = 100, news_days: int = 365, half_life_days:
     con.close()
     panel = {k: (np.array(v, dtype=object) if k in ("date", "a", "b") else np.concatenate(v))
              for k, v in cols.items()}
-    print(f"[h1] painel n={n}: {len(dates)} datas, {len(panel['z_fut']):,} pares-data ({time.time() - t0:.0f}s)")
+    print(f"[h1] painel n={n}{' residual' if residual else ''}: {len(dates)} datas, {len(panel['z_fut']):,} pares-data ({time.time() - t0:.0f}s)")
     return panel
 
 
@@ -182,15 +192,16 @@ def oos(panel: dict, models: dict[str, list[str]], comparisons: list[tuple[str, 
     return out
 
 
-def run(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float = 90.0) -> dict:
-    panel = build_panel(cfg, n=n, news_days=news_days, half_life_days=half_life_days)
+def run(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float = 90.0,
+        residual: bool = False) -> dict:
+    panel = build_panel(cfg, n=n, news_days=news_days, half_life_days=half_life_days, residual=residual)
     d = out_dir(cfg)
     d.mkdir(parents=True, exist_ok=True)
-    tag = f"n={n}_w={news_days}_h={half_life_days:g}"
+    tag = f"n={n}_w={news_days}_h={half_life_days:g}" + ("_res" if residual else "")
     pq.write_table(pa.table({k: (pa.array(list(v)) if v.dtype == object else v) for k, v in panel.items()}),
                    d / f"panel_{tag}.parquet", compression="zstd")
     cov = {f: round(float(np.mean(panel[f] > 0)), 3) for f in features.FEATURES}
-    res = {"params": {"n": n, "news_days": news_days, "half_life_days": half_life_days},
+    res = {"params": {"n": n, "news_days": news_days, "half_life_days": half_life_days, "residual": residual},
            "pairs": int(len(panel["z_fut"])), "coverage": cov,
            "fama_macbeth": {name: fama_macbeth(panel, regs) for name, regs in MODELS.items()},
            "oos": oos(panel, MODELS, COMPARISONS)}

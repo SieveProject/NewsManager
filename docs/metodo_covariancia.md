@@ -396,6 +396,131 @@ Antes do backtest, faltam duas verificações:
   em 2011–2013;
 - (b) refazer com a amostra ampliada quando a run terminar.
 
+## 9. Primeiro backtest (2026-10-14)
+
+`python -m newsmanager backtest --n 100` (`newsmanager/portfolio/backtest.py`).
+
+**Configuração.**
+- 132 meses (2013-01 a 2023-12); 2011–2012 servem só para treinar os alvos.
+- Janela in-sample de 252 pregões; carteira comprada e mantida no mês.
+- Custo de 10 bps por unidade de giro.
+- Notícias com janela de 365 dias e meia-vida de 90, sem calibrar.
+
+**Caminhos tentados (todos declarados).**
+
+1. **Alvo com a correlação histórica dentro** (regressão completa da H1).
+   - δ ≈ 1: o alvo depende da própria amostra, e a fórmula de δ supõe alvo
+     fixo. Σ̂ vira a previsão da regressão, mal condicionada.
+   - GMV sem restrição a 35,6% de volatilidade (placebo a 20,4%).
+   - **Descartado** por construção, não pelo resultado.
+2. **Alvos-prior** (Becquin e Esmeir): R_ij = tanh(z̄ + β'f_ij), sem z_hist;
+   β = 0 é o LW de correlação constante. δ médio ≈ 0,2. Resultados abaixo.
+
+**Volatilidade realizada da GMV** (razão de variâncias contra LW correlação
+constante, bootstrap em blocos):
+
+| estimador | sem restrição | p | long-only | p |
+|---|---|---|---|---|
+| LW fator único | **0,918** | 0,000 | 0,999 | 0,91 |
+| LW não linear | 0,949 | 0,005 | 1,006 | 0,79 |
+| LW identidade | 0,959 | 0,035 | 1,017 | 0,36 |
+| alvo setor | 1,008 | 0,26 | 1,006 | 0,002 |
+| alvo notícias | 1,042 | 0,000 | 1,006 | 0,20 |
+| alvo setor + notícias | 1,035 | 0,002 | 1,006 | 0,16 |
+| placebo (notícias embaralhadas) | 1,032 | 0,015 | 1,002 | 0,39 |
+| amostral | 1,254 | 0,000 | 1,029 | 0,09 |
+
+Vol. anual da GMV sem restrição: LW fator único 12,9%, alvo setor + notícias
+13,7%, 1/N 20,1%. A versão long-only empata tudo (13,4–13,7%).
+
+**Erro quadrático da correlação estimada contra a realizada no mês:**
+
+| estimador | erro vs LW corr. constante | t |
+|---|---|---|
+| alvo setor + notícias | −0,09% (o menor de todos) | 0,7 |
+| placebo | +0,33% | −3,7 |
+| LW fator único | +0,97% | −3,8 |
+| amostral | +2,48% | −9,6 |
+
+**Leitura.**
+
+1. **H2 não se confirma nesta formulação.** O alvo de notícias não reduz a
+   variância da GMV: fica um pouco pior que a correlação constante e empata
+   com o placebo.
+2. **A informação existe, mas é fraca demais neste canal.** Em correlação, o
+   alvo verdadeiro é melhor que o placebo com significância (t = 3,7 de
+   diferença). Mas o ganho sobre a correlação constante é de 0,09%: a
+   previsibilidade da H1 é pequena (+0,3 a +0,5 ponto de R²), e o shrinkage
+   ainda a dilui (δ ≈ 0,2).
+3. **A GMV premia a estrutura de fatores, não a precisão par a par.** O fator
+   único é o pior em erro de correlação e o melhor em variância. Um alvo
+   construído sobre correlação constante parte da base errada.
+
+**Próximo desenho (proposto, ainda não testado).** As notícias devem atuar na
+correlação **residual** ao fator de mercado:
+
+    Σ = β β' σ²_m + D^½ R_res D^½
+
+com R_res encolhido para a estrutura prevista pelas notícias e pelo setor.
+Esse é o desenho de Lu, Reinert e Cucuringu (2023), com a rede de notícias no
+lugar da co-negociação. Pré-requisito: refazer a H1 na correlação residual.
+
+**Aviso de *data snooping*.** Esta revisão foi motivada pelo resultado do
+período de teste. Para não contaminar a conclusão, a tese deve:
+- reportar todas as variantes, inclusive as que falharam;
+- fixar o novo desenho antes de rodá-lo;
+- usar como confirmação independente os universos n = 50 e n = 200 e a
+  amostra ampliada de artigos.
+
+## 10. Desenho fixado antes de rodar: notícias na correlação residual (2026-10-14)
+
+Escrito ANTES de qualquer resultado deste desenho. Mudanças depois disto
+precisam ser declaradas como tal.
+
+**Modelo.** Mercado m_t = média igual dos retornos do universo no dia (o mesmo
+fator do LW fator único). Na janela in-sample, para cada ação:
+x_it = a_i + b_i·m_t + e_it (MQO).
+
+    Σ̂ = σ²_m b b' + Σ̂_e,   Σ̂_e = shrink_to_corr(E, R_prior)
+
+com E = resíduos in-sample e R_prior a correlação residual a priori:
+
+| estimador | R_prior | papel |
+|---|---|---|
+| fator + resíduo diagonal | identidade | modelo de fator único puro |
+| fator + resíduo corr. constante | r̄_e | referência estatística |
+| **fator + resíduo setor** | tanh(z̄_e + β'setor) | **referência a bater** |
+| fator + resíduo notícias | tanh(z̄_e + β'notícias) | — |
+| **fator + resíduo setor + notícias** | tanh(z̄_e + β'[setor, notícias]) | **modelo principal** |
+| placebo | o anterior com as notícias embaralhadas entre ações | controle |
+
+β é estimado como nos alvos-prior da seção 9 (MQO empilhado nos meses < t, y e
+x centrados no mês, sem z_hist). Aqui, porém, y = z da correlação **residual**
+realizada no mês de carteira: resíduos fora da amostra com os b_i da janela
+in-sample e o m_t do próprio mês.
+
+**H1-res (pré-requisito).** A mesma análise da seção 8 com a correlação
+residual. Comparação principal: "S4 + notícias" contra "S0 persistência +
+setor".
+
+**Parâmetros congelados.**
+- Universo n = 100; janela in-sample de 252 pregões.
+- Notícias de 365 dias, meia-vida de 90 dias, sem calibrar.
+- Atributos e grupos iguais aos da seção 8.
+- Custo de 10 bps; 2013-01 a 2023-12.
+
+**Critério de sucesso** (decidido agora):
+
+1. H1-res: ganho fora da amostra de "S4" sobre "S0" > 0 com t > 2.
+2. GMV sem restrição, n = 100: razão de variâncias "fator + resíduo setor +
+   notícias" / "fator + resíduo setor" < 1 com p < 0,05, **e** menor que a do
+   placebo.
+3. Confirmação: a mesma razão < 1 em n = 50 e em n = 200 (sem exigir
+   significância), e o resultado se mantém com a amostra ampliada de artigos.
+
+Se (2) falhar, o resultado negativo da tese fica registrado com os dois
+desenhos.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/

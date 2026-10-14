@@ -59,3 +59,28 @@ def pairwise_corr(X: np.ndarray, min_obs: int = 10) -> tuple[np.ndarray, np.ndar
     C[(N < min_obs) | ~np.isfinite(C)] = np.nan
     np.fill_diagonal(C, 1.0)
     return np.clip(C, -1, 1), N
+
+
+def market_factor(X: np.ndarray) -> np.ndarray:
+    """m_t = média igual dos retornos do universo no dia (o fator do LW fator único)."""
+    with np.errstate(invalid="ignore"):
+        m = np.nanmean(X, axis=1)
+    return np.nan_to_num(m)
+
+
+def market_betas(X: np.ndarray, m: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(a, b) de x_it = a_i + b_i m_t + e_it por MQO, só nos dias com retorno."""
+    M = ~np.isnan(X)
+    a, b = np.zeros(X.shape[1]), np.zeros(X.shape[1])
+    for j in range(X.shape[1]):
+        x, mm = X[M[:, j], j], m[M[:, j]]
+        v = mm.var()
+        b[j] = ((x - x.mean()) * (mm - mm.mean())).mean() / v if v > 0 else 0.0
+        a[j] = x.mean() - b[j] * mm.mean()
+    return a, b
+
+
+def residuals(X: np.ndarray, b: np.ndarray, m: np.ndarray, a: np.ndarray | None = None) -> np.ndarray:
+    """e = x - a - b m (NaN onde x é NaN). Fora da amostra: b da janela
+    in-sample e m do próprio período; a omitido (não muda a correlação)."""
+    return X - (0 if a is None else a) - np.outer(m, b)

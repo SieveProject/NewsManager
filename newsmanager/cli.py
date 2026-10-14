@@ -121,7 +121,13 @@ def cmd_sectors(cfg, args) -> int:
 
 def cmd_h1(cfg, args) -> int:
     from .portfolio import h1
-    h1.run(cfg, n=args.n, news_days=args.news_days, half_life_days=args.half_life)
+    h1.run(cfg, n=args.n, news_days=args.news_days, half_life_days=args.half_life, residual=args.residual)
+    return 0
+
+
+def cmd_backtest(cfg, args) -> int:
+    from .portfolio import backtest
+    backtest.run(cfg, n=args.n, news_days=args.news_days, half_life_days=args.half_life)
     return 0
 
 
@@ -187,6 +193,12 @@ def _dispatch(argv: list[str] | None = None) -> int:
     sh.add_argument("--n", type=int, default=100)
     sh.add_argument("--news-days", type=int, default=365)
     sh.add_argument("--half-life", type=float, default=90.0)
+    sh.add_argument("--residual", action="store_true", help="correlação dos resíduos ao fator de mercado")
+
+    sb = sub.add_parser("backtest", help="estimadores de Σ -> carteiras de variância mínima, 2013-2023")
+    sb.add_argument("--n", type=int, default=100)
+    sb.add_argument("--news-days", type=int, default=365)
+    sb.add_argument("--half-life", type=float, default=90.0)
 
     sr = sub.add_parser("reset", help="delete a layer so it can be rebuilt")
     sr.add_argument("what", choices=("all", "raw", "curated", "marts", "tmp"))
@@ -207,6 +219,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
         "universe": cmd_universe,
         "sectors": cmd_sectors,
         "h1": cmd_h1,
+        "backtest": cmd_backtest,
         "reset": cmd_reset,
     }[args.cmd](cfg, args)
 
