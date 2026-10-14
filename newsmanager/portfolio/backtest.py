@@ -173,6 +173,7 @@ def run(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float =
                               *RES_TARGETS, RES_PLACEBO_OF + " placebo"]}
     prev_end: dict[str, dict[str, float]] = {}
     corr_loss: dict[str, list[float]] = {}
+    cond: dict[str, list[float]] = {}
 
     for k in range(MIN_TRAIN, len(dates)):
         d = dates[k]
@@ -231,6 +232,9 @@ def run(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float =
             sd = np.sqrt(np.diag(S))
             C = S / np.outer(sd, sd)
             corr_loss.setdefault(name, []).append(float(np.mean((C[iu][okf] - Cf[iu][okf]) ** 2)))
+            # estabilidade (López de Prado): número de condição da correlação
+            ev = np.linalg.eigvalsh(C)
+            cond.setdefault(name, []).append(float(ev[-1] / ev[0]) if ev[0] > 0 else float("inf"))
 
         weights = {"1/N": np.full(p, 1 / p)}
         for name, S in sigmas.items():
@@ -257,7 +261,11 @@ def run(cfg: Config, n: int = 100, news_days: int = 365, half_life_days: float =
                       "first": str(dates[MIN_TRAIN]), "last": str(day_index[-1]), "months": len(dates) - MIN_TRAIN},
            "delta_mean": {k: round(float(np.mean(v)), 3) for k, v in deltas.items()},
            "metrics": {name: metrics(r, turnover[name]) for name, r in R.items()},
-           "corr_loss": {}, "tests": {}}
+           "corr_loss": {}, "condition": {}, "tests": {}}
+    for name, v in cond.items():
+        v = np.array(v)
+        res["condition"][name] = {"median": round(float(np.median(v)), 1), "p90": round(float(np.quantile(v, 0.9)), 1),
+                                  "max": round(float(v.max()), 1)}
     base_loss = np.array(corr_loss["LW corr. constante"])
     for name, v in corr_loss.items():
         v = np.array(v)
@@ -318,6 +326,10 @@ def report(res: dict) -> None:
         for name, m in sorted(rows, key=lambda x: x[1]["vol"]):
             print(f"  {name:42} {m['vol']:7.2%} {m['ret']:7.2%} {m['sharpe']:7.3f} {m['max_dd']:7.1%} {m['turnover']:6.2f}")
         print()
+    print("número de condição da correlação estimada, λmax/λmin (López de Prado): mediana, p90, máximo")
+    for name, c in sorted(res["condition"].items(), key=lambda x: x[1]["median"]):
+        print(f"  {name:42} {c['median']:10,.1f} {c['p90']:10,.1f} {c['max']:12,.1f}")
+    print()
     print("erro quadrático da correlação estimada contra a realizada no mês (t > 0: melhor que LW corr. constante)")
     for name, c in sorted(res["corr_loss"].items(), key=lambda x: x[1]["mse"]):
         print(f"  {name:42} {c['mse']:.5f}  {c['vs_lw_cc']:+.2%}  t={c['t']}")

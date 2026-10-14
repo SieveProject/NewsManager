@@ -31,7 +31,7 @@ probe -> plan -> ingest -> curate -> validate -> serve      python -m newsmanage
 units [--sample-frac F] -> run -> collect -> filter        python -m newsmanager.extract <etapa>
 link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> link-build (Mac)
 graph-build (Mac, ~15 s)                                   python -m newsmanager.extract graph-build
-prices -> universe --n N -> sectors -> h1 (Mac)             python -m newsmanager <etapa>
+prices -> universe --n N -> sectors -> h1 [--residual] -> backtest --n N (Mac)
 ```
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
@@ -63,6 +63,10 @@ prices -> universe --n N -> sectors -> h1 (Mac)             python -m newsmanage
   de nomes do EDGAR, conferida contra formerNames) -> SIC -> Fama-French 12/49.
   Exige `NM_SEC_USER_AGENT="Nome e-mail"` (o e-mail NÃO vai para o código).
   `h1` (`newsmanager/portfolio/h1.py`): Fama-MacBeth e R² fora da amostra.
+  `backtest` (`newsmanager/portfolio/backtest.py`, ~6 min com n=100): estimadores
+  (`estimators.py`, portes de Ledoit-Wolf conferidos no teste) -> GMV com e sem
+  venda a descoberto, 2013-2023. O desenho residual (seção 10 do método) foi
+  pré-especificado no commit 5c01017: não mudar critérios depois de ver resultado.
 - `link_version` = hash de template + modelo + KINDS + universo (`ref_hash`) +
   `CANDIDATES_REV`. As listagens da Nasdaq Trader mudam todo dia: a cópia usada
   fica em `data/reference/` (também no Drive).

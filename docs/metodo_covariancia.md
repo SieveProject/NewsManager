@@ -521,6 +521,69 @@ setor".
 Se (2) falhar, o resultado negativo da tese fica registrado com os dois
 desenhos.
 
+*Adendo, depois do commit 5c01017 e antes de rodar:* acrescentado o
+diagnóstico de estabilidade de López de Prado (2016, 2020): número de condição
+λ_max/λ_min da correlação estimada de cada estimador, mês a mês. É descritivo,
+**não** é critério de sucesso.
+
+## 11. Resultado do desenho residual (2026-10-14, avaliado contra a seção 10)
+
+`python -m newsmanager h1 --residual` e `python -m newsmanager backtest --n {50,100,200}`.
+
+**Critério 1 (H1-res): atendido.** "S4 + notícias" sobre "S0 persistência +
+setor" na correlação residual:
+- ganho de +0,0026 com t = 9,7, melhor em 86% dos meses, positivo nos três
+  subperíodos;
+- na correlação total eram +0,0031 com t = 4,0 e 74%: o sinal fica bem mais
+  estável depois de tirar o mercado.
+
+**Critério 2 (n = 100, GMV sem restrição): NÃO atendido.** Razão de variâncias
+"fator + resíduo setor + notícias" / "fator + resíduo setor" = 1,001 (IC95
+0,986–1,013, p = 0,92).
+
+**Critério 3 (confirmação):**
+
+| n | fator + resíduo setor | + notícias | razão | p | placebo (razão, p) | LW fator único | LW não linear | 1/N |
+|---|---|---|---|---|---|---|---|---|
+| 50 | 13,85% | 13,83% | 0,997 | 0,57 | 1,028; 0,08 | 13,79% | 14,01% | 21,6% |
+| 100 | 12,88% | 12,89% | 1,001 | 0,92 | 1,028; 0,009 | 12,90% | 13,12% | 20,1% |
+| 200 | 11,92% | 12,03% | 1,018 | 0,10 | 1,058; 0,000 | 11,96% | 12,45% | 19,9% |
+
+(volatilidade anual da GMV sem restrição; na versão long-only tudo fica a
+menos de 0,1 ponto de diferença.)
+
+**Estabilidade (López de Prado, descritivo):** mediana de λmax/λmin da
+correlação estimada.
+
+| n | fator + resíduo setor | + notícias | placebo | LW fator único | amostral |
+|---|---|---|---|---|---|
+| 50 | 102 | 109 | 118 | 96 | 241 |
+| 100 | 183 | 210 | 218 | 163 | 765 |
+| 200 | 375 | 533 | 482 | 331 | 13.410 |
+
+**Conclusão.**
+
+1. **H2 é rejeitada nos dois desenhos.** As notícias melhoram a previsão da
+   correlação (H1, inclusive residual, com t até 9,7), mas não reduzem a
+   variância realizada da GMV além do setor. A razão vai de 0,997 (n = 50) a
+   1,018 (n = 200), nunca significante.
+2. **O conteúdo das notícias não é ruído.** Em todos os universos o grafo
+   verdadeiro bate o placebo (variância 2,8–5,8% menor; p de 0,000 a 0,08).
+   O que falta é ele superar o setor.
+3. **As notícias pioram a estabilidade da matriz.** O número de condição sobe
+   com as notícias em todos os universos (de +7% em n = 50 a +42% em n = 200).
+   A estrutura extra, esparsa e pequena, abre o leque de autovalores, e a GMV
+   inverte a matriz: o ganho estatístico se perde na inversão. É o mecanismo
+   de instabilidade de Markowitz descrito por López de Prado (2016, 2020).
+4. **Achado metodológico positivo.** O modelo fator de mercado + correlação
+   residual encolhida para o setor (seção 10) empata com o LW fator único e
+   bate o LW não linear em todos os universos (p ≤ 0,05 em n = 100 e 200).
+5. **O ganho das notícias encolhe com n**: em universos maiores a cobertura
+   dos pares cai e as notícias ficam mais esparsas.
+
+**Pendente (já previsto na seção 10):** refazer com a amostra ampliada de
+artigos (~34%) quando a run na Vast terminar.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
