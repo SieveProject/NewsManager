@@ -584,6 +584,80 @@ correlação estimada.
 **Pendente (já previsto na seção 10):** refazer com a amostra ampliada de
 artigos (~34%) quando a run na Vast terminar.
 
+## 12. Desenho fixado antes de rodar: carteira long-only com teto de peso (2026-10-15)
+
+Escrito ANTES de rodar este desenho com o grafo da amostra ampliada. Mudanças
+depois do commit desta seção precisam ser declaradas como tal.
+
+**Por que um segundo desenho.** A seção 10 testou a GMV sem restrição, que
+inverte Σ̂ diretamente e por isso sofre com o número de condição (seção 11). Na
+prática a variância mínima é usada comprada e com teto por ativo, e as
+restrições funcionam elas mesmas como shrinkage (Jagannathan e Ma, 2003). A
+pergunta aqui é se as notícias reduzem a variância da carteira que um gestor
+de fato montaria.
+
+**Transparência: o que já foi visto.** As configurações abaixo foram escritas
+como exemplos do motor novo (`backtests/*.toml`) antes de qualquer resultado.
+Depois rodaram uma vez com o grafo antigo (amostra de 25%), num teste do motor.
+Aquele resultado é **exploratório** e não conta para os critérios:
+
+| (grafo 25%, n = 100) | vol. | razão de variâncias contra setor | p |
+|---|---|---|---|
+| fator + resíduo setor | 13,41% | — | — |
+| setor + notícias | 13,37% | 0,994 | 0,017 |
+| placebo | 13,42% | 1,001 | 0,79 |
+| LW fator único | 13,37% | 0,993 | 0,19 |
+
+O teste confirmatório usa o grafo da amostra ampliada. São ~171 mil artigos
+novos (+43% de unidades extraídas), sobre o mesmo período de preços: os dados
+de notícias são novos, mas o período de carteira não é.
+
+**Motor e configuração** (`python -m newsmanager.backtester`, arquivos
+`backtests/*.toml` deste commit):
+
+- 2013-01-01 a 2023-12-31, 252 pregões in-sample, rebalanceamento mensal (1º
+  pregão do mês);
+- long-only (`min_weight = 0`), teto `max_weight = 0.10`, custo de 10 bps
+  sobre o giro, benchmark SPY;
+- universo `news.universe` n = 100, cobertura mínima de 95% na janela;
+- otimização: `min_variance` (FISTA com projeção no simplex com teto).
+
+| run | plugin | papel |
+|---|---|---|
+| `minvar_setor` | `NewsFactorResidual(features="setor")` | **referência a bater** |
+| `minvar_setor_noticias` | `NewsFactorResidual(features="setor+noticias")` | **modelo principal** |
+| `minvar_setor_noticias_placebo` | idem, `placebo = true` (seed 7) | controle |
+| `minvar_lw_fator` | `MinVariance(estimator="LW fator único")` | referência estatística |
+| `equal_weight` | `EqualWeight` | referência ingênua |
+
+O modelo e a regressão são os da seção 10:
+- notícias de 365 dias, meia-vida de 90 dias, `min_train = 24`;
+- β treinado só nos meses cujo período de carteira terminou antes de t.
+
+**Teste.** `analysis.compare`: razão de variâncias dos retornos diários
+líquidos, com p bicaudal por bootstrap circular em blocos de 10 dias, 2.000
+reamostragens e seed 7.
+
+**Critério de sucesso** (decidido agora):
+
+1. **Principal.** n = 100: a razão `minvar_setor_noticias` / `minvar_setor`
+   é < 1 com **p < 0,025**, **e** é menor que a razão `placebo` / `minvar_setor`.
+   O nível é 0,025, e não 0,05, porque este é o segundo desenho testado para a
+   mesma hipótese H2 (Bonferroni para dois desenhos).
+2. **Confirmação (sem exigir significância).** Razão < 1 com a mesma
+   configuração em n = 50 e n = 200 (`--set universe.n=50 --name <run>_n50`;
+   idem n200).
+3. **Robustez (descritiva, não é critério).** n = 100 com teto de 5% e de 20%
+   (`--set max_weight=0.05` / `0.20`); diferença de Sharpe; número de condição.
+
+O resultado é registrado junto com o da seção 11, seja qual for. Se (1)
+falhar, H2 fica rejeitada nos três desenhos. Se (1) passar, a tese afirma o
+ganho para a carteira restrita, e não para a GMV, com o mecanismo da seção 11
+(instabilidade na inversão) como explicação da diferença.
+
+O critério 3 da seção 10 (amostra ampliada, GMV sem restrição, `python -m
+newsmanager backtest`) continua valendo e é avaliado à parte.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
@@ -597,6 +671,7 @@ artigos (~34%) quando a run na Vast terminar.
 - Guo, L.; Peng, L.; Tao, Y.; Tu, J. Joint News, Attention Spillover, and Stock Returns. arXiv:1703.02715.
 - Higham, N. (2002). Computing the nearest correlation matrix. *IMA J. Numer. Anal.* 22.
 - Hoberg, G.; Phillips, G. (2016). Text-based network industries and endogenous product differentiation. *JPE* 124(5).
+- Jagannathan, R.; Ma, T. (2003). Risk reduction in large portfolios: why imposing the wrong constraints helps. *J. Finance* 58(4).
 - Kan, R.; Zhou, G. (2007). Optimal portfolio choice with parameter uncertainty. *JFQA* 42(3).
 - Laloux, L.; Cizeau, P.; Bouchaud, J.-P.; Potters, M. (1999). Noise dressing of financial correlation matrices. *PRL* 83.
 - Ledoit, O.; Wolf, M. (2003). Improved estimation of the covariance matrix of stock returns with an application to portfolio selection. *J. Empirical Finance* 10.
