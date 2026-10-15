@@ -1,0 +1,14 @@
+# 1/N do universo (referência ingênua).
+name = "equal_weight"
+start = "2013-01-01"
+end = "2023-12-31"
+insample_days = 252          # pregões in-sample antes de cada rebalanceamento
+rebalance = "M"              # D, W, M, Q, A ou "<k>D"
+benchmark = "SPY"            # ticker, "equal_weight" ou "none"
+max_weight = 0.10
+min_weight = 0.0             # negativo permite venda a descoberto
+cost_bps = 10                # por unidade de giro
+universe = { n = 100 }       # news.universe (top-n por notícias, point-in-time)
+
+[model]
+plugin = "newsmanager.backtester.models.basic:EqualWeight"

@@ -1,0 +1,15 @@
+# Placebo: notícias embaralhadas entre as ações (controle).
+name = "minvar_setor_noticias_placebo"
+start = "2013-01-01"
+end = "2023-12-31"
+insample_days = 252
+rebalance = "M"
+benchmark = "SPY"
+max_weight = 0.10
+min_weight = 0.0
+cost_bps = 10
+universe = { n = 100 }
+
+[model]
+plugin = "newsmanager.backtester.models.news:NewsFactorResidual"
+params = { features = "setor+noticias", placebo = true }

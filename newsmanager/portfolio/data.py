@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from datetime import date
 
 import duckdb
@@ -63,7 +64,8 @@ def pairwise_corr(X: np.ndarray, min_obs: int = 10) -> tuple[np.ndarray, np.ndar
 
 def market_factor(X: np.ndarray) -> np.ndarray:
     """m_t = média igual dos retornos do universo no dia (o fator do LW fator único)."""
-    with np.errstate(invalid="ignore"):
+    with warnings.catch_warnings():            # dia de emenda: linha toda NaN -> 0
+        warnings.simplefilter("ignore", RuntimeWarning)
         m = np.nanmean(X, axis=1)
     return np.nan_to_num(m)
 

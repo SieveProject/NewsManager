@@ -32,6 +32,7 @@ units [--sample-frac F] -> run -> collect -> filter        python -m newsmanager
 link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> link-build (Mac)
 graph-build (Mac, ~15 s)                                   python -m newsmanager.extract graph-build
 prices -> universe --n N -> sectors -> h1 [--residual] -> backtest --n N (Mac)
+backtester run backtests/*.toml -> compare -> notebook    python -m newsmanager.backtester <etapa>
 ```
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
@@ -67,6 +68,17 @@ prices -> universe --n N -> sectors -> h1 [--residual] -> backtest --n N (Mac)
   (`estimators.py`, portes de Ledoit-Wolf conferidos no teste) -> GMV com e sem
   venda a descoberto, 2013-2023. O desenho residual (seção 10 do método) foi
   pré-especificado no commit 5c01017: não mudar critérios depois de ver resultado.
+- `backtester` (`newsmanager/backtester/`, guia em `backtests/README.md`): motor
+  genérico de janela deslizante. Um TOML por run (período, in-sample, frequência,
+  benchmark, limites de peso, custo, universo, plugin `módulo:Classe` ou
+  `arquivo.py:Classe`). O plugin devolve pesos a partir de `ctx` (só dados < t);
+  o motor confere/projeta limites, cobra custo sobre o giro contra os pesos
+  derivados e grava P&L diário, posições, trocas e `ctx.info` em
+  `data/marts/backtests/<name>/`. `notebook` gera e executa um .ipynb de análise.
+  Teste: `tests/test_backtester.py` (contra uma simulação dia a dia independente).
+  `backtest` (acima) é o experimento fixado da seção 10/11; comparações novas
+  vão no `backtester`. Filtro de tickers no DuckDB: lista literal, não
+  `IN (SELECT unnest(?))` (sem poda do Parquet: 15 min contra 0,1 s).
 - `link_version` = hash de template + modelo + KINDS + universo (`ref_hash`) +
   `CANDIDATES_REV`. As listagens da Nasdaq Trader mudam todo dia: a cópia usada
   fica em `data/reference/` (também no Drive).

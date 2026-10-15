@@ -107,7 +107,10 @@ class _Trainer:
             self.cum[name] = (np.cumsum(XtX, axis=0), np.cumsum(Xty, axis=0))
 
     def coef(self, name: str, before) -> np.ndarray:
-        k = int(np.searchsorted(self.ud, before))      # meses estritamente antes de `before`
+        return self.coef_first(name, int(np.searchsorted(self.ud, before)))  # meses estritamente antes
+
+    def coef_first(self, name: str, k: int) -> np.ndarray:
+        """Coeficientes treinados nos k primeiros meses do painel."""
         XtX, Xty = self.cum[name]
         A = XtX[k - 1]
         return np.linalg.solve(A + 1e-9 * np.eye(len(A)), Xty[k - 1])
