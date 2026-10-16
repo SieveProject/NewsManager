@@ -746,12 +746,88 @@ de verdade.
 4. **Mais dados não mudam a conclusão:** de 25% para 34% do corpus, o ganho
    preditivo cresce um pouco, e o efeito na carteira continua nulo.
 
+## 14. Desenho fixado antes de rodar: outros otimizadores (2026-10-16)
+
+Escrito ANTES de rodar qualquer um destes otimizadores com dados reais. Só
+foram rodados testes sintéticos (`tests/test_backtester.py`), que conferem
+cada otimizador contra a solução fechada quando ela existe. Mudanças depois
+do commit desta seção precisam ser declaradas como tal.
+
+**Pergunta.** As seções 9–13 só testaram variância mínima. Aqui a pergunta é
+se a Σ̂ com notícias melhora a carteira quando o otimizador:
+- usa retorno esperado (Markowitz, máximo Sharpe);
+- busca diversificação (máxima diversificação);
+- não inverte Σ̂ (HRP), que é onde as notícias perdiam o ganho (seção 11);
+- persegue um benchmark (tracking error mínimo).
+
+**Otimizadores** (um plugin cada, `newsmanager/backtester/models/`):
+
+| plugin | problema |
+|---|---|
+| `mean_variance:MeanVariance` | max w'μ − (γ/2) w'Σ̂w, γ = 5 |
+| `max_sharpe:MaxSharpe` | max w'μ / √(w'Σ̂w), rf = 0 |
+| `max_diversification:MaxDiversification` | max w'σ / √(w'Σ̂w), σ = √diag Σ̂ (Choueifaty e Coignard, 2008) |
+| `hrp:HRP` | López de Prado (2016): ligação simples em √(½(1−ρ)), bissecção recursiva com variância inversa; teto por projeção |
+| `min_tracking_error:MinTrackingError` | min w'Σ̂w − 2w'c, c = Cov(R, SPY) amostral na janela |
+
+**Retorno esperado:** μ de Bayes-Stein (Jorion, 1986), calculado nos 252
+pregões in-sample e encolhido para a média da GMV de Σ̂. A média amostral
+pura tem erro grande demais (DeMiguel, Garlappi e Uppal, 2009).
+
+**Restrições:** Σw = 1 e 0 ≤ w ≤ 10%, as mesmas da seção 12. O máximo Sharpe
+e a máxima diversificação percorrem a fronteira restrita
+min w'Σ̂w − λa'w, com uma grade em λ seguida de seção áurea.
+
+**Estimadores de Σ̂ (parâmetro `cov`), iguais para os cinco otimizadores:**
+
+| `cov` | papel |
+|---|---|
+| fator + resíduo setor | **referência a bater** |
+| fator + resíduo setor + notícias | **modelo principal** |
+| idem, `placebo = true` (seed 7) | controle |
+| LW fator único | referência estatística |
+
+**Configuração:** a da seção 12. São 2013-01 a 2023-12, 252 pregões, mensal,
+n = 100, 10 bps, SPY, notícias de 365 dias, meia-vida de 90 e
+`min_train = 24`. Arquivos: `backtests/secao14/*.toml` (20 runs),
+`rodar.sh` e `avaliar.py`, deste commit.
+
+**Estatística principal por otimizador** (notícias contra setor, pregões em
+comum, bootstrap circular em blocos de 10, 2.000 reamostragens, seed 7, p
+bicaudal):
+
+| otimizador | estatística | melhora |
+|---|---|---|
+| Markowitz, máximo Sharpe | diferença de Sharpe líquido | > 0 |
+| máxima diversificação, HRP | razão de variâncias dos retornos líquidos | < 1 |
+| tracking error mínimo | razão de variâncias do retorno ativo (r − SPY) | < 1 |
+
+**Critério de sucesso** (decidido agora), avaliado por otimizador:
+
+1. **Principal.** Melhora com **p < 0,01** (Bonferroni para cinco
+   otimizadores: 0,05/5), **e** melhor que o placebo na mesma estatística.
+2. **Confirmação (sem exigir significância).** Mesma direção em n = 50 e
+   n = 200.
+3. **Robustez (descritiva).** Markowitz com γ = 2 e 10; volatilidade,
+   Sharpe, TE e número de condição de cada run.
+
+Para declarar H2 aceita num otimizador, (1) e (2) precisam ser atendidos
+nele. Os resultados dos cinco são registrados juntos, seja qual for o
+desfecho.
+
+*Nota de implementação, antes de rodar:* os modelos passaram a ser um plugin
+por arquivo. `basic.py` e `news.py` continuam aceitando os nomes antigos das
+seções 12–13. Rodar de novo os TOMLs da seção 12 reproduz os retornos diários
+a menos de 1e-15, a mesma diferença entre duas execuções seguidas, que vem da
+ordem de soma do DuckDB.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
 - Bun, J.; Bouchaud, J.-P.; Potters, M. (2017). Cleaning large correlation matrices: tools from random matrix theory. *Physics Reports* 666.
 - Chan, L.; Karceski, J.; Lakonishok, J. (1999). On portfolio optimization: forecasting covariances and choosing the risk model. *RFS* 12, 937–974.
 - Cohen, L.; Frazzini, A. (2008). Economic links and predictable returns. *Journal of Finance* 63(4).
+- Choueifaty, Y.; Coignard, Y. (2008). Toward maximum diversification. *J. Portfolio Management* 35(1).
 - DeMiguel, V.; Garlappi, L.; Uppal, R. (2009). Optimal versus naive diversification. *RFS* 22(5).
 - Elton, E.; Gruber, M. (1973). Estimating the dependence structure of share prices. *Journal of Finance* 28.
 - Engle, R.; Colacito, R. (2006). Testing and valuing dynamic correlations for asset allocation. *JBES* 24(2).
@@ -760,6 +836,7 @@ de verdade.
 - Higham, N. (2002). Computing the nearest correlation matrix. *IMA J. Numer. Anal.* 22.
 - Hoberg, G.; Phillips, G. (2016). Text-based network industries and endogenous product differentiation. *JPE* 124(5).
 - Jagannathan, R.; Ma, T. (2003). Risk reduction in large portfolios: why imposing the wrong constraints helps. *J. Finance* 58(4).
+- Jorion, P. (1986). Bayes-Stein estimation for portfolio analysis. *JFQA* 21(3).
 - Kan, R.; Zhou, G. (2007). Optimal portfolio choice with parameter uncertainty. *JFQA* 42(3).
 - Laloux, L.; Cizeau, P.; Bouchaud, J.-P.; Potters, M. (1999). Noise dressing of financial correlation matrices. *PRL* 83.
 - Ledoit, O.; Wolf, M. (2003). Improved estimation of the covariance matrix of stock returns with an application to portfolio selection. *J. Empirical Finance* 10.

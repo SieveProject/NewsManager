@@ -1,0 +1,16 @@
+# Seção 14 de docs/metodo_covariancia.md: Hierarchical Risk Parity; Σ̂ = fator + resíduo setor + notícias (modelo principal).
+name = "s14_hrp_noticias"
+start = "2013-01-01"
+end = "2023-12-31"
+insample_days = 252
+rebalance = "M"
+benchmark = "SPY"
+max_weight = 0.10
+min_weight = 0.0
+cost_bps = 10
+universe = { n = 100 }
+min_coverage = 0.95
+
+[model]
+plugin = "newsmanager.backtester.models.hrp:HRP"
+params = { cov = "fator + resíduo setor + notícias" }

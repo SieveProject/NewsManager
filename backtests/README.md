@@ -80,14 +80,37 @@ e nos gráficos de diagnóstico do notebook.
 
 ## Modelos prontos
 
+Um plugin por módulo em `newsmanager/backtester/models/`:
+
 | plugin | params |
 |---|---|
-| `newsmanager.backtester.models.basic:EqualWeight` | — |
-| `newsmanager.backtester.models.basic:InverseVolatility` | — |
-| `newsmanager.backtester.models.basic:MinVariance` | `estimator`: `amostral`, `LW identidade`, `LW fator único`, `LW corr. constante`, `LW não linear`, `RMT`, `fator + resíduo diagonal`, `fator + resíduo corr. constante` |
-| `newsmanager.backtester.models.news:NewsFactorResidual` | `features` (`setor`, `noticias`, `setor+noticias`), `placebo`, `news_days`, `half_life`, `min_train`, `panel_n` |
+| `equal_weight:EqualWeight` | — |
+| `inverse_volatility:InverseVolatility` | — |
+| `min_variance:MinVariance` | `cov`, `cov_params` |
+| `mean_variance:MeanVariance` | `cov`, `cov_params`, `gamma` (5) |
+| `max_sharpe:MaxSharpe` | `cov`, `cov_params` |
+| `max_diversification:MaxDiversification` | `cov`, `cov_params` |
+| `hrp:HRP` | `cov`, `cov_params` |
+| `min_tracking_error:MinTrackingError` | `cov`, `cov_params` (precisa de `benchmark = <ticker>`) |
 
-`NewsFactorResidual` é o modelo da seção 10 de `docs/metodo_covariancia.md`. O β da regressão é treinado só
+`cov` escolhe o estimador de Σ̂ (`models/covariance.py`):
+- estatísticos: `amostral`, `LW identidade`, `LW fator único`, `LW corr. constante`, `LW não linear`, `RMT`,
+  `fator + resíduo diagonal`, `fator + resíduo corr. constante`;
+- com setor e notícias: `fator + resíduo setor`, `fator + resíduo notícias`, `fator + resíduo setor + notícias`.
+
+Nos estimadores com notícias, `cov_params` aceita `placebo`, `news_days`, `half_life`, `min_train`, `panel_n`
+e `seed`. Exemplo:
+
+```toml
+[model]
+plugin = "newsmanager.backtester.models.hrp:HRP"
+params = { cov = "fator + resíduo setor + notícias", cov_params = { placebo = true } }
+```
+
+`basic:MinVariance` (`estimator`) e `news:NewsFactorResidual` (`features`) são os nomes antigos, mantidos
+para os TOMLs das seções 12–13.
+
+O estimador `fator + resíduo ...` é o modelo da seção 10 de `docs/metodo_covariancia.md`. O β da regressão é treinado só
 nos meses do painel cujo período de carteira terminou antes de t, o que vale para qualquer frequência de
 rebalanceamento. O painel fica em cache em `data/marts/backtests/_cache/` e é recalculado quando grafo,
 universo ou setores mudam.

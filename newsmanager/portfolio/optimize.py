@@ -113,3 +113,157 @@ def min_variance(S: np.ndarray, lo: float = 0.0, hi: float = np.inf, tol: float 
             break
         w, t = w_new, t_new
     return w
+
+
+def qp_box_simplex(A: np.ndarray, q: np.ndarray, lo: float = 0.0, hi: float = np.inf, tol: float = 1e-10,
+                   max_iter: int = 20000, w0: np.ndarray | None = None) -> np.ndarray:
+    """min ½ w'Aw - q'w s.t. Σw = 1, lo <= w <= hi (A psd), por FISTA com
+    projeção em project_box_simplex. min_variance é o caso A = 2Σ, q = 0."""
+    p = len(A)
+    L = max(np.linalg.eigvalsh(A)[-1], 1e-18)
+    w = project_box_simplex(np.full(p, 1 / p) if w0 is None else w0, lo, hi)
+    y, t = w.copy(), 1.0
+    for _ in range(max_iter):
+        w_new = project_box_simplex(y - (A @ y - q) / L, lo, hi)
+        t_new = (1 + np.sqrt(1 + 4 * t * t)) / 2
+        y = w_new + (t - 1) / t_new * (w_new - w)
+        if np.abs(w_new - w).max() < tol:
+            w = w_new
+            break
+        w, t = w_new, t_new
+    return w
+
+
+def mean_variance(S: np.ndarray, mu: np.ndarray, gamma: float, lo: float = 0.0, hi: float = np.inf) -> np.ndarray:
+    """Markowitz: max w'μ - (γ/2) w'Σw s.t. Σw = 1 e limites."""
+    return qp_box_simplex(gamma * S, mu, lo, hi)
+
+
+def max_ratio(S: np.ndarray, a: np.ndarray, lo: float = 0.0, hi: float = np.inf,
+              grid: int = 25, refine: int = 40) -> tuple[np.ndarray, float]:
+    """max a'w / sqrt(w'Σw) s.t. Σw = 1 e limites (máximo Sharpe com a = μ;
+    máxima diversificação com a = σ).
+
+    O máximo está na fronteira {argmin w'Σw - λ a'w : λ >= 0}. Busca em λ:
+    grade log-espaçada (escalada por a e Σ) e seção áurea entre os vizinhos do
+    melhor ponto. Devolve (w, razão). Se nenhum a'w > 0 é atingível, devolve a
+    GMV (λ = 0)."""
+    def solve(lam, w0=None):
+        return qp_box_simplex(2 * S, lam * a, lo, hi, w0=w0)
+
+    def ratio(w):
+        v = w @ S @ w
+        return (a @ w) / np.sqrt(v) if v > 0 else -np.inf
+
+    w_gmv = min_variance(S, lo, hi)
+    scale = np.sqrt(w_gmv @ S @ w_gmv) / max(np.abs(a).max(), 1e-18)
+    lams = np.concatenate([[0.0], scale * np.logspace(-3, 3, grid)])
+    ws, rs, prev = [], [], w_gmv
+    for lam in lams:
+        prev = w_gmv if lam == 0 else solve(lam, prev)
+        ws.append(prev)
+        rs.append(ratio(prev))
+    k = int(np.argmax(rs))
+    if rs[k] <= 0:
+        return w_gmv, float(rs[0])
+    a_, b_ = lams[max(k - 1, 0)], lams[min(k + 1, len(lams) - 1)]
+    g = (np.sqrt(5) - 1) / 2
+    best_w, best_r = ws[k], rs[k]
+    c, d = b_ - g * (b_ - a_), a_ + g * (b_ - a_)
+    wc, wd = solve(c, best_w), solve(d, best_w)
+    rc, rd = ratio(wc), ratio(wd)
+    for _ in range(refine):
+        if rc > rd:
+            b_, d, wd, rd = d, c, wc, rc
+            c = b_ - g * (b_ - a_)
+            wc = solve(c, wd)
+            rc = ratio(wc)
+        else:
+            a_, c, wc, rc = c, d, wd, rd
+            d = a_ + g * (b_ - a_)
+            wd = solve(d, wc)
+            rd = ratio(wd)
+        for w_, r_ in ((wc, rc), (wd, rd)):
+            if r_ > best_r:
+                best_w, best_r = w_, r_
+        if b_ - a_ < 1e-6 * max(b_, 1e-18):
+            break
+    return best_w, float(best_r)
+
+
+def min_tracking_error(S: np.ndarray, c: np.ndarray, lo: float = 0.0, hi: float = np.inf) -> np.ndarray:
+    """min Var(R'w - b) = w'Σw - 2 w'c + σ²_b, c = Cov(R, b), s.t. Σw = 1 e limites."""
+    return qp_box_simplex(2 * S, 2 * c, lo, hi)
+
+
+def _single_linkage_order(D: np.ndarray) -> list[int]:
+    """Ordem das folhas do dendrograma de ligação simples (quasi-diagonalização
+    de López de Prado, 2016). Aglomerativo O(p³), suficiente para p <= ~700."""
+    p = len(D)
+    clusters = {i: [i] for i in range(p)}
+    dist = D.astype(float).copy()
+    np.fill_diagonal(dist, np.inf)
+    active = list(range(p))
+    nxt = p
+    while len(active) > 1:
+        sub = dist[np.ix_(active, active)]
+        i, j = np.unravel_index(np.argmin(sub), sub.shape)
+        a, b = active[i], active[j]
+        if a > b:
+            a, b = b, a
+        merged = clusters.pop(a) + clusters.pop(b)
+        # ligação simples: distância do novo grupo = mínimo das duas
+        row = np.minimum(dist[a], dist[b])
+        dist = np.pad(dist, ((0, 1), (0, 1)), constant_values=np.inf)
+        dist[nxt, :-1] = row
+        dist[:-1, nxt] = row
+        dist[nxt, nxt] = np.inf
+        dist[a, :] = dist[:, a] = dist[b, :] = dist[:, b] = np.inf
+        clusters[nxt] = merged
+        active = [x for x in active if x not in (a, b)] + [nxt]
+        nxt += 1
+    return clusters[active[0]]
+
+
+def hrp(S: np.ndarray) -> np.ndarray:
+    """Hierarchical Risk Parity (López de Prado, 2016): ligação simples na
+    distância √(½(1-ρ)), quasi-diagonalização e bissecção recursiva com pesos
+    de variância inversa dentro de cada metade. Long-only, sem inverter Σ."""
+    sd = np.sqrt(np.diag(S))
+    C = np.clip(S / np.outer(sd, sd), -1, 1)
+    order = _single_linkage_order(np.sqrt(0.5 * (1 - C)))
+    w = np.ones(len(S))
+
+    def cluster_var(idx):
+        sub = S[np.ix_(idx, idx)]
+        ivp = 1 / np.diag(sub)
+        ivp /= ivp.sum()
+        return ivp @ sub @ ivp
+
+    stack = [order]
+    while stack:
+        items = stack.pop()
+        if len(items) < 2:
+            continue
+        half = len(items) // 2
+        l, r = items[:half], items[half:]
+        vl, vr = cluster_var(l), cluster_var(r)
+        alpha = 1 - vl / (vl + vr)
+        w[l] *= alpha
+        w[r] *= 1 - alpha
+        stack += [l, r]
+    return w / w.sum()
+
+
+def bayes_stein_mean(X: np.ndarray, S: np.ndarray) -> tuple[np.ndarray, float]:
+    """Média de Bayes-Stein (Jorion, 1986): encolhe a média amostral para a
+    média da carteira GMV, μ_BS = (1-φ) x̄ + φ μ_0 1, com
+    φ = (p+2) / ((p+2) + T (x̄-μ_0 1)' Σ⁻¹ (x̄-μ_0 1)). Devolve (μ_BS, φ)."""
+    T, p = X.shape
+    xbar = np.nanmean(X, axis=0)
+    Si = np.linalg.inv(S)
+    one = np.ones(p)
+    mu0 = (one @ Si @ xbar) / (one @ Si @ one)
+    d = xbar - mu0
+    phi = (p + 2) / ((p + 2) + T * d @ Si @ d)
+    return (1 - phi) * xbar + phi * mu0, float(phi)

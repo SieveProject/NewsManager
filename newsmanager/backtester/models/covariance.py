@@ -1,0 +1,137 @@
+"""Estimadores de Σ que os plugins de otimização usam (parâmetro `cov`).
+
+Estatísticos (só retornos da janela):
+  amostral, LW identidade, LW fator único, LW corr. constante, LW não linear,
+  RMT, fator + resíduo diagonal, fator + resíduo corr. constante
+
+Com setor/notícias (seção 10 de docs/metodo_covariancia.md):
+  fator + resíduo setor, fator + resíduo notícias, fator + resíduo setor + notícias
+
+    Σ̂ = σ²_m b b' + shrink(E -> D_e^½ R D_e^½),   R_ij = tanh(z̄ + β'f_ij)
+
+f_ij são os atributos de par de newsmanager/portfolio/features.py (só notícias
+< t). β vem de um MQO empilhado da correlação residual REALIZADA em meses
+passados contra f_ij (painel da H1 residual, universo news.universe n), usando
+só os meses cujo período de carteira terminou antes de t. Com menos de
+`min_train` meses, β = 0 (alvo = correlação residual constante).
+
+`cov_params` (só para os de notícias): placebo (notícias embaralhadas entre as
+ações em cada data, o controle da seção 9), news_days, half_life, min_train,
+panel_n, seed.
+"""
+
+from __future__ import annotations
+
+import bisect
+import hashlib
+import json
+
+import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
+
+from ...config import ConfigError
+from ...portfolio import data, estimators as est, features, h1
+from ...portfolio.backtest import _features_for_regression, _target, _Trainer
+from ..plugin import Context, Env
+
+STATISTICAL = {
+    "amostral": est.sample_cov,
+    "LW identidade": est.lw_identity,
+    "LW fator único": est.lw_single_factor,
+    "LW corr. constante": est.lw_const_corr,
+    "LW não linear": est.lw_nonlinear,
+    "RMT": est.rmt_clip,
+    "fator + resíduo diagonal": lambda X: est.factor_residual(X, "identity"),
+    "fator + resíduo corr. constante": lambda X: est.factor_residual(X, "cc"),
+}
+NEWS = {
+    "fator + resíduo setor": h1.SECTOR,
+    "fator + resíduo notícias": h1.NEWS,
+    "fator + resíduo setor + notícias": [*h1.SECTOR, *h1.NEWS],
+}
+NAMES = (*STATISTICAL, *NEWS)
+
+
+class Statistical:
+    def __init__(self, name: str):
+        self.name = name
+
+    def setup(self, env: Env) -> None:
+        pass
+
+    def __call__(self, ctx: Context) -> np.ndarray:
+        out = STATISTICAL[self.name](ctx.returns)
+        return out[0] if isinstance(out, tuple) else out
+
+
+def _panel(env: Env, n: int, news_days: int, half_life: float) -> dict:
+    """Painel residual da H1, em cache enquanto grafo, universo e setores não mudarem."""
+    cfg = env.cfg
+    deps = [cfg.curated / "universe" / f"n={n}.parquet", cfg.curated / "sectors"]
+    deps += sorted((cfg.curated / "graph").glob("v=*/events.parquet"))
+    stamp = []
+    for d in deps:
+        files = sorted(d.rglob("*.parquet")) if d.is_dir() else [d]
+        stamp += [(str(f), f.stat().st_size, f.stat().st_mtime_ns) for f in files if f.exists()]
+    key = hashlib.sha256(json.dumps([n, news_days, half_life, stamp]).encode()).hexdigest()[:12]
+    path = cfg.marts / "backtests" / "_cache" / f"panel_res_n={n}_w={news_days}_h={half_life:g}_{key}.parquet"
+    if path.exists():
+        t = pq.read_table(path)
+        return {c: (np.array(t[c].to_pylist(), dtype=object) if c in ("date", "a", "b") else t[c].to_numpy())
+                for c in t.column_names}
+    panel = h1.build_panel(cfg, n=n, news_days=news_days, half_life_days=half_life, residual=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(pa.table({k: (pa.array(list(v)) if v.dtype == object else v) for k, v in panel.items()}),
+                   path, compression="zstd")
+    return panel
+
+
+class NewsResidual:
+    def __init__(self, name: str, placebo: bool = False, news_days: int = 365, half_life: float = 90.0,
+                 min_train: int = h1.MIN_TRAIN, panel_n: int | None = None, seed: int = 7):
+        if placebo and name == "fator + resíduo setor":
+            raise ValueError("placebo embaralha as notícias: não faz sentido com o alvo só de setor")
+        self.name, self.regs = name, NEWS[name]
+        self.placebo, self.news_days, self.half_life = placebo, news_days, half_life
+        self.min_train, self.panel_n = min_train, panel_n
+        self.rng = np.random.default_rng(seed)
+
+    def setup(self, env: Env) -> None:
+        n = self.panel_n or env.universe_n
+        if n is None:
+            raise ConfigError(f"cov {self.name!r} precisa de universe = {{n = N}} ou de cov_params.panel_n")
+        self.env = env
+        self.trainer = _Trainer(_panel(env, n, self.news_days, self.half_life), {"m": self.regs})
+        self.months = list(self.trainer.ud)
+
+    def __call__(self, ctx: Context) -> np.ndarray:
+        X = ctx.returns
+        m = data.market_factor(X)
+        a, b = data.market_betas(X, m)
+        Ce, _ = data.pairwise_corr(data.residuals(X, b, m, a), min_obs=len(X) // 2)
+        z = np.arctanh(np.clip(Ce, -0.999, 0.999))
+        F = _features_for_regression(features.pair_features(
+            self.env.con, self.env.cfg, ctx.date, ctx.tickers, self.news_days, self.half_life))
+        if self.placebo:
+            perm = self.rng.permutation(ctx.p)
+            F = {f: (M[np.ix_(perm, perm)] if f in h1.NEWS else M) for f, M in F.items()}
+        # meses do painel cujo período de carteira [m_k, m_{k+1}) já acabou antes de t
+        k = max(bisect.bisect_right(self.months, ctx.date) - 1, 0)
+        beta = (self.trainer.coef_first("m", k) if k >= self.min_train else np.zeros(len(self.regs)))
+        S, delta = est.factor_residual(X, _target(beta, self.regs, z, F), return_delta=True)
+        ctx.info.update({"delta": delta, "trained_months": k})
+        for r, v in zip(self.regs, beta):
+            ctx.info[f"beta_{r}"] = float(v)
+        return S
+
+
+def make(name: str, params: dict | None = None):
+    params = params or {}
+    if name in STATISTICAL:
+        if params:
+            raise ValueError(f"cov {name!r} não aceita cov_params {sorted(params)}")
+        return Statistical(name)
+    if name in NEWS:
+        return NewsResidual(name, **params)
+    raise ValueError(f"cov {name!r}: use um de {list(NAMES)}")

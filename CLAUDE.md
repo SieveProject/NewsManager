@@ -76,6 +76,10 @@ backtester run backtests/*.toml -> compare -> notebook    python -m newsmanager.
   derivados e grava P&L diário, posições, trocas e `ctx.info` em
   `data/marts/backtests/<name>/`. `notebook` gera e executa um .ipynb de análise.
   Teste: `tests/test_backtester.py` (contra uma simulação dia a dia independente).
+  Modelos: um plugin por módulo em `newsmanager/backtester/models/` (variância
+  mínima, Markowitz, máximo Sharpe, máxima diversificação, HRP, TE mínimo,
+  1/N, inverso da vol.); `cov` escolhe o estimador de Σ̂ (`models/covariance.py`).
+  `basic.py`/`news.py` só mantêm os nomes antigos (TOMLs das seções 12–13).
   `backtest` (acima) é o experimento fixado da seção 10/11; comparações novas
   vão no `backtester`. Filtro de tickers no DuckDB: lista literal, não
   `IN (SELECT unnest(?))` (sem poda do Parquet: 15 min contra 0,1 s).

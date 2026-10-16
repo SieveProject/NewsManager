@@ -1,0 +1,16 @@
+# Seção 14 de docs/metodo_covariancia.md: máxima diversificação; Σ̂ = fator + resíduo setor + notícias (placebo) (controle).
+name = "s14_maxdiv_placebo"
+start = "2013-01-01"
+end = "2023-12-31"
+insample_days = 252
+rebalance = "M"
+benchmark = "SPY"
+max_weight = 0.10
+min_weight = 0.0
+cost_bps = 10
+universe = { n = 100 }
+min_coverage = 0.95
+
+[model]
+plugin = "newsmanager.backtester.models.max_diversification:MaxDiversification"
+params = { cov = "fator + resíduo setor + notícias", cov_params = { placebo = true } }

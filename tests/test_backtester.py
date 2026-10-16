@@ -201,6 +201,21 @@ def main() -> int:
         assert "info_cond" in reb and "beta" in s["net"]
         print("ok  MinVariance com venda a descoberto, a cada 10 pregões, benchmark 1/N")
 
+        # 4b. cada otimizador roda no motor e respeita os limites
+        plugins = {"mean_variance": "MeanVariance", "max_sharpe": "MaxSharpe", "hrp": "HRP",
+                   "max_diversification": "MaxDiversification", "min_tracking_error": "MinTrackingError",
+                   "min_variance": "MinVariance", "inverse_volatility": "InverseVolatility"}
+        for name, cls in plugins.items():
+            params = {} if name == "inverse_volatility" else {"cov": "LW fator único"}
+            bt = settings.BacktestConfig(name=f"o_{name}", **{**base, "max_weight": 0.45},
+                                         model={"plugin": f"newsmanager.backtester.models.{name}:{cls}",
+                                                "params": params})
+            s = engine.run(cfg, bt, verbose=False)
+            reb = pq.read_table(cfg.marts / "backtests" / f"o_{name}" / "rebalances.parquet").to_pydict()
+            assert max(reb["w_max"]) <= 0.45 + 1e-9 and min(reb["w_min"]) >= -1e-12, name
+            assert s["projected_rebalances"] == 0, name
+        print(f"ok  {len(plugins)} plugins de modelo rodam no motor e respeitam o teto")
+
     # 5. calendário de rebalanceamento
     ds = weekdays(date(2020, 1, 1), 300)
     for rule, key in (("W", lambda d: d.isocalendar()[:2]), ("M", lambda d: (d.year, d.month)),
@@ -227,6 +242,33 @@ def main() -> int:
     assert (g[w <= 1e-9] >= lam - 1e-8).all() and (g[w >= 0.15 - 1e-9] <= lam + 1e-8).all()
     assert abs(w.sum() - 1) < 1e-12 and w.max() <= 0.15 + 1e-12
     print("ok  min_variance: GMV sem limites, KKT com teto de 15%")
+
+    # 6b. otimizadores novos contra soluções fechadas
+    mu = A.mean(axis=0) + 0.0003
+    w, r = optimize.max_ratio(S, mu, -50, 50)
+    t = np.linalg.solve(S, mu)
+    t /= t.sum()
+    assert np.allclose(w, t, atol=1e-6) and np.isclose(r, mu @ t / np.sqrt(t @ S @ t))
+    Si, one, g = np.linalg.inv(S), np.ones(8), 5.0
+    eta = (one @ Si @ mu - g) / (one @ Si @ one)
+    assert np.allclose(optimize.mean_variance(S, mu, g, -50, 50), Si @ (mu - eta * one) / g, atol=1e-8)
+    D = np.diag(np.linspace(0.01, 0.05, 6) ** 2)
+    w, _ = optimize.max_ratio(D, np.sqrt(np.diag(D)), 0, 1)
+    assert np.allclose(w, (1 / np.sqrt(np.diag(D))) / (1 / np.sqrt(np.diag(D))).sum(), atol=1e-6)
+    b = A @ np.full(8, 1 / 8)                       # benchmark = 1/N: TE mínimo é zero em w = 1/N
+    c = np.cov(np.column_stack([A, b]), rowvar=False)[:8, 8]
+    assert np.allclose(optimize.min_tracking_error(S, c, 0, 1), np.full(8, 1 / 8), atol=1e-6)
+    # HRP: Σ diagonal -> variância inversa; soma 1 e positivo em geral
+    v = np.linspace(1, 4, 5) * 1e-4
+    assert np.allclose(optimize.hrp(np.diag(v)), (1 / v) / (1 / v).sum())
+    h = optimize.hrp(S)
+    assert np.isclose(h.sum(), 1) and (h > 0).all()
+    mb, phi = optimize.bayes_stein_mean(A, S)
+    xb = A.mean(axis=0)
+    m0 = (one @ Si @ xb) / (one @ Si @ one)
+    ph = (8 + 2) / ((8 + 2) + len(A) * (xb - m0) @ Si @ (xb - m0))
+    assert 0 < phi < 1 and np.isclose(phi, ph) and np.allclose(mb, (1 - ph) * xb + ph * m0)
+    print("ok  tangente, Markowitz, máxima diversificação, TE mínimo, HRP e Bayes-Stein contra fórmulas fechadas")
 
     # 7. sobrescritas do TOML e medidas
     with tempfile.TemporaryDirectory() as tmp:
