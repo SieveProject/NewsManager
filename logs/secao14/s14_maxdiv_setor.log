@@ -1,0 +1,28 @@
+[backtest] s14_maxdiv_setor: 2013-06-03 (6/132) p=100 giro=0.32 NAV=1.254 (6s)
+[backtest] s14_maxdiv_setor: 2013-12-02 (12/132) p=100 giro=0.30 NAV=1.441 (9s)
+[backtest] s14_maxdiv_setor: 2014-06-02 (18/132) p=100 giro=0.40 NAV=1.650 (11s)
+[backtest] s14_maxdiv_setor: 2014-12-01 (24/132) p=100 giro=0.31 NAV=1.661 (13s)
+[backtest] s14_maxdiv_setor: 2015-06-01 (30/132) p=100 giro=0.38 NAV=1.791 (15s)
+[backtest] s14_maxdiv_setor: 2015-12-01 (36/132) p=100 giro=0.70 NAV=1.586 (17s)
+[backtest] s14_maxdiv_setor: 2016-06-01 (42/132) p=100 giro=0.50 NAV=1.517 (19s)
+[backtest] s14_maxdiv_setor: 2016-12-01 (48/132) p=100 giro=0.53 NAV=1.541 (21s)
+[backtest] s14_maxdiv_setor: 2017-06-01 (54/132) p=100 giro=0.32 NAV=1.707 (23s)
+[backtest] s14_maxdiv_setor: 2017-12-01 (60/132) p=100 giro=0.49 NAV=1.781 (25s)
+[backtest] s14_maxdiv_setor: 2018-06-01 (66/132) p=100 giro=0.35 NAV=1.847 (28s)
+[backtest] s14_maxdiv_setor: 2018-12-03 (72/132) p=100 giro=0.52 NAV=1.609 (30s)
+[backtest] s14_maxdiv_setor: 2019-06-03 (78/132) p=100 giro=0.71 NAV=1.982 (32s)
+[backtest] s14_maxdiv_setor: 2019-12-02 (84/132) p=100 giro=0.34 NAV=2.182 (34s)
+[backtest] s14_maxdiv_setor: 2020-06-01 (90/132) p=100 giro=0.48 NAV=2.311 (36s)
+[backtest] s14_maxdiv_setor: 2020-12-01 (96/132) p=100 giro=0.39 NAV=2.958 (38s)
+[backtest] s14_maxdiv_setor: 2021-06-01 (102/132) p=100 giro=0.41 NAV=4.154 (41s)
+[backtest] s14_maxdiv_setor: 2021-12-01 (108/132) p=100 giro=0.43 NAV=3.938 (43s)
+[backtest] s14_maxdiv_setor: 2022-06-01 (114/132) p=100 giro=0.60 NAV=3.822 (45s)
+[backtest] s14_maxdiv_setor: 2022-12-01 (120/132) p=100 giro=0.36 NAV=4.048 (47s)
+[backtest] s14_maxdiv_setor: 2023-06-01 (126/132) p=100 giro=0.64 NAV=4.200 (49s)
+[backtest] s14_maxdiv_setor: 2023-12-01 (132/132) p=100 giro=0.48 NAV=4.591 (51s)
+
+s14_maxdiv_setor: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  14.89%  vol  20.03%  Sharpe   0.792  Sortino   1.170  maxDD -32.30%
+  giro/rebal. 0.46  giro/ano 5.47  custo/ano   0.56%  (bruto: CAGR  15.53%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.800  alfa   4.76%  TE  15.09%  IR   0.131
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_maxdiv_setor

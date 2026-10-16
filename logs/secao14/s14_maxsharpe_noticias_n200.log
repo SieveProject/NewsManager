@@ -1,0 +1,28 @@
+[backtest] s14_maxsharpe_noticias_n200: 2013-06-03 (6/132) p=200 giro=0.88 NAV=1.131 (14s)
+[backtest] s14_maxsharpe_noticias_n200: 2013-12-02 (12/132) p=200 giro=0.80 NAV=1.337 (17s)
+[backtest] s14_maxsharpe_noticias_n200: 2014-06-02 (18/132) p=200 giro=1.02 NAV=1.395 (20s)
+[backtest] s14_maxsharpe_noticias_n200: 2014-12-01 (24/132) p=200 giro=0.52 NAV=1.526 (23s)
+[backtest] s14_maxsharpe_noticias_n200: 2015-06-01 (30/132) p=200 giro=0.74 NAV=1.543 (25s)
+[backtest] s14_maxsharpe_noticias_n200: 2015-12-01 (36/132) p=200 giro=0.62 NAV=1.504 (27s)
+[backtest] s14_maxsharpe_noticias_n200: 2016-06-01 (42/132) p=200 giro=0.49 NAV=1.528 (30s)
+[backtest] s14_maxsharpe_noticias_n200: 2016-12-01 (48/132) p=200 giro=0.71 NAV=1.566 (33s)
+[backtest] s14_maxsharpe_noticias_n200: 2017-06-01 (54/132) p=200 giro=0.54 NAV=1.685 (36s)
+[backtest] s14_maxsharpe_noticias_n200: 2017-12-01 (60/132) p=200 giro=0.61 NAV=1.920 (39s)
+[backtest] s14_maxsharpe_noticias_n200: 2018-06-01 (66/132) p=200 giro=0.59 NAV=1.901 (42s)
+[backtest] s14_maxsharpe_noticias_n200: 2018-12-03 (72/132) p=200 giro=0.58 NAV=1.687 (46s)
+[backtest] s14_maxsharpe_noticias_n200: 2019-06-03 (78/132) p=200 giro=0.53 NAV=1.869 (49s)
+[backtest] s14_maxsharpe_noticias_n200: 2019-12-02 (84/132) p=200 giro=0.78 NAV=1.971 (52s)
+[backtest] s14_maxsharpe_noticias_n200: 2020-06-01 (90/132) p=200 giro=0.52 NAV=2.762 (55s)
+[backtest] s14_maxsharpe_noticias_n200: 2020-12-01 (96/132) p=200 giro=0.58 NAV=3.979 (58s)
+[backtest] s14_maxsharpe_noticias_n200: 2021-06-01 (102/132) p=200 giro=0.76 NAV=4.410 (61s)
+[backtest] s14_maxsharpe_noticias_n200: 2021-12-01 (108/132) p=200 giro=0.58 NAV=4.757 (64s)
+[backtest] s14_maxsharpe_noticias_n200: 2022-06-01 (114/132) p=200 giro=0.88 NAV=4.309 (66s)
+[backtest] s14_maxsharpe_noticias_n200: 2022-12-01 (120/132) p=200 giro=0.63 NAV=4.512 (70s)
+[backtest] s14_maxsharpe_noticias_n200: 2023-06-01 (126/132) p=200 giro=0.66 NAV=4.719 (73s)
+[backtest] s14_maxsharpe_noticias_n200: 2023-12-01 (132/132) p=200 giro=0.59 NAV=5.202 (76s)
+
+s14_maxsharpe_noticias_n200: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  16.21%  vol  20.13%  Sharpe   0.847  Sortino   1.211  maxDD -29.15%
+  giro/rebal. 0.68  giro/ano 8.14  custo/ano   0.82%  (bruto: CAGR  17.17%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.787  alfa   6.11%  TE  15.46%  IR   0.204
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_maxsharpe_noticias_n200

@@ -1,0 +1,28 @@
+[backtest] s14_maxsharpe_lw: 2013-06-03 (6/132) p=100 giro=0.83 NAV=1.133 (2s)
+[backtest] s14_maxsharpe_lw: 2013-12-02 (12/132) p=100 giro=0.51 NAV=1.356 (2s)
+[backtest] s14_maxsharpe_lw: 2014-06-02 (18/132) p=100 giro=0.65 NAV=1.479 (2s)
+[backtest] s14_maxsharpe_lw: 2014-12-01 (24/132) p=100 giro=0.60 NAV=1.532 (2s)
+[backtest] s14_maxsharpe_lw: 2015-06-01 (30/132) p=100 giro=0.49 NAV=1.595 (2s)
+[backtest] s14_maxsharpe_lw: 2015-12-01 (36/132) p=100 giro=0.71 NAV=1.610 (2s)
+[backtest] s14_maxsharpe_lw: 2016-06-01 (42/132) p=100 giro=0.38 NAV=1.598 (2s)
+[backtest] s14_maxsharpe_lw: 2016-12-01 (48/132) p=100 giro=0.71 NAV=1.613 (3s)
+[backtest] s14_maxsharpe_lw: 2017-06-01 (54/132) p=100 giro=0.53 NAV=1.782 (3s)
+[backtest] s14_maxsharpe_lw: 2017-12-01 (60/132) p=100 giro=0.48 NAV=2.063 (3s)
+[backtest] s14_maxsharpe_lw: 2018-06-01 (66/132) p=100 giro=0.74 NAV=2.124 (3s)
+[backtest] s14_maxsharpe_lw: 2018-12-03 (72/132) p=100 giro=0.83 NAV=1.852 (3s)
+[backtest] s14_maxsharpe_lw: 2019-06-03 (78/132) p=100 giro=0.49 NAV=2.132 (3s)
+[backtest] s14_maxsharpe_lw: 2019-12-02 (84/132) p=100 giro=0.51 NAV=2.248 (3s)
+[backtest] s14_maxsharpe_lw: 2020-06-01 (90/132) p=100 giro=0.61 NAV=2.819 (4s)
+[backtest] s14_maxsharpe_lw: 2020-12-01 (96/132) p=100 giro=0.31 NAV=4.258 (4s)
+[backtest] s14_maxsharpe_lw: 2021-06-01 (102/132) p=100 giro=0.62 NAV=4.786 (4s)
+[backtest] s14_maxsharpe_lw: 2021-12-01 (108/132) p=100 giro=0.60 NAV=5.223 (4s)
+[backtest] s14_maxsharpe_lw: 2022-06-01 (114/132) p=100 giro=0.49 NAV=5.060 (4s)
+[backtest] s14_maxsharpe_lw: 2022-12-01 (120/132) p=100 giro=0.59 NAV=5.630 (5s)
+[backtest] s14_maxsharpe_lw: 2023-06-01 (126/132) p=100 giro=0.85 NAV=5.435 (5s)
+[backtest] s14_maxsharpe_lw: 2023-12-01 (132/132) p=100 giro=0.40 NAV=5.698 (5s)
+
+s14_maxsharpe_lw: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  17.17%  vol  20.24%  Sharpe   0.884  Sortino   1.264  maxDD -28.81%
+  giro/rebal. 0.61  giro/ano 7.33  custo/ano   0.74%  (bruto: CAGR  18.05%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.836  alfa   6.29%  TE  14.67%  IR   0.273
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_maxsharpe_lw

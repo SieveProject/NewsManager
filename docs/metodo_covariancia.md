@@ -847,6 +847,82 @@ no mês 84–90 de 132. Elas foram interrompidas.
   otimizadores (HRP, Markowitz, TE mínimo), que não mudaram, já rodaram
   completos com o código do commit a09119a, mas ainda não foram avaliados.
 
+## 15. Resultado dos outros otimizadores (2026-10-16, avaliado contra a seção 14)
+
+`backtests/secao14/rodar.sh` (os mesmos comandos, 6 em paralelo) e
+`python backtests/secao14/avaliar.py` (`logs/secao14_avaliacao.log`). São 56
+runs. Máximo Sharpe e máxima diversificação usam o solver do adendo (commit
+7c6bfcd).
+
+**Critério 1 (principal): NÃO atendido em nenhum dos cinco otimizadores.**
+
+| otimizador | estatística | notícias contra setor | p | placebo contra setor | p |
+|---|---|---|---|---|---|
+| Markowitz (γ = 5) | Δ Sharpe | −0,015 | 0,16 | +0,004 | 0,62 |
+| máximo Sharpe | Δ Sharpe | −0,010 | 0,43 | +0,004 | 0,76 |
+| máxima diversificação | razão de variâncias | 0,992 | 0,46 | 0,921 | 0,17 |
+| HRP | razão de variâncias | 1,007 | 0,14 | 1,002 | 0,59 |
+| tracking error mínimo | razão de variâncias ativas | **1,214** | **0,000** | 1,008 | 0,63 |
+
+**Critério 2 (confirmação, n = 50 / n = 200):** a direção não se repete em
+nenhum otimizador.
+
+| otimizador | n = 50 | n = 200 |
+|---|---|---|
+| Markowitz | −0,003 | +0,006 |
+| máximo Sharpe | −0,008 | +0,015 |
+| máxima diversificação | 1,003 | 0,964 (p = 0,09) |
+| HRP | 0,992 | 1,001 |
+| tracking error mínimo | **1,104** (p = 0,000) | **1,432** (p = 0,000) |
+
+**Descritivo, n = 100** (vol. anual, Sharpe líquido, tracking error contra
+SPY):
+
+| otimizador | setor | setor + notícias | placebo | LW fator único |
+|---|---|---|---|---|
+| Markowitz | 24,6%; 0,79; 17,9% | 24,4%; 0,77; 17,8% | 24,7%; 0,79; 18,0% | 24,7%; 0,78; 18,0% |
+| máximo Sharpe | 20,4%; 0,88; 14,8% | 20,4%; 0,87; 14,8% | 20,3%; 0,89; 14,6% | 20,2%; 0,88; 14,7% |
+| máxima diversificação | 20,0%; 0,79; 15,1% | 20,0%; 0,81; 14,9% | 19,2%; 0,80; 13,9% | 19,7%; 0,79; 14,7% |
+| HRP | 15,2%; 0,81; 5,0% | 15,3%; 0,80; 5,0% | 15,2%; 0,80; 5,0% | 15,2%; 0,82; 5,1% |
+| TE mínimo | 17,2%; 0,80; 2,48% | 17,1%; 0,81; **2,73%** | 17,2%; 0,79; 2,49% | 17,2%; 0,80; 2,47% |
+
+Para comparação, com os mesmos dados e restrições: variância mínima com setor
+(seção 13) 13,4%; 0,78. 1/N 19,9%; 0,66. SPY 17,0%; 0,82.
+
+**Robustez do Markowitz:** Δ Sharpe das notícias de −0,004 (γ = 2) e −0,018
+(γ = 10); o placebo fica positivo nos dois.
+
+**Conclusão.**
+
+1. **H2 rejeitada também com outros otimizadores.** Em quatro dos cinco
+   (Markowitz, máximo Sharpe, máxima diversificação, HRP), Σ̂ com notícias
+   empata com Σ̂ com setor. As diferenças de Sharpe ficam abaixo de 0,02 e
+   as de variância abaixo de 1%, sem direção estável entre n = 50, 100 e
+   200. Nesses quatro o placebo fica igual ou melhor.
+2. **No tracking error mínimo as notícias pioram, de forma significativa e
+   crescente com n:** o TE realizado sobe 10% (n = 50), 21% (n = 100) e 43%
+   (n = 200), com p < 0,001. O placebo não piora (1,008), então o efeito vem
+   da estrutura real das notícias, não de ruído genérico no alvo. Replicar um
+   índice depende de acertar a covariância conjunta de muitos ativos. As
+   correlações residuais que as notícias acrescentam acertam a média dos
+   pares (H1), mas distorcem o hedge, e o giro sobe de 3,3 para 4,0 por ano.
+   É o mesmo mecanismo da GMV sem restrição (seções 11 e 13): a estrutura
+   esparsa extra piora a matriz que o otimizador explora.
+3. **O otimizador importa muito mais que o estimador.** A volatilidade vai de
+   13% (variância mínima) a 25% (Markowitz) conforme o otimizador. Para um
+   otimizador fixo, trocar o estimador (setor, notícias, placebo, LW) muda a
+   volatilidade em menos de 1 ponto. Nenhum otimizador com retorno esperado
+   bateu o SPY em Sharpe líquido (0,82). O máximo Sharpe (0,88) chega
+   perto, mas sem significância.
+4. **Panorama da tese (seções 8–15):** as notícias preveem a correlação (H1,
+   t até 9,7), mas em nenhum dos 8 desenhos de carteira testados isso virou
+   melhora significativa. São eles: GMV com alvo-prior, GMV residual,
+   variância mínima com teto, Markowitz, máximo Sharpe, máxima
+   diversificação, HRP e TE mínimo. Em dois deles (GMV sem restrição com
+   n = 200 e TE mínimo) as notícias pioram a carteira.
+
+Notebooks: `notebooks/secao14_{mv,maxsharpe,maxdiv,hrp,minte}.ipynb`.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/

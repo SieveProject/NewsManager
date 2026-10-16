@@ -1,0 +1,28 @@
+[backtest] s14_maxdiv_setor_n200: 2013-06-03 (6/132) p=200 giro=0.32 NAV=1.172 (13s)
+[backtest] s14_maxdiv_setor_n200: 2013-12-02 (12/132) p=200 giro=0.32 NAV=1.339 (16s)
+[backtest] s14_maxdiv_setor_n200: 2014-06-02 (18/132) p=200 giro=0.40 NAV=1.558 (19s)
+[backtest] s14_maxdiv_setor_n200: 2014-12-01 (24/132) p=200 giro=0.35 NAV=1.570 (21s)
+[backtest] s14_maxdiv_setor_n200: 2015-06-01 (30/132) p=200 giro=0.38 NAV=1.545 (24s)
+[backtest] s14_maxdiv_setor_n200: 2015-12-01 (36/132) p=200 giro=0.52 NAV=1.396 (26s)
+[backtest] s14_maxdiv_setor_n200: 2016-06-01 (42/132) p=200 giro=0.41 NAV=1.365 (29s)
+[backtest] s14_maxdiv_setor_n200: 2016-12-01 (48/132) p=200 giro=0.44 NAV=1.359 (32s)
+[backtest] s14_maxdiv_setor_n200: 2017-06-01 (54/132) p=200 giro=0.29 NAV=1.380 (35s)
+[backtest] s14_maxdiv_setor_n200: 2017-12-01 (60/132) p=200 giro=0.68 NAV=1.423 (37s)
+[backtest] s14_maxdiv_setor_n200: 2018-06-01 (66/132) p=200 giro=0.41 NAV=1.482 (40s)
+[backtest] s14_maxdiv_setor_n200: 2018-12-03 (72/132) p=200 giro=0.36 NAV=1.302 (43s)
+[backtest] s14_maxdiv_setor_n200: 2019-06-03 (78/132) p=200 giro=0.21 NAV=1.516 (46s)
+[backtest] s14_maxdiv_setor_n200: 2019-12-02 (84/132) p=200 giro=0.47 NAV=1.635 (49s)
+[backtest] s14_maxdiv_setor_n200: 2020-06-01 (90/132) p=200 giro=0.44 NAV=1.883 (52s)
+[backtest] s14_maxdiv_setor_n200: 2020-12-01 (96/132) p=200 giro=0.38 NAV=2.408 (55s)
+[backtest] s14_maxdiv_setor_n200: 2021-06-01 (102/132) p=200 giro=0.46 NAV=2.955 (58s)
+[backtest] s14_maxdiv_setor_n200: 2021-12-01 (108/132) p=200 giro=0.47 NAV=2.920 (61s)
+[backtest] s14_maxdiv_setor_n200: 2022-06-01 (114/132) p=200 giro=0.65 NAV=2.666 (64s)
+[backtest] s14_maxdiv_setor_n200: 2022-12-01 (120/132) p=200 giro=0.46 NAV=2.830 (67s)
+[backtest] s14_maxdiv_setor_n200: 2023-06-01 (126/132) p=200 giro=0.82 NAV=2.939 (70s)
+[backtest] s14_maxdiv_setor_n200: 2023-12-01 (132/132) p=200 giro=0.47 NAV=3.229 (73s)
+
+s14_maxdiv_setor_n200: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  11.27%  vol  16.87%  Sharpe   0.717  Sortino   1.015  maxDD -29.14%
+  giro/rebal. 0.48  giro/ano 5.78  custo/ano   0.59%  (bruto: CAGR  11.92%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.730  alfa   1.96%  TE  12.30%  IR  -0.146
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_maxdiv_setor_n200

@@ -1,0 +1,28 @@
+[backtest] s14_maxsharpe_placebo_n200: 2013-06-03 (6/132) p=200 giro=0.90 NAV=1.133 (14s)
+[backtest] s14_maxsharpe_placebo_n200: 2013-12-02 (12/132) p=200 giro=0.81 NAV=1.339 (17s)
+[backtest] s14_maxsharpe_placebo_n200: 2014-06-02 (18/132) p=200 giro=0.94 NAV=1.401 (20s)
+[backtest] s14_maxsharpe_placebo_n200: 2014-12-01 (24/132) p=200 giro=0.58 NAV=1.529 (23s)
+[backtest] s14_maxsharpe_placebo_n200: 2015-06-01 (30/132) p=200 giro=0.77 NAV=1.544 (25s)
+[backtest] s14_maxsharpe_placebo_n200: 2015-12-01 (36/132) p=200 giro=0.61 NAV=1.512 (27s)
+[backtest] s14_maxsharpe_placebo_n200: 2016-06-01 (42/132) p=200 giro=0.47 NAV=1.521 (30s)
+[backtest] s14_maxsharpe_placebo_n200: 2016-12-01 (48/132) p=200 giro=0.68 NAV=1.572 (33s)
+[backtest] s14_maxsharpe_placebo_n200: 2017-06-01 (54/132) p=200 giro=0.57 NAV=1.692 (36s)
+[backtest] s14_maxsharpe_placebo_n200: 2017-12-01 (60/132) p=200 giro=0.48 NAV=1.931 (39s)
+[backtest] s14_maxsharpe_placebo_n200: 2018-06-01 (66/132) p=200 giro=0.62 NAV=1.915 (43s)
+[backtest] s14_maxsharpe_placebo_n200: 2018-12-03 (72/132) p=200 giro=0.60 NAV=1.685 (46s)
+[backtest] s14_maxsharpe_placebo_n200: 2019-06-03 (78/132) p=200 giro=0.50 NAV=1.838 (49s)
+[backtest] s14_maxsharpe_placebo_n200: 2019-12-02 (84/132) p=200 giro=0.82 NAV=1.928 (53s)
+[backtest] s14_maxsharpe_placebo_n200: 2020-06-01 (90/132) p=200 giro=0.55 NAV=2.701 (56s)
+[backtest] s14_maxsharpe_placebo_n200: 2020-12-01 (96/132) p=200 giro=0.54 NAV=3.896 (59s)
+[backtest] s14_maxsharpe_placebo_n200: 2021-06-01 (102/132) p=200 giro=0.77 NAV=4.455 (61s)
+[backtest] s14_maxsharpe_placebo_n200: 2021-12-01 (108/132) p=200 giro=0.64 NAV=4.748 (64s)
+[backtest] s14_maxsharpe_placebo_n200: 2022-06-01 (114/132) p=200 giro=0.81 NAV=4.355 (67s)
+[backtest] s14_maxsharpe_placebo_n200: 2022-12-01 (120/132) p=200 giro=0.59 NAV=4.568 (71s)
+[backtest] s14_maxsharpe_placebo_n200: 2023-06-01 (126/132) p=200 giro=0.67 NAV=4.780 (74s)
+[backtest] s14_maxsharpe_placebo_n200: 2023-12-01 (132/132) p=200 giro=0.66 NAV=5.261 (77s)
+
+s14_maxsharpe_placebo_n200: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  16.32%  vol  20.29%  Sharpe   0.847  Sortino   1.212  maxDD -29.73%
+  giro/rebal. 0.69  giro/ano 8.26  custo/ano   0.83%  (bruto: CAGR  17.30%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.796  alfa   6.13%  TE  15.49%  IR   0.212
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_maxsharpe_placebo_n200
