@@ -1,0 +1,187 @@
+[h1] painel n=50: 156 datas, 191,100 pares-data (31s)
+[h1] painel n=50 residual: 156 datas, 191,100 pares-data (31s)
+[backtest] 2014-12-01 (24/132, 81s)
+[backtest] 2016-12-01 (48/132, 100s)
+[backtest] 2018-12-03 (72/132, 117s)
+[backtest] 2020-12-01 (96/132, 141s)
+[backtest] 2022-12-01 (120/132, 190s)
+
+backtest n=50, 132 meses (2013-01-02 a 2023-12-28), custo 10 bps
+δ médio dos alvos-prior: {'alvo setor': 0.205, 'alvo notícias': 0.24, 'alvo setor + notícias': 0.244, 'alvo setor + notícias placebo': 0.174, 'fator + resíduo corr. constante': 0.321, 'fator + resíduo setor': 0.34, 'fator + resíduo notícias': 0.376, 'fator + resíduo setor + notícias': 0.382, 'fator + resíduo setor + notícias placebo': 0.267}
+
+  estratégia                                     vol     ret  Sharpe   maxDD   giro
+  LW fator único GMV                          13.78%  10.04%   0.728  -24.6%   0.74
+  fator + resíduo corr. constante GMV         13.80%   9.93%   0.720  -25.1%   0.73
+  fator + resíduo setor GMV                   13.81%   9.91%   0.718  -25.7%   0.74
+  fator + resíduo setor + notícias GMV        13.83%   9.40%   0.679  -26.8%   0.77
+  fator + resíduo notícias GMV                13.85%   9.22%   0.666  -27.7%   0.78
+  fator + resíduo setor + notícias placebo GMV  13.89%   9.95%   0.716  -26.7%   0.97
+  LW não linear GMV                           13.98%  10.58%   0.757  -25.9%   0.86
+  LW identidade GMV                           14.04%  11.60%   0.826  -25.4%   0.76
+  LW corr. constante GMV                      14.14%  10.22%   0.723  -25.8%   0.82
+  alvo setor GMV                              14.18%  10.26%   0.723  -26.7%   0.86
+  alvo setor + notícias placebo GMV           14.28%   9.97%   0.698  -28.8%   1.08
+  alvo notícias GMV                           14.32%  10.23%   0.714  -26.1%   0.94
+  alvo setor + notícias GMV                   14.32%  10.39%   0.726  -25.3%   0.94
+  amostral GMV                                14.47%  10.90%   0.753  -30.6%   1.20
+  RMT GMV                                     14.78%   9.42%   0.637  -29.9%   0.73
+  fator + resíduo diagonal GMV                15.98%   7.54%   0.472  -31.1%   0.46
+  1/N                                         21.42%  12.93%   0.603  -43.2%   0.15
+
+  fator + resíduo diagonal GMV long-only      13.55%  10.66%   0.787  -21.9%   0.27
+  fator + resíduo notícias GMV long-only      13.78%  10.79%   0.783  -24.9%   0.33
+  fator + resíduo setor + notícias GMV long-only  13.80%  10.87%   0.788  -25.1%   0.33
+  LW fator único GMV long-only                13.81%  10.97%   0.794  -25.0%   0.33
+  LW corr. constante GMV long-only            13.81%  11.08%   0.803  -24.6%   0.34
+  alvo notícias GMV long-only                 13.81%  10.89%   0.788  -24.6%   0.36
+  fator + resíduo corr. constante GMV long-only  13.81%  10.93%   0.792  -25.0%   0.33
+  alvo setor + notícias GMV long-only         13.82%  10.93%   0.791  -24.7%   0.36
+  alvo setor GMV long-only                    13.85%  10.98%   0.793  -25.0%   0.35
+  fator + resíduo setor GMV long-only         13.85%  10.90%   0.787  -25.4%   0.33
+  fator + resíduo setor + notícias placebo GMV long-only  13.85%  11.02%   0.795  -25.5%   0.37
+  alvo setor + notícias placebo GMV long-only  13.86%  11.02%   0.795  -25.2%   0.38
+  RMT GMV long-only                           13.93%  10.85%   0.779  -24.7%   0.37
+  LW não linear GMV long-only                 13.96%  11.18%   0.801  -26.1%   0.34
+  amostral GMV long-only                      14.03%  11.54%   0.823  -25.4%   0.38
+  LW identidade GMV long-only                 14.11%  11.73%   0.831  -26.4%   0.33
+  1/N                                         21.42%  12.93%   0.603  -43.2%   0.15
+
+número de condição da correlação estimada, λmax/λmin (López de Prado): mediana, p90, máximo
+  RMT                                              37.9       54.6         82.3
+  fator + resíduo diagonal                         47.7       82.9        172.6
+  LW identidade                                    85.7      203.3        271.0
+  fator + resíduo corr. constante                  92.1      180.3        382.8
+  LW fator único                                   95.6      184.2        396.7
+  LW corr. constante                              103.5      162.8        304.4
+  fator + resíduo setor                           103.7      196.4        405.2
+  fator + resíduo notícias                        109.8      217.3        426.2
+  fator + resíduo setor + notícias                109.9      216.8        422.0
+  fator + resíduo setor + notícias placebo        118.7      221.9        458.4
+  alvo setor                                      119.3      198.9        418.7
+  alvo setor + notícias placebo                   129.7      220.1        419.9
+  alvo notícias                                   136.2      239.0        484.3
+  LW não linear                                   136.3      267.9        667.8
+  alvo setor + notícias                           138.3      235.9        496.3
+  amostral                                        247.4      509.0      1,225.5
+
+erro quadrático da correlação estimada contra a realizada no mês (t > 0: melhor que LW corr. constante)
+  LW corr. constante                         0.07581  +0.00%  t=None
+  alvo setor                                 0.07582  +0.01%  t=-0.06
+  alvo notícias                              0.07602  +0.27%  t=-1.23
+  alvo setor + notícias                      0.07607  +0.34%  t=-1.2
+  fator + resíduo setor + notícias           0.07615  +0.44%  t=-0.88
+  fator + resíduo notícias                   0.07618  +0.49%  t=-0.96
+  LW não linear                              0.07624  +0.56%  t=-0.53
+  fator + resíduo setor                      0.07626  +0.59%  t=-1.3
+  alvo setor + notícias placebo              0.07630  +0.64%  t=-3.08
+  fator + resíduo corr. constante            0.07643  +0.81%  t=-1.8
+  LW fator único                             0.07646  +0.86%  t=-2.68
+  RMT                                        0.07659  +1.03%  t=-1.52
+  fator + resíduo setor + notícias placebo   0.07660  +1.03%  t=-2.4
+  amostral                                   0.07750  +2.23%  t=-6.12
+  LW identidade                              0.07779  +2.61%  t=-0.85
+  fator + resíduo diagonal                   0.08110  +6.98%  t=-7.02
+
+razão de variâncias contra fator + resíduo setor GMV (p bootstrap em blocos):
+  LW fator único GMV                         0.995  IC95 [0.9871, 1.006]  p=0.331
+  fator + resíduo corr. constante GMV        0.998  IC95 [0.9891, 1.0084]  p=0.756
+  fator + resíduo setor + notícias GMV       1.003  IC95 [0.9873, 1.0215]  p=0.766
+  fator + resíduo notícias GMV               1.005  IC95 [0.9861, 1.0307]  p=0.665
+  fator + resíduo setor + notícias placebo GMV 1.011  IC95 [0.9913, 1.0291]  p=0.296
+  LW não linear GMV                          1.024  IC95 [0.9998, 1.0433]  p=0.033
+  LW identidade GMV                          1.033  IC95 [1.0046, 1.0594]  p=0.015
+  LW corr. constante GMV                     1.047  IC95 [1.0282, 1.0737]  p=0.000
+  alvo setor GMV                             1.054  IC95 [1.0349, 1.0718]  p=0.000
+  alvo setor + notícias placebo GMV          1.069  IC95 [1.0539, 1.088]  p=0.000
+  alvo setor + notícias GMV                  1.074  IC95 [1.0473, 1.1102]  p=0.000
+  alvo notícias GMV                          1.075  IC95 [1.0447, 1.1149]  p=0.001
+  amostral GMV                               1.098  IC95 [1.0552, 1.1483]  p=0.001
+  RMT GMV                                    1.144  IC95 [1.0932, 1.2123]  p=0.000
+  fator + resíduo diagonal GMV               1.338  IC95 [1.1626, 1.5758]  p=0.001
+
+razão de variâncias contra fator + resíduo setor GMV long-only (p bootstrap em blocos):
+  fator + resíduo diagonal GMV long-only     0.957  IC95 [0.9319, 0.9846]  p=0.003
+  fator + resíduo notícias GMV long-only     0.990  IC95 [0.9845, 0.9972]  p=0.004
+  fator + resíduo setor + notícias GMV long-only 0.993  IC95 [0.9885, 0.9984]  p=0.009
+  LW corr. constante GMV long-only           0.994  IC95 [0.9837, 1.006]  p=0.273
+  fator + resíduo corr. constante GMV long-only 0.994  IC95 [0.9885, 1.0005]  p=0.060
+  alvo notícias GMV long-only                0.995  IC95 [0.9851, 1.0056]  p=0.283
+  LW fator único GMV long-only               0.995  IC95 [0.989, 1.0016]  p=0.123
+  alvo setor + notícias GMV long-only        0.996  IC95 [0.9869, 1.0067]  p=0.365
+  alvo setor GMV long-only                   1.000  IC95 [0.992, 1.0096]  p=0.976
+  fator + resíduo setor + notícias placebo GMV long-only 1.001  IC95 [0.997, 1.005]  p=0.710
+  alvo setor + notícias placebo GMV long-only 1.002  IC95 [0.994, 1.0107]  p=0.677
+  RMT GMV long-only                          1.012  IC95 [0.9912, 1.0392]  p=0.344
+  LW não linear GMV long-only                1.016  IC95 [1.0022, 1.0298]  p=0.021
+  amostral GMV long-only                     1.026  IC95 [1.0139, 1.04]  p=0.000
+  LW identidade GMV long-only                1.038  IC95 [1.0168, 1.0628]  p=0.002
+
+razão de variâncias contra LW fator único GMV (p bootstrap em blocos):
+  fator + resíduo corr. constante GMV        1.003  IC95 [0.9988, 1.0091]  p=0.310
+  fator + resíduo setor GMV                  1.005  IC95 [0.9949, 1.0128]  p=0.326
+  fator + resíduo setor + notícias GMV       1.007  IC95 [0.9858, 1.0297]  p=0.531
+  fator + resíduo notícias GMV               1.010  IC95 [0.987, 1.0389]  p=0.460
+  fator + resíduo setor + notícias placebo GMV 1.015  IC95 [0.9978, 1.0311]  p=0.069
+  LW não linear GMV                          1.029  IC95 [1.0031, 1.0513]  p=0.018
+  LW identidade GMV                          1.038  IC95 [1.0066, 1.0651]  p=0.011
+  LW corr. constante GMV                     1.052  IC95 [1.0295, 1.0829]  p=0.001
+  alvo setor GMV                             1.059  IC95 [1.0318, 1.0812]  p=0.000
+  alvo setor + notícias placebo GMV          1.074  IC95 [1.0547, 1.0943]  p=0.000
+  alvo setor + notícias GMV                  1.079  IC95 [1.0447, 1.1228]  p=0.000
+  alvo notícias GMV                          1.080  IC95 [1.0435, 1.122]  p=0.000
+  amostral GMV                               1.103  IC95 [1.0637, 1.1543]  p=0.000
+  RMT GMV                                    1.150  IC95 [1.0997, 1.2088]  p=0.000
+  fator + resíduo diagonal GMV               1.344  IC95 [1.1716, 1.6183]  p=0.001
+
+razão de variâncias contra LW fator único GMV long-only (p bootstrap em blocos):
+  fator + resíduo diagonal GMV long-only     0.962  IC95 [0.9404, 0.9852]  p=0.002
+  fator + resíduo notícias GMV long-only     0.995  IC95 [0.9887, 1.0024]  p=0.167
+  fator + resíduo setor + notícias GMV long-only 0.998  IC95 [0.9906, 1.0051]  p=0.664
+  LW corr. constante GMV long-only           0.999  IC95 [0.9911, 1.0077]  p=0.787
+  fator + resíduo corr. constante GMV long-only 0.999  IC95 [0.998, 1.0004]  p=0.210
+  alvo notícias GMV long-only                1.000  IC95 [0.991, 1.0089]  p=0.922
+  alvo setor + notícias GMV long-only        1.001  IC95 [0.9914, 1.0099]  p=0.897
+  fator + resíduo setor GMV long-only        1.005  IC95 [0.9985, 1.011]  p=0.111
+  alvo setor GMV long-only                   1.005  IC95 [0.997, 1.0132]  p=0.202
+  fator + resíduo setor + notícias placebo GMV long-only 1.006  IC95 [0.9999, 1.0116]  p=0.049
+  alvo setor + notícias placebo GMV long-only 1.007  IC95 [0.9993, 1.0143]  p=0.075
+  RMT GMV long-only                          1.017  IC95 [0.9981, 1.0413]  p=0.123
+  LW não linear GMV long-only                1.022  IC95 [1.0072, 1.0337]  p=0.003
+  amostral GMV long-only                     1.031  IC95 [1.0191, 1.0464]  p=0.000
+  LW identidade GMV long-only                1.043  IC95 [1.022, 1.0669]  p=0.000
+
+razão de variâncias contra LW corr. constante GMV (p bootstrap em blocos):
+  LW fator único GMV                         0.951  IC95 [0.9248, 0.9706]  p=0.002
+  fator + resíduo corr. constante GMV        0.953  IC95 [0.9333, 0.9727]  p=0.000
+  fator + resíduo setor GMV                  0.955  IC95 [0.9314, 0.9727]  p=0.001
+  fator + resíduo setor + notícias GMV       0.958  IC95 [0.9394, 0.9732]  p=0.000
+  fator + resíduo notícias GMV               0.960  IC95 [0.9419, 0.9763]  p=0.000
+  fator + resíduo setor + notícias placebo GMV 0.965  IC95 [0.9303, 0.996]  p=0.039
+  LW não linear GMV                          0.978  IC95 [0.9333, 1.0072]  p=0.215
+  LW identidade GMV                          0.987  IC95 [0.9439, 1.0212]  p=0.532
+  alvo setor GMV                             1.007  IC95 [0.9907, 1.018]  p=0.317
+  alvo setor + notícias placebo GMV          1.021  IC95 [1.0026, 1.038]  p=0.023
+  alvo setor + notícias GMV                  1.026  IC95 [1.0104, 1.0396]  p=0.001
+  alvo notícias GMV                          1.027  IC95 [1.0096, 1.0443]  p=0.004
+  amostral GMV                               1.048  IC95 [0.9982, 1.107]  p=0.072
+  RMT GMV                                    1.093  IC95 [1.0512, 1.1461]  p=0.001
+  fator + resíduo diagonal GMV               1.278  IC95 [1.1213, 1.4898]  p=0.001
+
+razão de variâncias contra LW corr. constante GMV long-only (p bootstrap em blocos):
+  fator + resíduo diagonal GMV long-only     0.963  IC95 [0.9407, 0.9873]  p=0.004
+  fator + resíduo notícias GMV long-only     0.996  IC95 [0.9843, 1.0082]  p=0.519
+  fator + resíduo setor + notícias GMV long-only 0.999  IC95 [0.9865, 1.0107]  p=0.927
+  fator + resíduo corr. constante GMV long-only 1.000  IC95 [0.9912, 1.0078]  p=0.945
+  alvo notícias GMV long-only                1.001  IC95 [0.9949, 1.0062]  p=0.822
+  LW fator único GMV long-only               1.001  IC95 [0.9926, 1.0088]  p=0.799
+  alvo setor + notícias GMV long-only        1.002  IC95 [0.9958, 1.0076]  p=0.546
+  fator + resíduo setor GMV long-only        1.006  IC95 [0.9944, 1.017]  p=0.270
+  alvo setor GMV long-only                   1.006  IC95 [1.0011, 1.0106]  p=0.009
+  fator + resíduo setor + notícias placebo GMV long-only 1.007  IC95 [0.9962, 1.0165]  p=0.189
+  alvo setor + notícias placebo GMV long-only 1.008  IC95 [1.0024, 1.0134]  p=0.005
+  RMT GMV long-only                          1.018  IC95 [0.9987, 1.0441]  p=0.119
+  LW não linear GMV long-only                1.023  IC95 [1.0042, 1.0391]  p=0.015
+  amostral GMV long-only                     1.032  IC95 [1.0159, 1.0505]  p=0.001
+  LW identidade GMV long-only                1.044  IC95 [1.0201, 1.073]  p=0.000
+
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtest/results_n=50_w=365_h=90.json (213s)

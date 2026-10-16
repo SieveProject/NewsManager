@@ -658,6 +658,94 @@ ganho para a carteira restrita, e não para a GMV, com o mecanismo da seção 11
 O critério 3 da seção 10 (amostra ampliada, GMV sem restrição, `python -m
 newsmanager backtest`) continua valendo e é avaliado à parte.
 
+## 13. Resultado com a amostra ampliada (2026-10-16, avaliado contra as seções 10 e 12)
+
+**Dados.** Extração parada em 572.762 unidades (~34% do corpus; 171.153 novas, 0
+falhas), 1.270.582 relações. Link dos 70.024 nomes novos completo (0 falhas).
+Grafo: 1.064.801 eventos limpos (antes 741.409, +44%), 255.384 nós. Universos
+refeitos: 93–95% das ações em comum por mês com os de antes; n = 100 passa de
+334 para 315 tickers distintos. Setores: 20 de 651 sem setor.
+
+*Desvio declarado:* os 434 tickers novos aceitos só por evidência (875
+menções, 0,11% das 773 mil com ticker) não passaram pelo `link-verify`: a VM
+ficou sem crédito depois do link. Na verificação anterior ~25% desse grupo
+foi rejeitado, então são ~200 menções com ticker errado.
+
+O estado anterior (25%) está em `data/archive/*_25pct/`.
+
+**H1 com o grafo ampliado** (`h1 --n 100`):
+
+| | antes (25%) | agora (34%) |
+|---|---|---|
+| correlação total, S4 contra S0 | +0,0031 (t = 4,0; 74%) | +0,0033 (t = 4,3; 73%) |
+| correlação residual, S4 contra S0 | +0,0026 (t = 9,7; 86%) | +0,0027 (t = 8,8; 84%) |
+
+O sinal preditivo das notícias se mantém e fica um pouco maior.
+
+**Seção 10, critério 3 (GMV sem restrição, `backtest --n N`): não se mantém.**
+
+| n | razão notícias/setor | p | placebo/setor | p | λmax/λmin (setor → notícias) |
+|---|---|---|---|---|---|
+| 50 | 1,003 | 0,77 | 1,011 | 0,30 | 104 → 110 |
+| 100 | 1,001 | 0,89 | 1,022 | 0,006 | 183 → 217 |
+| 200 | 1,025 | 0,046 | 1,021 | 0,27 | 374 → 544 |
+
+Com mais notícias, a GMV sem restrição fica igual (n = 50, 100) ou **pior**
+(n = 200, p = 0,046). O número de condição sobe mais que antes: em n = 200
+passa de +42% para +45%.
+
+**Seção 12 (long-only, teto de 10%, `python -m newsmanager.backtester`).**
+
+Critério 1 (principal), n = 100: **NÃO atendido.**
+
+| run | vol. | Sharpe | razão contra setor | p |
+|---|---|---|---|---|
+| fator + resíduo setor | 13,43% | 0,778 | — | — |
+| setor + notícias | 13,42% | 0,789 | 0,998 | 0,46 |
+| placebo | 13,39% | 0,783 | 0,994 | 0,12 |
+| LW fator único | 13,39% | 0,788 | 0,993 | 0,15 |
+| 1/N | 19,94% | 0,663 | 2,205 | 0,000 |
+
+Exigia p < 0,025 e notícias abaixo do placebo; não houve nenhum dos dois. O
+resultado exploratório com o grafo de 25% (0,994, p = 0,017) **não se
+replicou**.
+
+Critério 2 (confirmação) e robustez:
+
+| variante | razão notícias/setor | p | placebo/setor | p | Δ Sharpe |
+|---|---|---|---|---|---|
+| n = 50 | 0,996 | 0,06 | 0,999 | 0,68 | +0,013 |
+| n = 100 | 0,998 | 0,46 | 0,994 | 0,12 | +0,011 |
+| n = 200 | 0,996 | 0,09 | 1,001 | 0,85 | −0,019 |
+| n = 100, teto 5% | 0,995 | 0,20 | 0,995 | 0,07 | +0,022 |
+| n = 100, teto 20% | 0,998 | 0,51 | 0,996 | 0,29 | +0,003 |
+
+O critério 2 seria atendido sozinho, com razão < 1 em n = 50 e n = 200, mas
+ele só valia como confirmação do critério 1. As diferenças são de 0,2% a 0,5%
+da variância e menores que o ruído. Com teto, o placebo empata com as notícias
+de verdade.
+
+**Conclusão (as três avaliações juntas).**
+
+1. **H1 confirmada e estável:** as notícias preveem a correlação futura além
+   do histórico e do setor. Com 44% mais eventos o ganho fica igual ou
+   maior, e o t vai a 8,8 na correlação residual.
+2. **H2 rejeitada nos três desenhos:**
+   - GMV com alvo-prior (seção 9);
+   - GMV residual (seções 10 e 11, agora também com a amostra ampliada);
+   - variância mínima long-only com teto (seção 12).
+
+   A informação preditiva não vira redução de variância realizada da carteira.
+3. **Mecanismo:**
+   - **Sem restrição:** as notícias pioram o condicionamento de Σ̂ (λmax/λmin
+     +6% a +45%), e a inversão consome o ganho.
+   - **Com restrição:** o teto e a proibição de venda a descoberto já
+     regularizam tanto (Jagannathan e Ma, 2003) que todos os estimadores
+     baseados em fator empatam: setor, notícias, placebo e LW ficam a menos de
+     0,05 ponto de volatilidade entre si.
+4. **Mais dados não mudam a conclusão:** de 25% para 34% do corpus, o ganho
+   preditivo cresce um pouco, e o efeito na carteira continua nulo.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/

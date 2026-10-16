@@ -104,16 +104,20 @@ backtester run backtests/*.toml -> compare -> notebook    python -m newsmanager.
 - **Link: `qwen2.5:7b-instruct`** (só escolhe num enum fechado). No piloto de
   400 entidades o 3B teve a mesma velocidade e classificou tipos pior.
 
-## Estado atual (2026-10-10)
+## Estado atual (2026-10-16)
 
-- Extração `v=a05d0c0dc189` concluída: 401.609 unidades, 882.914 relações,
-  `relations_flagged` com coluna `noise`. Tudo no Drive (`gdrive:NewsManager`).
-- Link concluído para essa versão: 234.406 entidades, 0 falhas, run final
-  `l=c49291db2953` (+ verify). Resultado: 538.070 menções com ticker (33,9%),
-  533.631 com preço; relações limpas com ticker em ≥1 lado 52,3%, nos dois 13,3%.
-  Precisão estimada ~94% numa amostra. `data/curated/entities/` e
-  `data/reference/` estão no Mac e no Drive. Runs `l=863c9944d819` e
-  `l=0a3720a0b0ce` são do piloto (prompt antigo): não usar no build.
+- Extração `v=a05d0c0dc189`: 572.762 unidades (~34% do corpus; amostra de 25%
+  ampliada para 40% e parada por crédito em 2026-10-15), 1.270.582 relações,
+  86,1% limpas. Tudo no Drive (`gdrive:NewsManager`). A amostra de 25%
+  (401.609 unidades) e os produtos derivados dela estão em `data/archive/*_25pct/`.
+- Link `l=c49291db2953` completo para os 304.430 nomes (0 falhas): 773.440
+  menções com ticker (33,9%). O verify cobre só os nomes da amostra de 25%: 434
+  tickers novos aceitos por evidência (875 menções) ficaram sem verify
+  (declarado na seção 13 do método). Runs `l=863c9944d819` e `l=0a3720a0b0ce`
+  são do piloto (prompt antigo): não usar no build.
+- Grafo: 1.064.801 eventos limpos, 255.384 nós. Resultados da tese até aqui:
+  seções 8–13 de `docs/metodo_covariancia.md` (H1 confirmada, H2 rejeitada nos
+  três desenhos).
 - Nenhuma instância Vast ativa.
 - Limitações conhecidas: tickers pequenos usados como nome (AVGO, DHI, RIG, ~250
   menções) e empresas renomeadas (Momo, FTI) ficam sem ticker; IDs canônicos não

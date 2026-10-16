@@ -1,0 +1,72 @@
+[h1] painel n=100: 156 datas, 772,200 pares-data (63s)
+
+cobertura (fração dos pares-data com atributo > 0):
+  direct_chain 2.7%  direct_rivalry 4.4%  direct_control 1.0%  direct_impact 1.6%  direct_other_rel 4.4%  exposure 74.7%  cooccur 28.4%  comention 34.8%  same_ff49 5.9%  same_sic2 6.4%
+
+Fama-MacBeth (coeficiente por 1 desvio-padrão; t de Newey-West)
+  M0 persistência              R²=0.1993  z_hist=+0.1330 (+27.3)
+  M1 + co-menção FNSPID        R²=0.2024  z_hist=+0.1312 (+27.8)  comention=+0.0112 (+7.5)
+  M2 + co-ocorrência LLM       R²=0.2059  z_hist=+0.1259 (+24.9)  cooccur=+0.0210 (+14.0)
+  M3 + relações e exposição    R²=0.2069  z_hist=+0.1277 (+25.3)  direct_chain=+0.0003 (+0.4)  direct_rivalry=+0.0037 (+3.2)  direct_control=+0.0012 (+2.0)  direct_impact=+0.0003 (+0.6)  direct_other_rel=+0.0030 (+4.2)  exposure=+0.0149 (+11.4)
+  M4 notícias                  R²=0.2118  z_hist=+0.1243 (+24.6)  comention=+0.0068 (+4.9)  cooccur=+0.0161 (+10.7)  direct_chain=-0.0022 (-3.0)  direct_rivalry=-0.0018 (-1.6)  direct_control=+0.0005 (+0.9)  direct_impact=+0.0001 (+0.2)  direct_other_rel=+0.0004 (+0.6)  exposure=+0.0087 (+7.0)
+  S0 persistência + setor      R²=0.2055  z_hist=+0.1292 (+25.2)  same_ff49=+0.0109 (+6.5)  same_sic2=+0.0061 (+4.0)
+  S1 + co-menção FNSPID        R²=0.2077  z_hist=+0.1282 (+25.7)  same_ff49=+0.0099 (+5.8)  same_sic2=+0.0053 (+3.5)  comention=+0.0081 (+5.5)
+  S4 + notícias                R²=0.2153  z_hist=+0.1235 (+23.9)  same_ff49=+0.0044 (+2.6)  same_sic2=+0.0043 (+2.9)  comention=+0.0058 (+4.2)  cooccur=+0.0146 (+9.7)  direct_chain=-0.0021 (-3.0)  direct_rivalry=-0.0028 (-2.9)  direct_control=+0.0001 (+0.3)  direct_impact=+0.0005 (+0.9)  direct_other_rel=+0.0008 (+1.1)  exposure=+0.0074 (+6.1)
+
+fora da amostra, 132 datas (2013-01-02 a 2023-12-01)
+  M0 persistência              R²oos=0.1854
+  M1 + co-menção FNSPID        R²oos=0.1869
+  M2 + co-ocorrência LLM       R²oos=0.1900
+  M3 + relações e exposição    R²oos=0.1890
+  M4 notícias                  R²oos=0.1910
+  S0 persistência + setor      R²oos=0.1885
+  S1 + co-menção FNSPID        R²oos=0.1892
+  S4 + notícias                R²oos=0.1917
+
+ganhos fora da amostra (fração de SST; t de Newey-West da diferença de SSE por data)
+  M1 + co-menção FNSPID      vs M0 persistência            +0.0015 (t=+2.7, melhor em 69%)  2013-2016 +0.0006  2017-2019 +0.0013  2020-2023 +0.0024
+  M2 + co-ocorrência LLM     vs M0 persistência            +0.0046 (t=+5.8, melhor em 75%)  2013-2016 +0.0046  2017-2019 +0.0053  2020-2023 +0.0042
+  M3 + relações e exposição  vs M0 persistência            +0.0037 (t=+5.5, melhor em 75%)  2013-2016 +0.0033  2017-2019 +0.0045  2020-2023 +0.0034
+  M4 notícias                vs M0 persistência            +0.0056 (t=+5.0, melhor em 76%)  2013-2016 +0.0054  2017-2019 +0.0062  2020-2023 +0.0054
+  M4 notícias                vs M1 + co-menção FNSPID      +0.0041 (t=+5.6, melhor em 76%)  2013-2016 +0.0048  2017-2019 +0.0049  2020-2023 +0.0030
+  S0 persistência + setor    vs M0 persistência            +0.0031 (t=+4.4, melhor em 70%)  2013-2016 +0.0028  2017-2019 +0.0033  2020-2023 +0.0031
+  S1 + co-menção FNSPID      vs S0 persistência + setor    +0.0008 (t=+2.0, melhor em 64%)  2013-2016 +0.0001  2017-2019 +0.0005  2020-2023 +0.0015
+  S4 + notícias              vs S0 persistência + setor    +0.0033 (t=+4.3, melhor em 73%)  2013-2016 +0.0030  2017-2019 +0.0038  2020-2023 +0.0032
+  S4 + notícias              vs S1 + co-menção FNSPID      +0.0025 (t=+5.2, melhor em 72%)  2013-2016 +0.0029  2017-2019 +0.0033  2020-2023 +0.0017
+[h1] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/h1/results_n=100_w=365_h=90.json
+[h1] painel n=100 residual: 156 datas, 772,200 pares-data (54s)
+
+cobertura (fração dos pares-data com atributo > 0):
+  direct_chain 2.7%  direct_rivalry 4.4%  direct_control 1.0%  direct_impact 1.6%  direct_other_rel 4.4%  exposure 74.7%  cooccur 28.4%  comention 34.8%  same_ff49 5.9%  same_sic2 6.4%
+
+Fama-MacBeth (coeficiente por 1 desvio-padrão; t de Newey-West)
+  M0 persistência              R²=0.1458  z_hist=+0.1088 (+16.5)
+  M1 + co-menção FNSPID        R²=0.1475  z_hist=+0.1065 (+16.4)  comention=+0.0108 (+16.7)
+  M2 + co-ocorrência LLM       R²=0.1506  z_hist=+0.1017 (+15.4)  cooccur=+0.0196 (+23.4)
+  M3 + relações e exposição    R²=0.1520  z_hist=+0.1020 (+15.2)  direct_chain=+0.0009 (+2.0)  direct_rivalry=+0.0064 (+10.3)  direct_control=+0.0011 (+2.8)  direct_impact=-0.0003 (-0.6)  direct_other_rel=-0.0007 (-1.4)  exposure=+0.0148 (+14.8)
+  M4 notícias                  R²=0.1545  z_hist=+0.0989 (+14.9)  comention=+0.0070 (+12.9)  cooccur=+0.0136 (+13.3)  direct_chain=-0.0012 (-2.3)  direct_rivalry=+0.0018 (+2.6)  direct_control=+0.0005 (+1.3)  direct_impact=-0.0004 (-0.8)  direct_other_rel=-0.0031 (-5.9)  exposure=+0.0096 (+9.4)
+  S0 persistência + setor      R²=0.1513  z_hist=+0.1026 (+15.3)  same_ff49=+0.0130 (+9.4)  same_sic2=+0.0063 (+4.9)
+  S1 + co-menção FNSPID        R²=0.1523  z_hist=+0.1015 (+15.4)  same_ff49=+0.0122 (+8.7)  same_sic2=+0.0056 (+4.3)  comention=+0.0078 (+11.9)
+  S4 + notícias                R²=0.1573  z_hist=+0.0969 (+14.5)  same_ff49=+0.0074 (+5.6)  same_sic2=+0.0045 (+3.5)  comention=+0.0057 (+10.4)  cooccur=+0.0114 (+12.0)  direct_chain=-0.0011 (-2.1)  direct_rivalry=+0.0006 (+0.9)  direct_control=+0.0001 (+0.4)  direct_impact=-0.0001 (-0.1)  direct_other_rel=-0.0026 (-4.8)  exposure=+0.0081 (+8.3)
+
+fora da amostra, 132 datas (2013-01-02 a 2023-12-01)
+  M0 persistência              R²oos=0.1610
+  M1 + co-menção FNSPID        R²oos=0.1625
+  M2 + co-ocorrência LLM       R²oos=0.1645
+  M3 + relações e exposição    R²oos=0.1642
+  M4 notícias                  R²oos=0.1658
+  S0 persistência + setor      R²oos=0.1641
+  S1 + co-menção FNSPID        R²oos=0.1649
+  S4 + notícias                R²oos=0.1667
+
+ganhos fora da amostra (fração de SST; t de Newey-West da diferença de SSE por data)
+  M1 + co-menção FNSPID      vs M0 persistência            +0.0015 (t=+7.1, melhor em 83%)  2013-2016 +0.0013  2017-2019 +0.0014  2020-2023 +0.0016
+  M2 + co-ocorrência LLM     vs M0 persistência            +0.0035 (t=+9.6, melhor em 88%)  2013-2016 +0.0050  2017-2019 +0.0043  2020-2023 +0.0019
+  M3 + relações e exposição  vs M0 persistência            +0.0031 (t=+5.8, melhor em 84%)  2013-2016 +0.0045  2017-2019 +0.0050  2020-2023 +0.0011
+  M4 notícias                vs M0 persistência            +0.0047 (t=+8.3, melhor em 86%)  2013-2016 +0.0067  2017-2019 +0.0063  2020-2023 +0.0024
+  M4 notícias                vs M1 + co-menção FNSPID      +0.0033 (t=+5.8, melhor em 83%)  2013-2016 +0.0054  2017-2019 +0.0050  2020-2023 +0.0008
+  S0 persistência + setor    vs M0 persistência            +0.0030 (t=+5.0, melhor em 81%)  2013-2016 +0.0046  2017-2019 +0.0046  2020-2023 +0.0009
+  S1 + co-menção FNSPID      vs S0 persistência + setor    +0.0008 (t=+5.4, melhor em 77%)  2013-2016 +0.0006  2017-2019 +0.0005  2020-2023 +0.0011
+  S4 + notícias              vs S0 persistência + setor    +0.0027 (t=+8.8, melhor em 84%)  2013-2016 +0.0033  2017-2019 +0.0035  2020-2023 +0.0017
+  S4 + notícias              vs S1 + co-menção FNSPID      +0.0018 (t=+5.9, melhor em 80%)  2013-2016 +0.0027  2017-2019 +0.0030  2020-2023 +0.0006
+[h1] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/h1/results_n=100_w=365_h=90_res.json
