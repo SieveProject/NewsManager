@@ -139,10 +139,12 @@ def mean_variance(S: np.ndarray, mu: np.ndarray, gamma: float, lo: float = 0.0, 
     return qp_box_simplex(gamma * S, mu, lo, hi)
 
 
-def max_ratio(S: np.ndarray, a: np.ndarray, lo: float = 0.0, hi: float = np.inf,
-              grid: int = 25, refine: int = 40) -> tuple[np.ndarray, float]:
+def max_ratio_frontier(S: np.ndarray, a: np.ndarray, lo: float = 0.0, hi: float = np.inf,
+                       grid: int = 25, refine: int = 40) -> tuple[np.ndarray, float]:
     """max a'w / sqrt(w'Σw) s.t. Σw = 1 e limites (máximo Sharpe com a = μ;
-    máxima diversificação com a = σ).
+    máxima diversificação com a = σ). Versão registrada na seção 14 do método;
+    lenta com Σ̂ mal condicionada (~5 min por mês com p = 200). Mantida para
+    conferir max_ratio, que a substituiu.
 
     O máximo está na fronteira {argmin w'Σw - λ a'w : λ >= 0}. Busca em λ:
     grade log-espaçada (escalada por a e Σ) e seção áurea entre os vizinhos do
@@ -267,3 +269,46 @@ def bayes_stein_mean(X: np.ndarray, S: np.ndarray) -> tuple[np.ndarray, float]:
     d = xbar - mu0
     phi = (p + 2) / ((p + 2) + T * d @ Si @ d)
     return (1 - phi) * xbar + phi * mu0, float(phi)
+
+
+def max_ratio(S: np.ndarray, a: np.ndarray, lo: float = 0.0, hi: float = np.inf) -> tuple[np.ndarray, float]:
+    """max a'w / sqrt(w'Σw) s.t. Σw = 1, lo <= w <= hi, pela reformulação
+    convexa homogênea (Cornuéjols e Tütüncü, 2007): com y = κw, κ >= 0,
+
+        min y'Σy  s.t.  a'y = 1,  Σy = κ,  lo κ <= y <= hi κ,
+
+    resolvida pelo método de pontos interiores Clarabel; w = y/κ. Mesmo
+    problema de max_ratio_frontier, resolvido de forma exata. Se nenhum a'w > 0
+    é atingível (problema inviável), devolve a GMV, como antes."""
+    import clarabel
+    from scipy import sparse
+
+    p = len(S)
+    lo_f, hi_f = np.isfinite(lo), np.isfinite(hi)
+    P = sparse.triu(sparse.csc_matrix(np.block([[2 * S, np.zeros((p, 1))], [np.zeros((1, p)), np.zeros((1, 1))]])),
+                    format="csc")
+    rows, b = [np.append(a, 0.0), np.append(np.ones(p), -1.0)], [1.0, 0.0]
+    n_eq = 2
+    eye = np.eye(p)
+    if hi_f:
+        rows += list(np.hstack([eye, np.full((p, 1), -hi)]))
+        b += [0.0] * p
+    if lo_f:
+        rows += list(np.hstack([-eye, np.full((p, 1), lo)]))
+        b += [0.0] * p
+    rows.append(np.append(np.zeros(p), -1.0))
+    b.append(0.0)
+    A = sparse.csc_matrix(np.vstack(rows))
+    cones = [clarabel.ZeroConeT(n_eq), clarabel.NonnegativeConeT(len(b) - n_eq)]
+    st = clarabel.DefaultSettings()
+    st.verbose = False
+    st.tol_gap_abs = st.tol_gap_rel = st.tol_feas = 1e-10
+    sol = clarabel.DefaultSolver(P, np.zeros(p + 1), A, np.array(b), cones, st).solve()
+    x = np.array(sol.x)
+    ok = str(sol.status) in ("Solved", "AlmostSolved", "SolverStatus.Solved") and x[-1] > 1e-14
+    if not ok:
+        w = min_variance(S, lo, hi)
+    else:
+        w = project_box_simplex(x[:p] / x[-1], lo, hi)     # limpa resíduo numérico
+    v = w @ S @ w
+    return w, float((a @ w) / np.sqrt(v)) if v > 0 else float("-inf")

@@ -1,0 +1,28 @@
+[backtest] s14_mv_noticias_g10: 2013-06-03 (6/132) p=100 giro=0.91 NAV=1.154 (6s)
+[backtest] s14_mv_noticias_g10: 2013-12-02 (12/132) p=100 giro=0.60 NAV=1.399 (9s)
+[backtest] s14_mv_noticias_g10: 2014-06-02 (18/132) p=100 giro=0.61 NAV=1.522 (11s)
+[backtest] s14_mv_noticias_g10: 2014-12-01 (24/132) p=100 giro=0.56 NAV=1.649 (13s)
+[backtest] s14_mv_noticias_g10: 2015-06-01 (30/132) p=100 giro=0.49 NAV=1.763 (16s)
+[backtest] s14_mv_noticias_g10: 2015-12-01 (36/132) p=100 giro=0.75 NAV=1.806 (19s)
+[backtest] s14_mv_noticias_g10: 2016-06-01 (42/132) p=100 giro=0.39 NAV=1.809 (22s)
+[backtest] s14_mv_noticias_g10: 2016-12-01 (48/132) p=100 giro=0.75 NAV=1.837 (26s)
+[backtest] s14_mv_noticias_g10: 2017-06-01 (54/132) p=100 giro=0.68 NAV=2.041 (29s)
+[backtest] s14_mv_noticias_g10: 2017-12-01 (60/132) p=100 giro=0.62 NAV=2.376 (31s)
+[backtest] s14_mv_noticias_g10: 2018-06-01 (66/132) p=100 giro=0.49 NAV=2.590 (33s)
+[backtest] s14_mv_noticias_g10: 2018-12-03 (72/132) p=100 giro=0.79 NAV=2.144 (36s)
+[backtest] s14_mv_noticias_g10: 2019-06-03 (78/132) p=100 giro=0.52 NAV=2.374 (39s)
+[backtest] s14_mv_noticias_g10: 2019-12-02 (84/132) p=100 giro=0.57 NAV=2.487 (43s)
+[backtest] s14_mv_noticias_g10: 2020-06-01 (90/132) p=100 giro=0.54 NAV=2.725 (47s)
+[backtest] s14_mv_noticias_g10: 2020-12-01 (96/132) p=100 giro=0.50 NAV=3.689 (52s)
+[backtest] s14_mv_noticias_g10: 2021-06-01 (102/132) p=100 giro=0.77 NAV=3.857 (58s)
+[backtest] s14_mv_noticias_g10: 2021-12-01 (108/132) p=100 giro=0.67 NAV=3.873 (65s)
+[backtest] s14_mv_noticias_g10: 2022-06-01 (114/132) p=100 giro=0.43 NAV=3.563 (69s)
+[backtest] s14_mv_noticias_g10: 2022-12-01 (120/132) p=100 giro=0.49 NAV=3.944 (75s)
+[backtest] s14_mv_noticias_g10: 2023-06-01 (126/132) p=100 giro=0.53 NAV=3.843 (80s)
+[backtest] s14_mv_noticias_g10: 2023-12-01 (132/132) p=100 giro=0.42 NAV=4.082 (83s)
+
+s14_mv_noticias_g10: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  13.67%  vol  20.22%  Sharpe   0.735  Sortino   1.023  maxDD -32.86%
+  giro/rebal. 0.63  giro/ano 7.54  custo/ano   0.76%  (bruto: CAGR  14.54%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.872  alfa   2.75%  TE  13.91%  IR   0.070
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_mv_noticias_g10

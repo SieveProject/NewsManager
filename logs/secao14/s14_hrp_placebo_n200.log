@@ -1,0 +1,28 @@
+[backtest] s14_hrp_placebo_n200: 2013-06-03 (6/132) p=200 giro=0.25 NAV=1.143 (12s)
+[backtest] s14_hrp_placebo_n200: 2013-12-02 (12/132) p=200 giro=0.23 NAV=1.309 (15s)
+[backtest] s14_hrp_placebo_n200: 2014-06-02 (18/132) p=200 giro=0.28 NAV=1.412 (17s)
+[backtest] s14_hrp_placebo_n200: 2014-12-01 (24/132) p=200 giro=0.25 NAV=1.465 (19s)
+[backtest] s14_hrp_placebo_n200: 2015-06-01 (30/132) p=200 giro=0.31 NAV=1.491 (22s)
+[backtest] s14_hrp_placebo_n200: 2015-12-01 (36/132) p=200 giro=0.31 NAV=1.445 (24s)
+[backtest] s14_hrp_placebo_n200: 2016-06-01 (42/132) p=200 giro=0.28 NAV=1.481 (26s)
+[backtest] s14_hrp_placebo_n200: 2016-12-01 (48/132) p=200 giro=0.36 NAV=1.551 (28s)
+[backtest] s14_hrp_placebo_n200: 2017-06-01 (54/132) p=200 giro=0.27 NAV=1.692 (30s)
+[backtest] s14_hrp_placebo_n200: 2017-12-01 (60/132) p=200 giro=0.41 NAV=1.826 (33s)
+[backtest] s14_hrp_placebo_n200: 2018-06-01 (66/132) p=200 giro=0.33 NAV=1.836 (36s)
+[backtest] s14_hrp_placebo_n200: 2018-12-03 (72/132) p=200 giro=0.32 NAV=1.702 (38s)
+[backtest] s14_hrp_placebo_n200: 2019-06-03 (78/132) p=200 giro=0.28 NAV=1.974 (41s)
+[backtest] s14_hrp_placebo_n200: 2019-12-02 (84/132) p=200 giro=0.31 NAV=2.156 (43s)
+[backtest] s14_hrp_placebo_n200: 2020-06-01 (90/132) p=200 giro=0.37 NAV=2.111 (46s)
+[backtest] s14_hrp_placebo_n200: 2020-12-01 (96/132) p=200 giro=0.33 NAV=2.552 (48s)
+[backtest] s14_hrp_placebo_n200: 2021-06-01 (102/132) p=200 giro=0.36 NAV=2.850 (50s)
+[backtest] s14_hrp_placebo_n200: 2021-12-01 (108/132) p=200 giro=0.32 NAV=2.964 (53s)
+[backtest] s14_hrp_placebo_n200: 2022-06-01 (114/132) p=200 giro=0.38 NAV=2.703 (55s)
+[backtest] s14_hrp_placebo_n200: 2022-12-01 (120/132) p=200 giro=0.33 NAV=2.814 (57s)
+[backtest] s14_hrp_placebo_n200: 2023-06-01 (126/132) p=200 giro=0.39 NAV=2.938 (60s)
+[backtest] s14_hrp_placebo_n200: 2023-12-01 (132/132) p=200 giro=0.37 NAV=3.115 (63s)
+
+s14_hrp_placebo_n200: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  10.90%  vol  15.16%  Sharpe   0.759  Sortino   1.050  maxDD -32.48%
+  giro/rebal. 0.33  giro/ano 3.93  custo/ano   0.40%  (bruto: CAGR  11.35%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.856  alfa  -0.39%  TE   4.86%  IR  -0.492
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_hrp_placebo_n200

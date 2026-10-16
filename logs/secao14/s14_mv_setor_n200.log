@@ -1,0 +1,28 @@
+[backtest] s14_mv_setor_n200: 2013-06-03 (6/132) p=200 giro=0.72 NAV=1.190 (16s)
+[backtest] s14_mv_setor_n200: 2013-12-02 (12/132) p=200 giro=0.41 NAV=1.626 (19s)
+[backtest] s14_mv_setor_n200: 2014-06-02 (18/132) p=200 giro=0.86 NAV=1.748 (22s)
+[backtest] s14_mv_setor_n200: 2014-12-01 (24/132) p=200 giro=0.44 NAV=1.953 (25s)
+[backtest] s14_mv_setor_n200: 2015-06-01 (30/132) p=200 giro=0.64 NAV=2.167 (29s)
+[backtest] s14_mv_setor_n200: 2015-12-01 (36/132) p=200 giro=0.60 NAV=2.145 (32s)
+[backtest] s14_mv_setor_n200: 2016-06-01 (42/132) p=200 giro=0.52 NAV=2.134 (38s)
+[backtest] s14_mv_setor_n200: 2016-12-01 (48/132) p=200 giro=0.88 NAV=2.342 (44s)
+[backtest] s14_mv_setor_n200: 2017-06-01 (54/132) p=200 giro=0.63 NAV=2.665 (48s)
+[backtest] s14_mv_setor_n200: 2017-12-01 (60/132) p=200 giro=0.67 NAV=3.275 (51s)
+[backtest] s14_mv_setor_n200: 2018-06-01 (66/132) p=200 giro=0.47 NAV=3.787 (54s)
+[backtest] s14_mv_setor_n200: 2018-12-03 (72/132) p=200 giro=1.13 NAV=2.766 (57s)
+[backtest] s14_mv_setor_n200: 2019-06-03 (78/132) p=200 giro=0.66 NAV=3.049 (63s)
+[backtest] s14_mv_setor_n200: 2019-12-02 (84/132) p=200 giro=0.85 NAV=3.149 (68s)
+[backtest] s14_mv_setor_n200: 2020-06-01 (90/132) p=200 giro=0.58 NAV=4.479 (74s)
+[backtest] s14_mv_setor_n200: 2020-12-01 (96/132) p=200 giro=0.51 NAV=6.936 (80s)
+[backtest] s14_mv_setor_n200: 2021-06-01 (102/132) p=200 giro=0.57 NAV=7.701 (85s)
+[backtest] s14_mv_setor_n200: 2021-12-01 (108/132) p=200 giro=0.57 NAV=7.241 (92s)
+[backtest] s14_mv_setor_n200: 2022-06-01 (114/132) p=200 giro=0.69 NAV=6.632 (99s)
+[backtest] s14_mv_setor_n200: 2022-12-01 (120/132) p=200 giro=0.65 NAV=6.761 (108s)
+[backtest] s14_mv_setor_n200: 2023-06-01 (126/132) p=200 giro=0.67 NAV=7.191 (118s)
+[backtest] s14_mv_setor_n200: 2023-12-01 (132/132) p=200 giro=0.33 NAV=8.632 (124s)
+
+s14_mv_setor_n200: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  21.69%  vol  26.23%  Sharpe   0.880  Sortino   1.238  maxDD -46.64%
+  giro/rebal. 0.67  giro/ano 8.01  custo/ano   0.81%  (bruto: CAGR  22.68%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.983  alfa   9.43%  TE  20.19%  IR   0.455
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_mv_setor_n200

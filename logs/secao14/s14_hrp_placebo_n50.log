@@ -1,0 +1,28 @@
+[backtest] s14_hrp_placebo_n50: 2013-06-03 (6/132) p=50 giro=0.20 NAV=1.139 (4s)
+[backtest] s14_hrp_placebo_n50: 2013-12-02 (12/132) p=50 giro=0.26 NAV=1.317 (5s)
+[backtest] s14_hrp_placebo_n50: 2014-06-02 (18/132) p=50 giro=0.26 NAV=1.385 (7s)
+[backtest] s14_hrp_placebo_n50: 2014-12-01 (24/132) p=50 giro=0.25 NAV=1.430 (8s)
+[backtest] s14_hrp_placebo_n50: 2015-06-01 (30/132) p=50 giro=0.29 NAV=1.452 (9s)
+[backtest] s14_hrp_placebo_n50: 2015-12-01 (36/132) p=50 giro=0.20 NAV=1.460 (11s)
+[backtest] s14_hrp_placebo_n50: 2016-06-01 (42/132) p=50 giro=0.30 NAV=1.447 (12s)
+[backtest] s14_hrp_placebo_n50: 2016-12-01 (48/132) p=50 giro=0.28 NAV=1.533 (13s)
+[backtest] s14_hrp_placebo_n50: 2017-06-01 (54/132) p=50 giro=0.31 NAV=1.656 (15s)
+[backtest] s14_hrp_placebo_n50: 2017-12-01 (60/132) p=50 giro=0.38 NAV=1.798 (16s)
+[backtest] s14_hrp_placebo_n50: 2018-06-01 (66/132) p=50 giro=0.30 NAV=1.806 (18s)
+[backtest] s14_hrp_placebo_n50: 2018-12-03 (72/132) p=50 giro=0.25 NAV=1.769 (19s)
+[backtest] s14_hrp_placebo_n50: 2019-06-03 (78/132) p=50 giro=0.36 NAV=2.088 (21s)
+[backtest] s14_hrp_placebo_n50: 2019-12-02 (84/132) p=50 giro=0.19 NAV=2.299 (22s)
+[backtest] s14_hrp_placebo_n50: 2020-06-01 (90/132) p=50 giro=0.40 NAV=2.209 (23s)
+[backtest] s14_hrp_placebo_n50: 2020-12-01 (96/132) p=50 giro=0.32 NAV=2.660 (25s)
+[backtest] s14_hrp_placebo_n50: 2021-06-01 (102/132) p=50 giro=0.28 NAV=3.140 (26s)
+[backtest] s14_hrp_placebo_n50: 2021-12-01 (108/132) p=50 giro=0.29 NAV=3.203 (27s)
+[backtest] s14_hrp_placebo_n50: 2022-06-01 (114/132) p=50 giro=0.31 NAV=2.752 (28s)
+[backtest] s14_hrp_placebo_n50: 2022-12-01 (120/132) p=50 giro=0.25 NAV=2.866 (29s)
+[backtest] s14_hrp_placebo_n50: 2023-06-01 (126/132) p=50 giro=0.37 NAV=3.001 (31s)
+[backtest] s14_hrp_placebo_n50: 2023-12-01 (132/132) p=50 giro=0.25 NAV=3.152 (32s)
+
+s14_hrp_placebo_n50: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  11.02%  vol  15.69%  Sharpe   0.745  Sortino   1.034  maxDD -30.02%
+  giro/rebal. 0.30  giro/ano 3.62  custo/ano   0.37%  (bruto: CAGR  11.43%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.872  alfa  -0.43%  TE   5.52%  IR  -0.399
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_hrp_placebo_n50

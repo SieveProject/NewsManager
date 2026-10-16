@@ -821,6 +821,32 @@ seções 12–13. Rodar de novo os TOMLs da seção 12 reproduz os retornos diá
 a menos de 1e-15, a mesma diferença entre duas execuções seguidas, que vem da
 ordem de soma do DuckDB.
 
+*Adendo, depois do commit a09119a e antes de avaliar (2026-10-16): troca do
+solver do máximo Sharpe e da máxima diversificação.* A busca na fronteira
+(grade em λ + seção áurea, cada ponto resolvido por FISTA) ficou lenta demais
+com Σ̂ mal condicionada. Com n = 200, os meses de 2020 em diante levavam ~5 min
+cada, e depois de 8 h as 6 runs desses dois otimizadores com n = 200 estavam
+no mês 84–90 de 132. Elas foram interrompidas.
+
+- **Novo solver:** o mesmo problema pela reformulação convexa homogênea
+  (Cornuéjols e Tütüncü, 2007), resolvida por pontos interiores (Clarabel):
+
+      min y'Σ̂y  s.t.  a'y = 1,  Σy = κ,  lo·κ ≤ y ≤ hi·κ,  κ ≥ 0,  w = y/κ
+
+  O fallback para a GMV quando nenhum a'w > 0 é atingível continua igual.
+- **Conferência:** 24 casos reais (n = 200; seis datas de 2013 a 2023; Σ̂ de
+  setor e de setor + notícias; a = μ e a = σ). Maior Σ|Δw| entre as duas
+  implementações = 2,3e-7, razão igual até 1e-9, tempo de ~0,1 s contra
+  15–60 s. A versão registrada continua no código como `max_ratio_frontier`,
+  e `tests/test_backtester.py` confere a equivalência.
+- **O que nada disso muda:** o problema, as configurações, a estatística e o
+  critério.
+- **O que foi visto antes do adendo:** as linhas de progresso das runs
+  interrompidas mostravam o patrimônio acumulado até 2020 (de 1,86 a 1,89 na
+  máxima diversificação, de 1,93 a 2,72 no máximo Sharpe). Os outros três
+  otimizadores (HRP, Markowitz, TE mínimo), que não mudaram, já rodaram
+  completos com o código do commit a09119a, mas ainda não foram avaliados.
+
 ## Referências
 
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
@@ -828,6 +854,7 @@ ordem de soma do DuckDB.
 - Chan, L.; Karceski, J.; Lakonishok, J. (1999). On portfolio optimization: forecasting covariances and choosing the risk model. *RFS* 12, 937–974.
 - Cohen, L.; Frazzini, A. (2008). Economic links and predictable returns. *Journal of Finance* 63(4).
 - Choueifaty, Y.; Coignard, Y. (2008). Toward maximum diversification. *J. Portfolio Management* 35(1).
+- Cornuéjols, G.; Tütüncü, R. (2007). *Optimization Methods in Finance*. Cambridge University Press.
 - DeMiguel, V.; Garlappi, L.; Uppal, R. (2009). Optimal versus naive diversification. *RFS* 22(5).
 - Elton, E.; Gruber, M. (1973). Estimating the dependence structure of share prices. *Journal of Finance* 28.
 - Engle, R.; Colacito, R. (2006). Testing and valuing dynamic correlations for asset allocation. *JBES* 24(2).

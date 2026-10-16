@@ -1,0 +1,28 @@
+[backtest] s14_hrp_noticias_n50: 2013-06-03 (6/132) p=50 giro=0.20 NAV=1.144 (3s)
+[backtest] s14_hrp_noticias_n50: 2013-12-02 (12/132) p=50 giro=0.20 NAV=1.325 (4s)
+[backtest] s14_hrp_noticias_n50: 2014-06-02 (18/132) p=50 giro=0.25 NAV=1.387 (6s)
+[backtest] s14_hrp_noticias_n50: 2014-12-01 (24/132) p=50 giro=0.33 NAV=1.432 (7s)
+[backtest] s14_hrp_noticias_n50: 2015-06-01 (30/132) p=50 giro=0.31 NAV=1.456 (8s)
+[backtest] s14_hrp_noticias_n50: 2015-12-01 (36/132) p=50 giro=0.26 NAV=1.472 (9s)
+[backtest] s14_hrp_noticias_n50: 2016-06-01 (42/132) p=50 giro=0.32 NAV=1.460 (11s)
+[backtest] s14_hrp_noticias_n50: 2016-12-01 (48/132) p=50 giro=0.30 NAV=1.548 (12s)
+[backtest] s14_hrp_noticias_n50: 2017-06-01 (54/132) p=50 giro=0.35 NAV=1.669 (13s)
+[backtest] s14_hrp_noticias_n50: 2017-12-01 (60/132) p=50 giro=0.33 NAV=1.804 (14s)
+[backtest] s14_hrp_noticias_n50: 2018-06-01 (66/132) p=50 giro=0.26 NAV=1.824 (16s)
+[backtest] s14_hrp_noticias_n50: 2018-12-03 (72/132) p=50 giro=0.26 NAV=1.794 (17s)
+[backtest] s14_hrp_noticias_n50: 2019-06-03 (78/132) p=50 giro=0.37 NAV=2.120 (19s)
+[backtest] s14_hrp_noticias_n50: 2019-12-02 (84/132) p=50 giro=0.28 NAV=2.301 (20s)
+[backtest] s14_hrp_noticias_n50: 2020-06-01 (90/132) p=50 giro=0.45 NAV=2.208 (21s)
+[backtest] s14_hrp_noticias_n50: 2020-12-01 (96/132) p=50 giro=0.32 NAV=2.693 (23s)
+[backtest] s14_hrp_noticias_n50: 2021-06-01 (102/132) p=50 giro=0.19 NAV=3.202 (24s)
+[backtest] s14_hrp_noticias_n50: 2021-12-01 (108/132) p=50 giro=0.27 NAV=3.248 (26s)
+[backtest] s14_hrp_noticias_n50: 2022-06-01 (114/132) p=50 giro=0.22 NAV=2.814 (27s)
+[backtest] s14_hrp_noticias_n50: 2022-12-01 (120/132) p=50 giro=0.25 NAV=2.885 (28s)
+[backtest] s14_hrp_noticias_n50: 2023-06-01 (126/132) p=50 giro=0.44 NAV=3.009 (30s)
+[backtest] s14_hrp_noticias_n50: 2023-12-01 (132/132) p=50 giro=0.37 NAV=3.166 (31s)
+
+s14_hrp_noticias_n50: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  11.07%  vol  15.70%  Sharpe   0.748  Sortino   1.038  maxDD -29.85%
+  giro/rebal. 0.30  giro/ano 3.61  custo/ano   0.37%  (bruto: CAGR  11.48%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.871  alfa  -0.37%  TE   5.61%  IR  -0.385
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_hrp_noticias_n50

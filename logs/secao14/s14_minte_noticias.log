@@ -1,0 +1,28 @@
+[backtest] s14_minte_noticias: 2013-06-03 (6/132) p=100 giro=0.32 NAV=1.139 (10s)
+[backtest] s14_minte_noticias: 2013-12-02 (12/132) p=100 giro=0.25 NAV=1.332 (16s)
+[backtest] s14_minte_noticias: 2014-06-02 (18/132) p=100 giro=0.38 NAV=1.375 (22s)
+[backtest] s14_minte_noticias: 2014-12-01 (24/132) p=100 giro=0.58 NAV=1.436 (27s)
+[backtest] s14_minte_noticias: 2015-06-01 (30/132) p=100 giro=0.23 NAV=1.482 (32s)
+[backtest] s14_minte_noticias: 2015-12-01 (36/132) p=100 giro=0.35 NAV=1.490 (39s)
+[backtest] s14_minte_noticias: 2016-06-01 (42/132) p=100 giro=0.27 NAV=1.516 (49s)
+[backtest] s14_minte_noticias: 2016-12-01 (48/132) p=100 giro=0.34 NAV=1.615 (60s)
+[backtest] s14_minte_noticias: 2017-06-01 (54/132) p=100 giro=0.30 NAV=1.795 (67s)
+[backtest] s14_minte_noticias: 2017-12-01 (60/132) p=100 giro=0.41 NAV=2.045 (72s)
+[backtest] s14_minte_noticias: 2018-06-01 (66/132) p=100 giro=0.25 NAV=2.075 (77s)
+[backtest] s14_minte_noticias: 2018-12-03 (72/132) p=100 giro=0.35 NAV=1.994 (83s)
+[backtest] s14_minte_noticias: 2019-06-03 (78/132) p=100 giro=0.32 NAV=2.364 (91s)
+[backtest] s14_minte_noticias: 2019-12-02 (84/132) p=100 giro=0.35 NAV=2.629 (99s)
+[backtest] s14_minte_noticias: 2020-06-01 (90/132) p=100 giro=0.30 NAV=2.422 (108s)
+[backtest] s14_minte_noticias: 2020-12-01 (96/132) p=100 giro=0.20 NAV=2.901 (122s)
+[backtest] s14_minte_noticias: 2021-06-01 (102/132) p=100 giro=0.18 NAV=3.304 (134s)
+[backtest] s14_minte_noticias: 2021-12-01 (108/132) p=100 giro=0.56 NAV=3.605 (149s)
+[backtest] s14_minte_noticias: 2022-06-01 (114/132) p=100 giro=0.23 NAV=3.006 (159s)
+[backtest] s14_minte_noticias: 2022-12-01 (120/132) p=100 giro=0.26 NAV=3.091 (172s)
+[backtest] s14_minte_noticias: 2023-06-01 (126/132) p=100 giro=0.39 NAV=3.564 (185s)
+[backtest] s14_minte_noticias: 2023-12-01 (132/132) p=100 giro=0.29 NAV=3.866 (193s)
+
+s14_minte_noticias: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  13.11%  vol  17.14%  Sharpe   0.805  Sortino   1.127  maxDD -33.23%
+  giro/rebal. 0.34  giro/ano 4.02  custo/ano   0.41%  (bruto: CAGR  13.57%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.994  alfa  -0.02%  TE   2.73%  IR  -0.038
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_minte_noticias

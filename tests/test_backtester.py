@@ -252,6 +252,12 @@ def main() -> int:
     Si, one, g = np.linalg.inv(S), np.ones(8), 5.0
     eta = (one @ Si @ mu - g) / (one @ Si @ one)
     assert np.allclose(optimize.mean_variance(S, mu, g, -50, 50), Si @ (mu - eta * one) / g, atol=1e-8)
+    for lo, hi in ((0.0, 0.3), (-0.2, 0.5)):        # Clarabel = busca na fronteira (versão registrada)
+        w1, r1 = optimize.max_ratio(S, mu, lo, hi)
+        w2, r2 = optimize.max_ratio_frontier(S, mu, lo, hi)
+        assert np.abs(w1 - w2).sum() < 1e-6 and abs(r1 - r2) < 1e-9, (lo, hi)
+    w, _ = optimize.max_ratio(S, -np.abs(mu), 0, 1)  # nenhum a'w > 0: GMV
+    assert np.allclose(w, optimize.min_variance(S, 0, 1))
     D = np.diag(np.linspace(0.01, 0.05, 6) ** 2)
     w, _ = optimize.max_ratio(D, np.sqrt(np.diag(D)), 0, 1)
     assert np.allclose(w, (1 / np.sqrt(np.diag(D))) / (1 / np.sqrt(np.diag(D))).sum(), atol=1e-6)

@@ -1,0 +1,28 @@
+[backtest] s14_hrp_setor_n50: 2013-06-03 (6/132) p=50 giro=0.17 NAV=1.143 (3s)
+[backtest] s14_hrp_setor_n50: 2013-12-02 (12/132) p=50 giro=0.23 NAV=1.326 (4s)
+[backtest] s14_hrp_setor_n50: 2014-06-02 (18/132) p=50 giro=0.26 NAV=1.395 (5s)
+[backtest] s14_hrp_setor_n50: 2014-12-01 (24/132) p=50 giro=0.26 NAV=1.439 (6s)
+[backtest] s14_hrp_setor_n50: 2015-06-01 (30/132) p=50 giro=0.32 NAV=1.463 (7s)
+[backtest] s14_hrp_setor_n50: 2015-12-01 (36/132) p=50 giro=0.22 NAV=1.485 (8s)
+[backtest] s14_hrp_setor_n50: 2016-06-01 (42/132) p=50 giro=0.32 NAV=1.469 (10s)
+[backtest] s14_hrp_setor_n50: 2016-12-01 (48/132) p=50 giro=0.35 NAV=1.570 (11s)
+[backtest] s14_hrp_setor_n50: 2017-06-01 (54/132) p=50 giro=0.35 NAV=1.697 (12s)
+[backtest] s14_hrp_setor_n50: 2017-12-01 (60/132) p=50 giro=0.28 NAV=1.866 (14s)
+[backtest] s14_hrp_setor_n50: 2018-06-01 (66/132) p=50 giro=0.27 NAV=1.889 (15s)
+[backtest] s14_hrp_setor_n50: 2018-12-03 (72/132) p=50 giro=0.25 NAV=1.838 (16s)
+[backtest] s14_hrp_setor_n50: 2019-06-03 (78/132) p=50 giro=0.35 NAV=2.166 (18s)
+[backtest] s14_hrp_setor_n50: 2019-12-02 (84/132) p=50 giro=0.22 NAV=2.373 (19s)
+[backtest] s14_hrp_setor_n50: 2020-06-01 (90/132) p=50 giro=0.41 NAV=2.274 (21s)
+[backtest] s14_hrp_setor_n50: 2020-12-01 (96/132) p=50 giro=0.30 NAV=2.727 (22s)
+[backtest] s14_hrp_setor_n50: 2021-06-01 (102/132) p=50 giro=0.25 NAV=3.267 (24s)
+[backtest] s14_hrp_setor_n50: 2021-12-01 (108/132) p=50 giro=0.29 NAV=3.343 (25s)
+[backtest] s14_hrp_setor_n50: 2022-06-01 (114/132) p=50 giro=0.18 NAV=2.877 (26s)
+[backtest] s14_hrp_setor_n50: 2022-12-01 (120/132) p=50 giro=0.41 NAV=2.995 (28s)
+[backtest] s14_hrp_setor_n50: 2023-06-01 (126/132) p=50 giro=0.35 NAV=3.111 (29s)
+[backtest] s14_hrp_setor_n50: 2023-12-01 (132/132) p=50 giro=0.27 NAV=3.274 (31s)
+
+s14_hrp_setor_n50: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  11.41%  vol  15.76%  Sharpe   0.764  Sortino   1.062  maxDD -30.16%
+  giro/rebal. 0.30  giro/ano 3.53  custo/ano   0.36%  (bruto: CAGR  11.81%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.877  alfa  -0.14%  TE   5.46%  IR  -0.338
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_hrp_setor_n50

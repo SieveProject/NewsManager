@@ -1,0 +1,28 @@
+[backtest] s14_minte_setor_n200: 2013-06-03 (6/132) p=200 giro=0.23 NAV=1.148 (26s)
+[backtest] s14_minte_setor_n200: 2013-12-02 (12/132) p=200 giro=0.26 NAV=1.340 (38s)
+[backtest] s14_minte_setor_n200: 2014-06-02 (18/132) p=200 giro=0.31 NAV=1.415 (49s)
+[backtest] s14_minte_setor_n200: 2014-12-01 (24/132) p=200 giro=0.30 NAV=1.491 (61s)
+[backtest] s14_minte_setor_n200: 2015-06-01 (30/132) p=200 giro=0.37 NAV=1.510 (75s)
+[backtest] s14_minte_setor_n200: 2015-12-01 (36/132) p=200 giro=0.34 NAV=1.511 (89s)
+[backtest] s14_minte_setor_n200: 2016-06-01 (42/132) p=200 giro=0.23 NAV=1.575 (107s)
+[backtest] s14_minte_setor_n200: 2016-12-01 (48/132) p=200 giro=0.37 NAV=1.690 (129s)
+[backtest] s14_minte_setor_n200: 2017-06-01 (54/132) p=200 giro=0.35 NAV=1.856 (145s)
+[backtest] s14_minte_setor_n200: 2017-12-01 (60/132) p=200 giro=0.44 NAV=2.063 (156s)
+[backtest] s14_minte_setor_n200: 2018-06-01 (66/132) p=200 giro=0.21 NAV=2.121 (170s)
+[backtest] s14_minte_setor_n200: 2018-12-03 (72/132) p=200 giro=0.30 NAV=2.008 (183s)
+[backtest] s14_minte_setor_n200: 2019-06-03 (78/132) p=200 giro=0.24 NAV=2.376 (200s)
+[backtest] s14_minte_setor_n200: 2019-12-02 (84/132) p=200 giro=0.41 NAV=2.638 (218s)
+[backtest] s14_minte_setor_n200: 2020-06-01 (90/132) p=200 giro=0.38 NAV=2.469 (235s)
+[backtest] s14_minte_setor_n200: 2020-12-01 (96/132) p=200 giro=0.21 NAV=2.953 (260s)
+[backtest] s14_minte_setor_n200: 2021-06-01 (102/132) p=200 giro=0.31 NAV=3.380 (281s)
+[backtest] s14_minte_setor_n200: 2021-12-01 (108/132) p=200 giro=0.33 NAV=3.755 (300s)
+[backtest] s14_minte_setor_n200: 2022-06-01 (114/132) p=200 giro=0.31 NAV=3.106 (317s)
+[backtest] s14_minte_setor_n200: 2022-12-01 (120/132) p=200 giro=0.30 NAV=3.127 (343s)
+[backtest] s14_minte_setor_n200: 2023-06-01 (126/132) p=200 giro=0.36 NAV=3.667 (384s)
+[backtest] s14_minte_setor_n200: 2023-12-01 (132/132) p=200 giro=0.24 NAV=3.995 (405s)
+
+s14_minte_setor_n200: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  13.45%  vol  17.15%  Sharpe   0.822  Sortino   1.158  maxDD -33.77%
+  giro/rebal. 0.32  giro/ano 3.81  custo/ano   0.39%  (bruto: CAGR  13.89%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.999  alfa   0.20%  TE   2.15%  IR   0.091
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_minte_setor_n200

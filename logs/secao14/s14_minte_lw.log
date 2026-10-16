@@ -1,0 +1,28 @@
+[backtest] s14_minte_lw: 2013-06-03 (6/132) p=100 giro=0.30 NAV=1.137 (7s)
+[backtest] s14_minte_lw: 2013-12-02 (12/132) p=100 giro=0.20 NAV=1.330 (12s)
+[backtest] s14_minte_lw: 2014-06-02 (18/132) p=100 giro=0.31 NAV=1.381 (17s)
+[backtest] s14_minte_lw: 2014-12-01 (24/132) p=100 giro=0.47 NAV=1.439 (21s)
+[backtest] s14_minte_lw: 2015-06-01 (30/132) p=100 giro=0.18 NAV=1.467 (26s)
+[backtest] s14_minte_lw: 2015-12-01 (36/132) p=100 giro=0.30 NAV=1.471 (32s)
+[backtest] s14_minte_lw: 2016-06-01 (42/132) p=100 giro=0.25 NAV=1.503 (40s)
+[backtest] s14_minte_lw: 2016-12-01 (48/132) p=100 giro=0.31 NAV=1.605 (50s)
+[backtest] s14_minte_lw: 2017-06-01 (54/132) p=100 giro=0.26 NAV=1.771 (55s)
+[backtest] s14_minte_lw: 2017-12-01 (60/132) p=100 giro=0.32 NAV=2.015 (58s)
+[backtest] s14_minte_lw: 2018-06-01 (66/132) p=100 giro=0.20 NAV=2.047 (62s)
+[backtest] s14_minte_lw: 2018-12-03 (72/132) p=100 giro=0.33 NAV=1.985 (67s)
+[backtest] s14_minte_lw: 2019-06-03 (78/132) p=100 giro=0.24 NAV=2.350 (74s)
+[backtest] s14_minte_lw: 2019-12-02 (84/132) p=100 giro=0.27 NAV=2.628 (81s)
+[backtest] s14_minte_lw: 2020-06-01 (90/132) p=100 giro=0.21 NAV=2.441 (88s)
+[backtest] s14_minte_lw: 2020-12-01 (96/132) p=100 giro=0.16 NAV=2.887 (98s)
+[backtest] s14_minte_lw: 2021-06-01 (102/132) p=100 giro=0.12 NAV=3.333 (107s)
+[backtest] s14_minte_lw: 2021-12-01 (108/132) p=100 giro=0.44 NAV=3.614 (118s)
+[backtest] s14_minte_lw: 2022-06-01 (114/132) p=100 giro=0.18 NAV=2.953 (127s)
+[backtest] s14_minte_lw: 2022-12-01 (120/132) p=100 giro=0.22 NAV=3.013 (137s)
+[backtest] s14_minte_lw: 2023-06-01 (126/132) p=100 giro=0.29 NAV=3.542 (147s)
+[backtest] s14_minte_lw: 2023-12-01 (132/132) p=100 giro=0.26 NAV=3.860 (155s)
+
+s14_minte_lw: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  13.09%  vol  17.23%  Sharpe   0.801  Sortino   1.124  maxDD -32.56%
+  giro/rebal. 0.27  giro/ano 3.22  custo/ano   0.33%  (bruto: CAGR  13.46%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   1.002  alfa  -0.13%  TE   2.47%  IR  -0.042
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_minte_lw

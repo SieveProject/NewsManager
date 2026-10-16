@@ -1,0 +1,28 @@
+[backtest] s14_mv_noticias: 2013-06-03 (6/132) p=100 giro=0.69 NAV=1.178 (7s)
+[backtest] s14_mv_noticias: 2013-12-02 (12/132) p=100 giro=0.46 NAV=1.473 (9s)
+[backtest] s14_mv_noticias: 2014-06-02 (18/132) p=100 giro=0.60 NAV=1.582 (11s)
+[backtest] s14_mv_noticias: 2014-12-01 (24/132) p=100 giro=0.80 NAV=1.781 (13s)
+[backtest] s14_mv_noticias: 2015-06-01 (30/132) p=100 giro=0.58 NAV=1.898 (16s)
+[backtest] s14_mv_noticias: 2015-12-01 (36/132) p=100 giro=0.63 NAV=1.974 (18s)
+[backtest] s14_mv_noticias: 2016-06-01 (42/132) p=100 giro=0.40 NAV=1.914 (22s)
+[backtest] s14_mv_noticias: 2016-12-01 (48/132) p=100 giro=0.69 NAV=1.999 (25s)
+[backtest] s14_mv_noticias: 2017-06-01 (54/132) p=100 giro=0.62 NAV=2.289 (28s)
+[backtest] s14_mv_noticias: 2017-12-01 (60/132) p=100 giro=0.57 NAV=2.657 (30s)
+[backtest] s14_mv_noticias: 2018-06-01 (66/132) p=100 giro=0.74 NAV=2.860 (31s)
+[backtest] s14_mv_noticias: 2018-12-03 (72/132) p=100 giro=0.77 NAV=2.172 (34s)
+[backtest] s14_mv_noticias: 2019-06-03 (78/132) p=100 giro=0.67 NAV=2.396 (37s)
+[backtest] s14_mv_noticias: 2019-12-02 (84/132) p=100 giro=0.81 NAV=2.533 (41s)
+[backtest] s14_mv_noticias: 2020-06-01 (90/132) p=100 giro=0.61 NAV=3.165 (44s)
+[backtest] s14_mv_noticias: 2020-12-01 (96/132) p=100 giro=0.26 NAV=5.232 (47s)
+[backtest] s14_mv_noticias: 2021-06-01 (102/132) p=100 giro=0.83 NAV=5.746 (51s)
+[backtest] s14_mv_noticias: 2021-12-01 (108/132) p=100 giro=0.62 NAV=5.341 (56s)
+[backtest] s14_mv_noticias: 2022-06-01 (114/132) p=100 giro=0.39 NAV=4.665 (61s)
+[backtest] s14_mv_noticias: 2022-12-01 (120/132) p=100 giro=0.24 NAV=5.258 (65s)
+[backtest] s14_mv_noticias: 2023-06-01 (126/132) p=100 giro=0.70 NAV=5.085 (71s)
+[backtest] s14_mv_noticias: 2023-12-01 (132/132) p=100 giro=0.52 NAV=5.711 (75s)
+
+s14_mv_noticias: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  17.20%  vol  24.43%  Sharpe   0.772  Sortino   1.084  maxDD -39.53%
+  giro/rebal. 0.65  giro/ano 7.77  custo/ano   0.79%  (bruto: CAGR  18.12%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.984  alfa   5.19%  TE  17.78%  IR   0.280
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_mv_noticias

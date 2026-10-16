@@ -1,0 +1,28 @@
+[backtest] s14_mv_setor: 2013-06-03 (6/132) p=100 giro=0.72 NAV=1.177 (7s)
+[backtest] s14_mv_setor: 2013-12-02 (12/132) p=100 giro=0.43 NAV=1.469 (10s)
+[backtest] s14_mv_setor: 2014-06-02 (18/132) p=100 giro=0.59 NAV=1.578 (12s)
+[backtest] s14_mv_setor: 2014-12-01 (24/132) p=100 giro=0.80 NAV=1.781 (14s)
+[backtest] s14_mv_setor: 2015-06-01 (30/132) p=100 giro=0.58 NAV=1.898 (16s)
+[backtest] s14_mv_setor: 2015-12-01 (36/132) p=100 giro=0.65 NAV=1.967 (19s)
+[backtest] s14_mv_setor: 2016-06-01 (42/132) p=100 giro=0.40 NAV=1.908 (22s)
+[backtest] s14_mv_setor: 2016-12-01 (48/132) p=100 giro=0.70 NAV=1.993 (25s)
+[backtest] s14_mv_setor: 2017-06-01 (54/132) p=100 giro=0.59 NAV=2.297 (27s)
+[backtest] s14_mv_setor: 2017-12-01 (60/132) p=100 giro=0.58 NAV=2.670 (29s)
+[backtest] s14_mv_setor: 2018-06-01 (66/132) p=100 giro=0.72 NAV=2.901 (31s)
+[backtest] s14_mv_setor: 2018-12-03 (72/132) p=100 giro=0.80 NAV=2.206 (34s)
+[backtest] s14_mv_setor: 2019-06-03 (78/132) p=100 giro=0.65 NAV=2.429 (37s)
+[backtest] s14_mv_setor: 2019-12-02 (84/132) p=100 giro=0.86 NAV=2.567 (41s)
+[backtest] s14_mv_setor: 2020-06-01 (90/132) p=100 giro=0.60 NAV=3.215 (44s)
+[backtest] s14_mv_setor: 2020-12-01 (96/132) p=100 giro=0.24 NAV=5.372 (47s)
+[backtest] s14_mv_setor: 2021-06-01 (102/132) p=100 giro=0.85 NAV=6.015 (51s)
+[backtest] s14_mv_setor: 2021-12-01 (108/132) p=100 giro=0.67 NAV=5.623 (57s)
+[backtest] s14_mv_setor: 2022-06-01 (114/132) p=100 giro=0.40 NAV=4.922 (62s)
+[backtest] s14_mv_setor: 2022-12-01 (120/132) p=100 giro=0.18 NAV=5.536 (67s)
+[backtest] s14_mv_setor: 2023-06-01 (126/132) p=100 giro=0.71 NAV=5.351 (73s)
+[backtest] s14_mv_setor: 2023-12-01 (132/132) p=100 giro=0.52 NAV=6.006 (77s)
+
+s14_mv_setor: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  17.74%  vol  24.60%  Sharpe   0.788  Sortino   1.106  maxDD -40.05%
+  giro/rebal. 0.64  giro/ano 7.68  custo/ano   0.78%  (bruto: CAGR  18.65%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.992  alfa   5.59%  TE  17.89%  IR   0.306
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_mv_setor

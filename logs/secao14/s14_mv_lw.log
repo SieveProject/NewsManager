@@ -1,0 +1,28 @@
+[backtest] s14_mv_lw: 2013-06-03 (6/132) p=100 giro=0.74 NAV=1.171 (4s)
+[backtest] s14_mv_lw: 2013-12-02 (12/132) p=100 giro=0.44 NAV=1.461 (5s)
+[backtest] s14_mv_lw: 2014-06-02 (18/132) p=100 giro=0.58 NAV=1.573 (6s)
+[backtest] s14_mv_lw: 2014-12-01 (24/132) p=100 giro=0.80 NAV=1.775 (6s)
+[backtest] s14_mv_lw: 2015-06-01 (30/132) p=100 giro=0.60 NAV=1.886 (8s)
+[backtest] s14_mv_lw: 2015-12-01 (36/132) p=100 giro=0.67 NAV=1.955 (9s)
+[backtest] s14_mv_lw: 2016-06-01 (42/132) p=100 giro=0.39 NAV=1.900 (12s)
+[backtest] s14_mv_lw: 2016-12-01 (48/132) p=100 giro=0.70 NAV=1.982 (14s)
+[backtest] s14_mv_lw: 2017-06-01 (54/132) p=100 giro=0.64 NAV=2.295 (16s)
+[backtest] s14_mv_lw: 2017-12-01 (60/132) p=100 giro=0.58 NAV=2.669 (16s)
+[backtest] s14_mv_lw: 2018-06-01 (66/132) p=100 giro=0.73 NAV=2.888 (17s)
+[backtest] s14_mv_lw: 2018-12-03 (72/132) p=100 giro=0.89 NAV=2.195 (18s)
+[backtest] s14_mv_lw: 2019-06-03 (78/132) p=100 giro=0.63 NAV=2.433 (20s)
+[backtest] s14_mv_lw: 2019-12-02 (84/132) p=100 giro=0.84 NAV=2.562 (22s)
+[backtest] s14_mv_lw: 2020-06-01 (90/132) p=100 giro=0.54 NAV=3.176 (24s)
+[backtest] s14_mv_lw: 2020-12-01 (96/132) p=100 giro=0.24 NAV=5.232 (26s)
+[backtest] s14_mv_lw: 2021-06-01 (102/132) p=100 giro=0.84 NAV=5.808 (29s)
+[backtest] s14_mv_lw: 2021-12-01 (108/132) p=100 giro=0.67 NAV=5.510 (33s)
+[backtest] s14_mv_lw: 2022-06-01 (114/132) p=100 giro=0.39 NAV=4.818 (37s)
+[backtest] s14_mv_lw: 2022-12-01 (120/132) p=100 giro=0.15 NAV=5.423 (41s)
+[backtest] s14_mv_lw: 2023-06-01 (126/132) p=100 giro=0.70 NAV=5.249 (46s)
+[backtest] s14_mv_lw: 2023-12-01 (132/132) p=100 giro=0.55 NAV=5.882 (48s)
+
+s14_mv_lw: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  17.51%  vol  24.66%  Sharpe   0.778  Sortino   1.093  maxDD -40.25%
+  giro/rebal. 0.64  giro/ano 7.67  custo/ano   0.78%  (bruto: CAGR  18.43%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.988  alfa   5.46%  TE  18.03%  IR   0.294
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_mv_lw

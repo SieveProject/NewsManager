@@ -1,0 +1,28 @@
+[backtest] s14_mv_placebo: 2013-06-03 (6/132) p=100 giro=0.74 NAV=1.172 (7s)
+[backtest] s14_mv_placebo: 2013-12-02 (12/132) p=100 giro=0.44 NAV=1.462 (10s)
+[backtest] s14_mv_placebo: 2014-06-02 (18/132) p=100 giro=0.60 NAV=1.572 (12s)
+[backtest] s14_mv_placebo: 2014-12-01 (24/132) p=100 giro=0.80 NAV=1.779 (13s)
+[backtest] s14_mv_placebo: 2015-06-01 (30/132) p=100 giro=0.58 NAV=1.894 (16s)
+[backtest] s14_mv_placebo: 2015-12-01 (36/132) p=100 giro=0.63 NAV=1.968 (18s)
+[backtest] s14_mv_placebo: 2016-06-01 (42/132) p=100 giro=0.39 NAV=1.910 (22s)
+[backtest] s14_mv_placebo: 2016-12-01 (48/132) p=100 giro=0.72 NAV=1.992 (25s)
+[backtest] s14_mv_placebo: 2017-06-01 (54/132) p=100 giro=0.61 NAV=2.298 (28s)
+[backtest] s14_mv_placebo: 2017-12-01 (60/132) p=100 giro=0.58 NAV=2.668 (30s)
+[backtest] s14_mv_placebo: 2018-06-01 (66/132) p=100 giro=0.72 NAV=2.883 (32s)
+[backtest] s14_mv_placebo: 2018-12-03 (72/132) p=100 giro=0.77 NAV=2.195 (34s)
+[backtest] s14_mv_placebo: 2019-06-03 (78/132) p=100 giro=0.61 NAV=2.434 (37s)
+[backtest] s14_mv_placebo: 2019-12-02 (84/132) p=100 giro=0.86 NAV=2.570 (40s)
+[backtest] s14_mv_placebo: 2020-06-01 (90/132) p=100 giro=0.58 NAV=3.212 (43s)
+[backtest] s14_mv_placebo: 2020-12-01 (96/132) p=100 giro=0.26 NAV=5.334 (46s)
+[backtest] s14_mv_placebo: 2021-06-01 (102/132) p=100 giro=0.78 NAV=6.117 (50s)
+[backtest] s14_mv_placebo: 2021-12-01 (108/132) p=100 giro=0.61 NAV=5.730 (56s)
+[backtest] s14_mv_placebo: 2022-06-01 (114/132) p=100 giro=0.37 NAV=5.006 (61s)
+[backtest] s14_mv_placebo: 2022-12-01 (120/132) p=100 giro=0.14 NAV=5.646 (66s)
+[backtest] s14_mv_placebo: 2023-06-01 (126/132) p=100 giro=0.70 NAV=5.462 (71s)
+[backtest] s14_mv_placebo: 2023-12-01 (132/132) p=100 giro=0.56 NAV=6.121 (75s)
+
+s14_mv_placebo: 2013-01-02 a 2023-12-28, 132 rebalanceamentos (0 projetados)
+  CAGR  17.94%  vol  24.71%  Sharpe   0.792  Sortino   1.113  maxDD -40.14%
+  giro/rebal. 0.64  giro/ano 7.66  custo/ano   0.78%  (bruto: CAGR  18.86%)
+  benchmark: CAGR  13.25%  vol  17.02%  beta   0.994  alfa   5.76%  TE  18.02%  IR   0.315
+[backtest] /Users/gabri/Classes/PapersTCC/NewsManager/data/marts/backtests/s14_mv_placebo
