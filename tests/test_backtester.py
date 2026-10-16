@@ -208,7 +208,7 @@ def main() -> int:
         for name, cls in plugins.items():
             params = {} if name == "inverse_volatility" else {"cov": "LW fator único"}
             bt = settings.BacktestConfig(name=f"o_{name}", **{**base, "max_weight": 0.45},
-                                         model={"plugin": f"newsmanager.backtester.models.{name}:{cls}",
+                                         model={"plugin": f"plugins/{name}.py:{cls}",
                                                 "params": params})
             s = engine.run(cfg, bt, verbose=False)
             reb = pq.read_table(cfg.marts / "backtests" / f"o_{name}" / "rebalances.parquet").to_pydict()

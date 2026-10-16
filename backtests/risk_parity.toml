@@ -1,4 +1,4 @@
-# Plugin de exemplo escrito fora do pacote (plugins/exemplo_risk_parity.py).
+# Plugin de exemplo escrito fora do pacote (plugins/risk_parity.py).
 name = "risk_parity"
 start = "2013-01-01"
 end = "2023-12-31"
@@ -11,5 +11,5 @@ cost_bps = 10
 universe = { n = 100 }
 
 [model]
-plugin = "plugins/exemplo_risk_parity.py:RiskParity"
+plugin = "plugins/risk_parity.py:RiskParity"
 params = { lookback = 126 }

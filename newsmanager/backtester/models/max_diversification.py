@@ -1,17 +1,6 @@
-"""Máxima diversificação (Choueifaty e Coignard, 2008): max w'σ / √(w'Σ̂w)
-s.t. Σw = 1 e limites, σ = √diag(Σ̂).
+"""Atalho para plugins/max_diversification.py (onde está a implementação): mantém o caminho
+`newsmanager.backtester.models.max_diversification:MaxDiversification` dos TOMLs já registrados."""
 
-    params = { cov = "LW fator único" }
-"""
+from ..plugin import load_class
 
-import numpy as np
-
-from ...portfolio.optimize import max_ratio
-from .base import CovModel
-
-
-class MaxDiversification(CovModel):
-    def optimize(self, S, ctx):
-        w, r = max_ratio(S, np.sqrt(np.diag(S)), ctx.min_weight, ctx.max_weight)
-        ctx.info["diversification_ratio"] = r
-        return w
+MaxDiversification = load_class("plugins/max_diversification.py", "MaxDiversification")

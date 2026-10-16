@@ -1,12 +1,6 @@
-"""Variância mínima: min w'Σ̂w s.t. Σw = 1, min_weight <= w <= max_weight.
+"""Atalho para plugins/min_variance.py (onde está a implementação): mantém o caminho
+`newsmanager.backtester.models.min_variance:MinVariance` dos TOMLs já registrados."""
 
-    params = { cov = "fator + resíduo setor + notícias", cov_params = { placebo = false } }
-"""
+from ..plugin import load_class
 
-from ...portfolio.optimize import min_variance
-from .base import CovModel
-
-
-class MinVariance(CovModel):
-    def optimize(self, S, ctx):
-        return min_variance(S, ctx.min_weight, ctx.max_weight)
+MinVariance = load_class("plugins/min_variance.py", "MinVariance")

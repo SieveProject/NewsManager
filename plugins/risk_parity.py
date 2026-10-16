@@ -1,9 +1,9 @@
-"""Exemplo de plugin: paridade de risco ingênua com covariância de Ledoit-Wolf.
+"""Plugin `plugins/risk_parity.py:RiskParity`: paridade de risco ingênua com covariância de Ledoit-Wolf.
 
 Use num TOML:
 
     [model]
-    plugin = "plugins/exemplo_risk_parity.py:RiskParity"
+    plugin = "plugins/risk_parity.py:RiskParity"
     params = { lookback = 126, iters = 500 }
 
 Contrato (ver newsmanager/backtester/plugin.py):
@@ -17,7 +17,7 @@ Contrato (ver newsmanager/backtester/plugin.py):
 import numpy as np
 
 from newsmanager.backtester import Model
-from newsmanager.backtester.models.basic import describe
+from newsmanager.backtester.models.base import describe
 from newsmanager.portfolio import estimators as est
 from newsmanager.portfolio.optimize import project_box_simplex
 

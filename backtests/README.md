@@ -58,7 +58,7 @@ As runs são gravadas em `data/marts/backtests/<name>/`, e rodar de novo sobresc
 
 ## Escrevendo um modelo
 
-Veja `plugins/exemplo_risk_parity.py` e a docstring de `newsmanager/backtester/plugin.py`. Mínimo:
+Veja qualquer arquivo de `plugins/` e a docstring de `newsmanager/backtester/plugin.py`. Mínimo:
 
 ```python
 from newsmanager.backtester import Model
@@ -80,18 +80,22 @@ e nos gráficos de diagnóstico do notebook.
 
 ## Modelos prontos
 
-Um plugin por módulo em `newsmanager/backtester/models/`:
+Um arquivo por modelo em `plugins/`. Copie um deles para começar um modelo novo.
 
 | plugin | params |
 |---|---|
-| `equal_weight:EqualWeight` | — |
-| `inverse_volatility:InverseVolatility` | — |
-| `min_variance:MinVariance` | `cov`, `cov_params` |
-| `mean_variance:MeanVariance` | `cov`, `cov_params`, `gamma` (5) |
-| `max_sharpe:MaxSharpe` | `cov`, `cov_params` |
-| `max_diversification:MaxDiversification` | `cov`, `cov_params` |
-| `hrp:HRP` | `cov`, `cov_params` |
-| `min_tracking_error:MinTrackingError` | `cov`, `cov_params` (precisa de `benchmark = <ticker>`) |
+| `plugins/equal_weight.py:EqualWeight` | — |
+| `plugins/inverse_volatility.py:InverseVolatility` | — |
+| `plugins/min_variance.py:MinVariance` | `cov`, `cov_params` |
+| `plugins/mean_variance.py:MeanVariance` | `cov`, `cov_params`, `gamma` (5) |
+| `plugins/max_sharpe.py:MaxSharpe` | `cov`, `cov_params` |
+| `plugins/max_diversification.py:MaxDiversification` | `cov`, `cov_params` |
+| `plugins/hrp.py:HRP` | `cov`, `cov_params` |
+| `plugins/min_tracking_error.py:MinTrackingError` | `cov`, `cov_params` (precisa de `benchmark = <ticker>`) |
+| `plugins/risk_parity.py:RiskParity` | `lookback`, `iters` |
+
+Os que usam Σ̂ herdam de `CovModel` (`newsmanager/backtester/models/base.py`) e só implementam
+`optimize(S, ctx)`. A Σ̂ vem do estimador escolhido em `cov`.
 
 `cov` escolhe o estimador de Σ̂ (`models/covariance.py`):
 - estatísticos: `amostral`, `LW identidade`, `LW fator único`, `LW corr. constante`, `LW não linear`, `RMT`,
@@ -103,12 +107,13 @@ e `seed`. Exemplo:
 
 ```toml
 [model]
-plugin = "newsmanager.backtester.models.hrp:HRP"
+plugin = "plugins/hrp.py:HRP"
 params = { cov = "fator + resíduo setor + notícias", cov_params = { placebo = true } }
 ```
 
-`basic:MinVariance` (`estimator`) e `news:NewsFactorResidual` (`features`) são os nomes antigos, mantidos
-para os TOMLs das seções 12–13.
+Os TOMLs já registrados (seções 12–15) usam `newsmanager.backtester.models.<modelo>:<Classe>`,
+`basic:MinVariance` e `news:NewsFactorResidual`. Esses caminhos são atalhos que carregam os arquivos de
+`plugins/`, então os resultados se reproduzem. Em configurações novas, use `plugins/...`.
 
 O estimador `fator + resíduo ...` é o modelo da seção 10 de `docs/metodo_covariancia.md`. O β da regressão é treinado só
 nos meses do painel cujo período de carteira terminou antes de t, o que vale para qualquer frequência de

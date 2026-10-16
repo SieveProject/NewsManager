@@ -1,12 +1,6 @@
-"""Peso ∝ 1/σ_i (desvio-padrão amostral na janela); teto imposto por projeção."""
+"""Atalho para plugins/inverse_volatility.py (onde está a implementação): mantém o caminho
+`newsmanager.backtester.models.inverse_volatility:InverseVolatility` dos TOMLs já registrados."""
 
-import numpy as np
+from ..plugin import load_class
 
-from ...portfolio.optimize import project_box_simplex
-from ..plugin import Context, Model
-
-
-class InverseVolatility(Model):
-    def weights(self, ctx: Context) -> np.ndarray:
-        w = 1 / np.nanstd(ctx.returns, axis=0, ddof=1)
-        return project_box_simplex(w / w.sum(), ctx.min_weight, ctx.max_weight)
+InverseVolatility = load_class("plugins/inverse_volatility.py", "InverseVolatility")

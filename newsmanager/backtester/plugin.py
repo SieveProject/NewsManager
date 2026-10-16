@@ -32,6 +32,7 @@ Regras que o motor garante e confere:
     notícias, setores...): use só dados com data < ctx.date.
 
 Uma função `def modelo(ctx, **params) -> pesos` também serve como plugin.
+Os modelos prontos estão em plugins/ (um arquivo por modelo).
 """
 
 from __future__ import annotations
@@ -116,10 +117,16 @@ def _import(spec: str):
         if not path.exists():
             raise ConfigError(f"plugin: {path} não existe")
         modname = f"nm_plugin_{hashlib.sha1(str(path).encode()).hexdigest()[:8]}"
-        s = importlib.util.spec_from_file_location(modname, path)
-        m = importlib.util.module_from_spec(s)
-        sys.modules[modname] = m
-        s.loader.exec_module(m)
+        m = sys.modules.get(modname)
+        if m is None:                        # executa cada arquivo uma vez só
+            s = importlib.util.spec_from_file_location(modname, path)
+            m = importlib.util.module_from_spec(s)
+            sys.modules[modname] = m
+            try:
+                s.loader.exec_module(m)
+            except BaseException:
+                del sys.modules[modname]
+                raise
         source = path
     else:
         m = importlib.import_module(mod)
@@ -140,5 +147,15 @@ def load_model(spec: str, params: dict) -> tuple[Model, dict]:
         model = _FunctionModel(obj, **params)
     else:
         raise ConfigError(f"plugin {spec}: não é classe nem função")
+    try:                                     # o arquivo onde a classe está (atalhos -> plugins/)
+        source = Path(inspect.getsourcefile(obj))
+    except (TypeError, OSError):
+        pass
     prov = {"plugin": spec, "file": str(source), "sha256": hashlib.sha256(source.read_bytes()).hexdigest()}
     return model, prov
+
+
+def load_class(path: str, name: str):
+    """Classe `name` do arquivo de plugin `path` (relativo à raiz do repositório)."""
+    obj, _ = _import(f"{path}:{name}")
+    return obj

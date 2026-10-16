@@ -1,10 +1,6 @@
-"""1/N do universo elegível (o teto de peso nunca morde quando N >= 1/max_weight)."""
+"""Atalho para plugins/equal_weight.py (onde está a implementação): mantém o caminho
+`newsmanager.backtester.models.equal_weight:EqualWeight` dos TOMLs já registrados."""
 
-import numpy as np
+from ..plugin import load_class
 
-from ..plugin import Context, Model
-
-
-class EqualWeight(Model):
-    def weights(self, ctx: Context) -> np.ndarray:
-        return np.full(ctx.p, 1 / ctx.p)
+EqualWeight = load_class("plugins/equal_weight.py", "EqualWeight")
