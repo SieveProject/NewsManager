@@ -923,9 +923,167 @@ Para comparação, com os mesmos dados e restrições: variância mínima com se
 
 Notebooks: `notebooks/secao14_{mv,maxsharpe,maxdiv,hrp,minte}.ipynb`.
 
+## 16. Desenho fixado antes de rodar: Black-Litterman na covariância (2026-10-22)
+
+Escrito ANTES de implementar ou rodar este desenho. Mudanças depois do commit
+desta seção precisam ser declaradas como tal.
+
+**Transparência: o que já foi visto.** Os resultados das seções 8–15. Também
+os dois testes exploratórios de 2026-10-22, sem critério pré-registrado:
+
+- **Estabilidade diária de Σ̂** (`python -m newsmanager.backtester stability`):
+  - notícias/setor = 1,12 no κ mediano, contra 1,10 do placebo;
+  - mercado + sentimento sobre mercado = 1,02, contra 1,02 do placebo.
+- **Fatores de sentimento por agente** (`python -m newsmanager sentiment`): R²
+  mediano de 4,2%, o nível esperado do ruído com 10 regressores.
+
+Nenhuma configuração deste desenho foi rodada.
+
+**Por que um quarto desenho.** Nos desenhos anteriores a notícia entra por um
+único alvo, com um único δ de shrinkage para todos os pares. Um par com
+centenas de eventos e um par ligado só por exposição comum recebem o mesmo
+peso da notícia. A H1 mostra que a notícia acerta a média dos pares. A
+pergunta aqui é se ela melhora Σ̂ quando cada par recebe a confiança que a sua
+própria evidência justifica. É a estrutura do Black-Litterman (Black e
+Litterman, 1992), com visões sobre a covariância e não sobre a média (Qian e
+Gorman, 2001).
+
+**Modelo.** As definições de mercado, betas e resíduos são as da seção 10:
+m_t, b_i e E. Só a covariância residual Σ_e é atualizada:
+
+    Σ̂ = σ²_m b b' + Σ̂_e^BL
+
+1. **Prior ("equilíbrio").** Σ₀ = Σ̂_e do "fator + resíduo setor" da seção 10,
+   a referência a bater, com sᵢ = (Σ₀)ᵢᵢ. A incerteza do prior sobre os
+   elementos fora da diagonal é a covariância de Wishart da covariância
+   amostral (Anderson, 2003), avaliada em Σ₀, com T = 252 pregões:
+
+       V_(ij),(kl) = (σ₀,ik σ₀,jl + σ₀,il σ₀,jk) / T
+
+   É o análogo, na covariância, da convenção τ = 1/T de He e Litterman
+   (1999). Em escala de Fisher z, ela dá Var ≈ 1/T por par. Uma visão sobre
+   o par (i, j) também move os pares (i, l) e (j, l), na proporção das
+   covariâncias do prior.
+2. **Visões.** Há uma visão para cada par com algum atributo de notícia não
+   nulo na janela (`comention`, `cooccur`, `direct_*` ou `exposure`). Pares
+   sem notícia ficam sem visão.
+   - O valor da visão é a correlação prevista pelo modelo "setor + notícias"
+     da seção 10, ẑ_ij = z̄_e + β'x_ij, na escala da covariância:
+
+         q_ij = tanh(ẑ_ij) · √(sᵢ sⱼ)
+
+   - P seleciona o elemento (i, j) de vec(Σ_e). A visão é, portanto, linear
+     em Σ_e, como no BL original.
+   - A diagonal (as variâncias) não recebe visão nem é atualizada.
+3. **Confiança Ω (diagonal) por classe de evidência.** Cada par com visão cai
+   em uma classe c:
+   - c = 0: há atributo de notícia, mas `cooccur` = 0 (só exposição comum
+     e/ou co-menção);
+   - c = 1–4: quartis de `cooccur` > 0, com os cortes calculados nos meses de
+     treino.
+
+   Para cada classe, o erro da visão em escala z é estimado no painel da
+   seção 10, só nos meses já disponíveis para β:
+
+       ω_c = média(ê² | c) − média_m 1/(d_m − 3),   ω_c ≥ 1/(T − 3)
+
+   - ê = z da correlação residual realizada no mês menos a previsão
+     (resíduo dentro da amostra da regressão que dá β).
+   - O termo subtraído é o ruído amostral de uma correlação de d_m pregões.
+     Sem ele, ω mediria o erro contra a correlação realizada no mês, e não
+     contra a verdadeira.
+   - O piso impede que uma visão seja mais precisa que a correlação amostral
+     de T pregões.
+   - Na escala da covariância, pelo método delta:
+
+         Ω_ij = (1 − tanh²ẑ_ij)² · sᵢ sⱼ · ω_c(ij)
+
+4. **Posterior.** É a média do BL na forma de Kalman, sobre os elementos fora
+   da diagonal:
+
+       vec Σ_e^BL = vec Σ₀ + V P' (P V P' + Ω)⁻¹ (q − P vec Σ₀)
+
+   O resultado é convertido em correlação e projetado para PSD com
+   `nearest_corr` (Higham, 2002), com as variâncias sᵢ de volta. Não se soma
+   a incerteza do posterior (o M do BL), porque o objeto estimado é Σ, não um
+   retorno futuro.
+5. **Antes de 24 meses de treino** (`min_train`) não há β nem ω, e o BL é
+   igual ao prior. É a mesma regra dos desenhos anteriores.
+
+**Estimadores comparados** (parâmetro `cov`):
+
+| `cov` | papel |
+|---|---|
+| fator + resíduo setor | **referência a bater** (o prior) |
+| **fator + resíduo setor + BL notícias** | **modelo principal** |
+| idem, `placebo = true` (seed 7) | controle: atributos de notícia permutados entre ações, como na seção 10 (q, classe e Ω vão juntos) |
+| idem, Ω homogêneo | ablação descritiva: ω igual à média ponderada das classes |
+| fator + resíduo setor + notícias (seção 10) | descritivo: o shrinkage com δ único |
+| LW fator único | referência estatística |
+
+**Carteira principal: GMV sem restrição** (w = Σ̂⁻¹1 / 1'Σ̂⁻¹1;
+`min_weight = -inf`, `max_weight = inf` no backtester, que usa a forma
+fechada). É a carteira em que o erro de Σ̂ passa inteiro para os pesos, e onde
+as notícias pioraram nas seções 11 e 13. O resto da configuração é o da seção
+12:
+- 2013-01 a 2023-12, 252 pregões in-sample, rebalanceamento mensal;
+- custo de 10 bps, benchmark SPY;
+- `news.universe` n = 100, cobertura mínima de 95%;
+- notícias de 365 dias, meia-vida de 90 dias, `min_train = 24`.
+
+Arquivos: `backtests/secao16/*.toml`, `rodar.sh` e `avaliar.py`, no commit
+da implementação.
+
+**Teste.** É o das seções 12 e 14:
+- razão de variâncias dos retornos diários líquidos nos pregões em comum;
+- p bicaudal por bootstrap circular em blocos de 10 dias, 2.000
+  reamostragens, seed 7.
+
+**Critério de sucesso** (decidido agora):
+
+1. **Principal.** n = 100: a razão "setor + BL notícias" / "setor" é < 1 com
+   **p < 0,0125**, **e** é menor que a razão placebo / setor. O nível é
+   0,05/4: este é o quarto desenho testado para H2 (seções 10, 12, 14 e 16).
+2. **Confirmação (sem exigir significância).** Razão < 1 em n = 50 e
+   n = 200.
+3. **Robustez e diagnóstico (descritivos, não são critério).**
+   - variância mínima long-only com teto de 10% (configuração da seção 12);
+   - tracking error mínimo (configuração da seção 14), em que as notícias
+     pioraram;
+   - Ω homogêneo contra Ω por classe (isola o ganho da confiança por par);
+   - os ω_c estimados por ano e o número de visões por mês;
+   - o número de condição mensal de cada Σ̂.
+
+Para declarar H2 aceita neste desenho, (1) e (2) precisam ser atendidos. O
+resultado é registrado junto com o das seções 11, 13 e 15, seja qual for.
+
+**Limitações declaradas agora.**
+- O prior e as visões compartilham a informação de setor e a mesma janela de
+  retornos (o nível z̄_e). Os erros dos dois não são independentes, como o BL
+  supõe, e o posterior tende a confiar demais nas visões.
+- O ω_c vem de resíduos dentro da amostra, com o mês centrado. Ele não inclui
+  o erro do nível z̄_e.
+- A incerteza de Wishart é a da covariância amostral. Σ₀ já é encolhida e
+  tem menos variância que isso, então o prior pode estar fraco demais.
+- A atualização linear não garante PSD. A projeção para PSD muda o posterior
+  nos meses em que ela age; a sua frequência é registrada em `ctx.info`.
+
+**Implementação** (depois do commit desta seção, antes de rodar):
+- função de estimação em `newsmanager/portfolio/estimators.py`;
+- estimador no `cov` de `newsmanager/backtester/models/covariance.py`;
+- ω_c treinado no mesmo `_Trainer` que dá β.
+
+Teste sintético em `tests/test_backtester.py`:
+- Ω → ∞ devolve o prior;
+- Ω → 0 com uma visão leva o elemento visto a q e move os outros por
+  V P'(P V P')⁻¹;
+- conferência contra o BL escrito com matrizes densas num caso pequeno.
+
 ## Referências
 
+- Anderson, T. W. (2003). *An Introduction to Multivariate Statistical Analysis*, 3ª ed. Wiley.
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
+- Black, F.; Litterman, R. (1992). Global portfolio optimization. *Financial Analysts Journal* 48(5), 28–43.
 - Bun, J.; Bouchaud, J.-P.; Potters, M. (2017). Cleaning large correlation matrices: tools from random matrix theory. *Physics Reports* 666.
 - Chan, L.; Karceski, J.; Lakonishok, J. (1999). On portfolio optimization: forecasting covariances and choosing the risk model. *RFS* 12, 937–974.
 - Cohen, L.; Frazzini, A. (2008). Economic links and predictable returns. *Journal of Finance* 63(4).
@@ -936,6 +1094,7 @@ Notebooks: `notebooks/secao14_{mv,maxsharpe,maxdiv,hrp,minte}.ipynb`.
 - Engle, R.; Colacito, R. (2006). Testing and valuing dynamic correlations for asset allocation. *JBES* 24(2).
 - Friedman, J.; Hastie, T.; Tibshirani, R. (2008). Sparse inverse covariance estimation with the graphical lasso. *Biostatistics* 9(3).
 - Guo, L.; Peng, L.; Tao, Y.; Tu, J. Joint News, Attention Spillover, and Stock Returns. arXiv:1703.02715.
+- He, G.; Litterman, R. (1999). The intuition behind Black-Litterman model portfolios. Goldman Sachs Investment Management Research.
 - Higham, N. (2002). Computing the nearest correlation matrix. *IMA J. Numer. Anal.* 22.
 - Hoberg, G.; Phillips, G. (2016). Text-based network industries and endogenous product differentiation. *JPE* 124(5).
 - Jagannathan, R.; Ma, T. (2003). Risk reduction in large portfolios: why imposing the wrong constraints helps. *J. Finance* 58(4).
@@ -957,6 +1116,7 @@ Notebooks: `notebooks/secao14_{mv,maxsharpe,maxdiv,hrp,minte}.ipynb`.
 - Patton, A. (2011). Volatility forecast comparison using imperfect volatility proxies. *J. Econometrics* 160(1).
 - Peralta, G.; Zareei, A. (2016). A network approach to portfolio selection. *J. Empirical Finance* 38.
 - Pozzi, F.; Di Matteo, T.; Aste, T. (2013). Spread of risk across financial markets: better to invest in the peripheries. *Scientific Reports* 3, 1665.
+- Qian, E.; Gorman, S. (2001). Conditional distribution in portfolio theory. *Financial Analysts Journal* 57(2), 44–51.
 - Scherbina, A.; Schlusche, B. (2016). Economic linkages inferred from news stories and the predictability of stock returns. AEI WP; (2020) Follow the leader, *Review of Finance* 24(1).
 - Tang, Y.; Zhou, Y.; Hong, M. (2019). News co-occurrences, stock return correlations, and portfolio construction implications. *JRFM* 12(1), 45.
 - Tumminello, M.; Aste, T.; Di Matteo, T.; Mantegna, R. (2005). A tool for filtering information in complex systems. *PNAS* 102(30).

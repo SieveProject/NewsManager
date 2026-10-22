@@ -186,6 +186,37 @@ def nearest_corr(R: np.ndarray, eps: float = 1e-4) -> np.ndarray:
     return R
 
 
+def multi_factor(X: np.ndarray, G: np.ndarray, resid: str = "diag") -> np.ndarray:
+    """Σ̂ = B' Σ_g B + Σ̂_e com fatores observados G (T x k, mesmos dias de X).
+
+    B = MQO de Z (retornos centrados, faltante -> 0) em G centrado, comum a
+    todos os ativos; Σ_g = covariância amostral dos fatores. Fator sem
+    variância na janela sai. Com Σ̂_e = covariância amostral dos resíduos o
+    resultado seria S exatamente (resíduos ortogonais aos fatores); o ajuste
+    vem de estruturar o resíduo:
+      "diag" -> Σ̂_e = diag dos resíduos (modelo de fatores clássico)
+      "cc"   -> Ledoit-Wolf correlação constante nos resíduos
+      "none" -> só a parte comum B'Σ_g B: posto = nº de fatores, singular
+                quando há menos fatores que ativos (só para diagnóstico)
+    """
+    Z = demeaned(X)
+    Gc = G - G.mean(axis=0)
+    Gc = Gc[:, Gc.var(axis=0) > 1e-12]
+    n = len(Z) - 1
+    B, *_ = np.linalg.lstsq(Gc, Z, rcond=None)                 # k x p
+    E = Z - Gc @ B
+    common = B.T @ (Gc.T @ Gc / n) @ B
+    if resid == "none":
+        return common
+    if resid == "diag":
+        Se = np.diag((E * E).sum(axis=0) / n)
+    elif resid == "cc":
+        Se = lw_const_corr(E)
+    else:
+        raise ValueError(f"resid {resid!r}: use 'diag', 'cc' ou 'none'")
+    return common + Se
+
+
 def factor_residual(X: np.ndarray, R_prior: np.ndarray | str = "identity", return_delta: bool = False):
     """Σ̂ = σ²_m b b' + Σ̂_e (docs/metodo_covariancia.md, seção 10).
 

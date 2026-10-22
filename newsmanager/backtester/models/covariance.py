@@ -105,14 +105,20 @@ class NewsResidual:
         self.trainer = _Trainer(_panel(env, n, self.news_days, self.half_life), {"m": self.regs})
         self.months = list(self.trainer.ud)
 
+    def features(self, ctx: Context, news_days: int | None = None) -> dict[str, np.ndarray]:
+        """Atributos de par em ctx.date (notícias dos `news_days` dias anteriores)."""
+        return _features_for_regression(features.pair_features(
+            self.env.con, self.env.cfg, ctx.date, ctx.tickers, news_days or self.news_days, self.half_life))
+
     def __call__(self, ctx: Context) -> np.ndarray:
+        return self.estimate(ctx, self.features(ctx))
+
+    def estimate(self, ctx: Context, F: dict[str, np.ndarray]) -> np.ndarray:
         X = ctx.returns
         m = data.market_factor(X)
         a, b = data.market_betas(X, m)
         Ce, _ = data.pairwise_corr(data.residuals(X, b, m, a), min_obs=len(X) // 2)
         z = np.arctanh(np.clip(Ce, -0.999, 0.999))
-        F = _features_for_regression(features.pair_features(
-            self.env.con, self.env.cfg, ctx.date, ctx.tickers, self.news_days, self.half_life))
         if self.placebo:
             perm = self.rng.permutation(ctx.p)
             F = {f: (M[np.ix_(perm, perm)] if f in h1.NEWS else M) for f, M in F.items()}

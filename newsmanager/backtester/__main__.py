@@ -1,4 +1,4 @@
-"""python -m newsmanager.backtester {run,compare,notebook,list}"""
+"""python -m newsmanager.backtester {run,compare,notebook,list,stability}"""
 
 from __future__ import annotations
 
@@ -32,6 +32,17 @@ def main(argv: list[str] | None = None) -> int:
 
     sub.add_parser("list", help="runs já gravadas")
 
+    ss = sub.add_parser("stability", help="número de condição diário de Σ̂ por estimador (stability.py)")
+    ss.add_argument("action", choices=["run", "plot", "summary"])
+    ss.add_argument("--n", type=int, default=100, help="universo news.universe n")
+    ss.add_argument("--window", type=int, default=252, help="pregões de retornos (e de notícias) antes de t")
+    ss.add_argument("--start", default="2011-01-01")
+    ss.add_argument("--end", default="2023-12-31")
+    ss.add_argument("--workers", type=int, default=4, help="anos em paralelo")
+    ss.add_argument("--force", action="store_true", help="refaz os anos já gravados")
+    ss.add_argument("--measure", default="cond_cov", choices=["cond_cov", "cond_corr"],
+                    help="covariância (padrão) ou correlação implícita")
+
     args = p.parse_args(argv)
     cfg = config.load(args.config)
     try:
@@ -56,6 +67,22 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "notebook":
             from . import notebook
             notebook.write(cfg, args.runs, base=args.base, out=args.out, execute=not args.no_execute)
+        elif args.cmd == "stability":
+            from . import stability
+            if args.action == "run":
+                stability.run(cfg, n=args.n, window=args.window, start=args.start, end=args.end,
+                              workers=args.workers, force=args.force)
+            elif args.action == "plot":
+                for f in stability.plot(cfg, n=args.n, window=args.window, measure=args.measure):
+                    print(f)
+            else:
+                import pandas as pd
+                tab, by_year = stability.summary(cfg, n=args.n, window=args.window, measure=args.measure)
+                with pd.option_context("display.width", 250, "display.max_columns", 30,
+                                       "display.float_format", "{:.1f}".format):
+                    print(tab.to_string())
+                    print()
+                    print(by_year.T.to_string())
         elif args.cmd == "list":
             import json
             from .engine import runs_dir

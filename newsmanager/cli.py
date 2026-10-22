@@ -131,6 +131,12 @@ def cmd_backtest(cfg, args) -> int:
     return 0
 
 
+def cmd_sentiment(cfg, args) -> int:
+    from .portfolio import sentiment
+    sentiment.run(cfg, n=args.n, window=args.window, start=args.start, end=args.end)
+    return 0
+
+
 def cmd_reset(cfg, args) -> int:
     targets = {"raw": cfg.raw, "curated": cfg.curated, "marts": cfg.marts, "tmp": cfg.tmp}
     chosen = targets if args.what == "all" else {args.what: targets[args.what]}
@@ -200,6 +206,12 @@ def _dispatch(argv: list[str] | None = None) -> int:
     sb.add_argument("--news-days", type=int, default=365)
     sb.add_argument("--half-life", type=float, default=90.0)
 
+    sn = sub.add_parser("sentiment", help="betas das ações ao sentimento de agentes (Fed, dólar...), janela deslizante")
+    sn.add_argument("--n", type=int, default=100, help="universo news.universe n")
+    sn.add_argument("--window", type=int, default=252, help="pregões antes de cada t")
+    sn.add_argument("--start", default="2011-01-01")
+    sn.add_argument("--end", default="2023-12-31")
+
     sr = sub.add_parser("reset", help="delete a layer so it can be rebuilt")
     sr.add_argument("what", choices=("all", "raw", "curated", "marts", "tmp"))
 
@@ -220,6 +232,7 @@ def _dispatch(argv: list[str] | None = None) -> int:
         "sectors": cmd_sectors,
         "h1": cmd_h1,
         "backtest": cmd_backtest,
+        "sentiment": cmd_sentiment,
         "reset": cmd_reset,
     }[args.cmd](cfg, args)
 
