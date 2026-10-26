@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 from newsmanager import config  # noqa: E402
 from newsmanager.backtester import Model, engine, metrics, settings  # noqa: E402
 from newsmanager.config import ConfigError  # noqa: E402
-from newsmanager.portfolio import optimize  # noqa: E402
+from newsmanager.portfolio import estimators, optimize  # noqa: E402
 
 HERE = str(Path(__file__).resolve())
 TICKERS = ["AAA", "BBB", "CCC", "DDD"]
@@ -276,7 +276,33 @@ def main() -> int:
     assert 0 < phi < 1 and np.isclose(phi, ph) and np.allclose(mb, (1 - ph) * xb + ph * m0)
     print("ok  tangente, Markowitz, máxima diversificação, TE mínimo, HRP e Bayes-Stein contra fórmulas fechadas")
 
-    # 7. sobrescritas do TOML e medidas
+    # 7. Black-Litterman na covariância (seção 16) contra as matrizes densas
+    rng = np.random.default_rng(3)
+    p, T = 6, 50
+    S0 = np.cov(rng.standard_normal((200, p)).T) + 0.5 * np.eye(p)
+    iu = np.triu_indices(p, 1)
+    pairs = list(zip(*iu))
+    sel = [0, 3, 5, 9, 14]
+    i, j = iu[0][sel], iu[1][sel]
+    q, om = rng.standard_normal(5) * 0.1, rng.uniform(0.001, 0.01, 5)
+    V = np.array([[(S0[a, c] * S0[b, d] + S0[a, d] * S0[b, c]) / T for c, d in pairs] for a, b in pairs])
+    P = np.zeros((5, len(pairs)))
+    P[np.arange(5), sel] = 1
+    dense = S0[iu] + V @ P.T @ np.linalg.solve(P @ V @ P.T + np.diag(om), q - P @ S0[iu])
+    S, info = estimators.black_litterman_cov(S0, i, j, q, om, T)
+    assert info["psd_projected"] == 0 and np.allclose(S[iu], dense, atol=1e-12)
+    assert np.allclose(np.diag(S), np.diag(S0)) and np.allclose(S, S.T)
+    S, _ = estimators.black_litterman_cov(S0, i, j, q, np.full(5, 1e12), T)
+    assert np.allclose(S, S0, atol=1e-12)                       # Ω -> ∞: o prior
+    k = 0
+    S, _ = estimators.black_litterman_cov(S0, i[:1], j[:1], q[:1], np.full(1, 1e-14), T)
+    assert np.isclose(S[i[k], j[k]], q[k])                        # Ω -> 0: o elemento visto vai a q
+    a, b = i[k], j[k]
+    move = V[:, sel[k]] / V[sel[k], sel[k]] * (q[k] - S0[a, b])  # e os outros por V P'(P V P')⁻¹
+    assert np.allclose(S[iu], S0[iu] + move, atol=1e-12)
+    print("ok  Black-Litterman na covariância contra o BL denso e nos limites de Ω")
+
+    # 8. sobrescritas do TOML e medidas
     with tempfile.TemporaryDirectory() as tmp:
         f = Path(tmp) / "x.toml"
         f.write_text('start = "2013-01-01"\nend = "2014-01-01"\n[model]\nplugin = "a:b"\n')

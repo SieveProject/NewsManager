@@ -33,7 +33,21 @@ link-prep (Mac) -> link-run (GPU, deploy/run_link.sh) -> link-verify (GPU) -> li
 graph-build (Mac, ~15 s)                                   python -m newsmanager.extract graph-build
 prices -> universe --n N -> sectors -> h1 [--residual] -> backtest --n N (Mac)
 backtester run backtests/*.toml -> compare -> notebook    python -m newsmanager.backtester <etapa>
+sectors --sp500 -> grafo <etapa> (seção 18)               python -m newsmanager.grafo <etapa>
 ```
+
+- `grafo` (`newsmanager/grafo/`, seção 18 do método): o programa do roteiro
+  `grafo_noticias_covariancia.md`.
+  - Universo S&P 500 point-in-time (`data/reference/sp500`).
+  - Grafo em matrizes (`rede.py`, eventos em memória).
+  - M1–M9, placebos P1–P6, testes diádicos G1–G9 (Fama-MacBeth + QAP).
+  - Walk-forward: dev 2013–2018 com escolhas automáticas e holdout 2019–2023
+    que roda **uma vez** (`programa.holdout` recusa refazer sem `--force`).
+  - Ordem: `backtests/secao18/fase1.sh`, nota com as escolhas do dev na
+    seção 18, depois `fase2.sh`.
+  - Texto das unidades em `data/curated/extraction_units` (cópia do Drive,
+    474 MB).
+  - Teste: `tests/test_grafo.py`.
 
 - `data/raw` (bronze) -> `data/curated/{documents,mentions,summaries}` (silver) ->
   `data/curated/extraction_units` -> `data/extractions/v=<versão>/{runs,relations}` ->

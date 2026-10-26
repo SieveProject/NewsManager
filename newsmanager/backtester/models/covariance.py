@@ -7,6 +7,8 @@ Estatísticos (só retornos da janela):
 Com setor/notícias (seção 10 de docs/metodo_covariancia.md):
   fator + resíduo setor, fator + resíduo notícias, fator + resíduo setor + notícias
 
+Black-Litterman (seção 16): fator + resíduo setor + BL notícias
+
     Σ̂ = σ²_m b b' + shrink(E -> D_e^½ R D_e^½),   R_ij = tanh(z̄ + β'f_ij)
 
 f_ij são os atributos de par de newsmanager/portfolio/features.py (só notícias
@@ -32,7 +34,7 @@ import pyarrow.parquet as pq
 
 from ...config import ConfigError
 from ...portfolio import data, estimators as est, features, h1
-from ...portfolio.backtest import _features_for_regression, _target, _Trainer
+from ...portfolio.backtest import _features_for_regression, _target, _Trainer, _zhat
 from ..plugin import Context, Env
 
 STATISTICAL = {
@@ -50,7 +52,8 @@ NEWS = {
     "fator + resíduo notícias": h1.NEWS,
     "fator + resíduo setor + notícias": [*h1.SECTOR, *h1.NEWS],
 }
-NAMES = (*STATISTICAL, *NEWS)
+BL = "fator + resíduo setor + BL notícias"
+NAMES = (*STATISTICAL, *NEWS, BL)
 
 
 class Statistical:
@@ -132,6 +135,113 @@ class NewsResidual:
         return S
 
 
+class _Omega:
+    """Erro das visões por classe de evidência (seção 16), treinado no painel
+    residual nos k primeiros meses, com o β desses mesmos meses.
+
+    Classe do par: -1 sem notícia (sem visão); 0 com notícia e cooccur = 0;
+    1-4 quartis de cooccur > 0 nos meses de treino.
+      ω_c = média(ê² | c) - média(1/(n_fut - 3) | c)
+    ê = resíduo do MQO com y e x centrados no mês (o mesmo de _Trainer)."""
+
+    def __init__(self, panel: dict, regs: list[str], months: list):
+        pos = {d: k for k, d in enumerate(months)}
+        self.month = np.array([pos[d] for d in panel["date"]])
+        nm = len(months)
+        cnt = np.bincount(self.month, minlength=nm)
+
+        def center(v):
+            return v - (np.bincount(self.month, v, nm) / cnt)[self.month]
+
+        self.y = center(panel["z_fut"])
+        self.X = np.column_stack([center(panel[r].astype(float)) for r in regs])
+        self.news = np.any([panel[f] != 0 for f in h1.NEWS], axis=0)
+        self.cooc = panel["cooccur"]
+        self.noise = 1 / (panel["n_fut"] - 3)
+        self.cache: dict[int, tuple] = {}
+
+    def __call__(self, k: int, beta: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """(cortes dos quartis, ω_c bruto das classes 0-4, nº de pares de treino por classe)."""
+        if k not in self.cache:
+            tr = self.month < k
+            e2 = (self.y[tr] - self.X[tr] @ beta) ** 2
+            cooc = self.cooc[tr]
+            cuts = np.quantile(cooc[cooc > 0], [0.25, 0.5, 0.75])
+            c = classes(self.news[tr], cooc, cuts)
+            n = np.bincount(c[c >= 0], minlength=5)
+            om = np.array([e2[c == g].mean() - self.noise[tr][c == g].mean() if n[g] else np.nan
+                           for g in range(5)])
+            self.cache[k] = (cuts, om, n)
+        return self.cache[k]
+
+
+def classes(news: np.ndarray, cooc: np.ndarray, cuts: np.ndarray) -> np.ndarray:
+    return np.where(~news, -1, np.where(cooc > 0, 1 + np.searchsorted(cuts, cooc, side="left"), 0))
+
+
+class NewsBL(NewsResidual):
+    """Σ̂ = σ²_m b b' + BL(Σ̂_e do "fator + resíduo setor", visões das notícias), seção 16.
+
+    `omega`: "classe" (ω por classe de evidência) ou "homogeneo" (média das
+    classes ponderada pelos pares de treino, a ablação)."""
+
+    def __init__(self, name: str = BL, placebo: bool = False, omega: str = "classe", **kw):
+        if omega not in ("classe", "homogeneo"):
+            raise ValueError(f"omega {omega!r}: use 'classe' ou 'homogeneo'")
+        NewsResidual.__init__(self, "fator + resíduo setor + notícias", placebo=placebo, **kw)
+        self.name, self.omega = name, omega
+
+    def setup(self, env: Env) -> None:
+        n = self.panel_n or env.universe_n
+        if n is None:
+            raise ConfigError(f"cov {self.name!r} precisa de universe = {{n = N}} ou de cov_params.panel_n")
+        self.env = env
+        panel = _panel(env, n, self.news_days, self.half_life)
+        self.trainer = _Trainer(panel, {"m": self.regs, "setor": h1.SECTOR})
+        self.months = list(self.trainer.ud)
+        self.errors = _Omega(panel, self.regs, self.months)
+
+    def estimate(self, ctx: Context, F: dict[str, np.ndarray]) -> np.ndarray:
+        X = ctx.returns
+        T = len(X)
+        m = data.market_factor(X)
+        a, b = data.market_betas(X, m)
+        Ce, _ = data.pairwise_corr(data.residuals(X, b, m, a), min_obs=T // 2)
+        z = np.arctanh(np.clip(Ce, -0.999, 0.999))
+        if self.placebo:
+            perm = self.rng.permutation(ctx.p)
+            F = {f: (M[np.ix_(perm, perm)] if f in h1.NEWS else M) for f, M in F.items()}
+        k = max(bisect.bisect_right(self.months, ctx.date) - 1, 0)
+        trained = k >= self.min_train
+        b_set = self.trainer.coef_first("setor", k) if trained else np.zeros(len(h1.SECTOR))
+        S, delta = est.factor_residual(X, _target(b_set, h1.SECTOR, z, F), return_delta=True)
+        common = m.var(ddof=1) * np.outer(b, b)
+        info = {"n_views": 0, "cg_iter": 0, "psd_projected": 0.0}
+        if trained:
+            beta = self.trainer.coef_first("m", k)
+            cuts, om, n_tr = self.errors(k, beta)
+            om = np.maximum(om, 1 / (T - 3))
+            if self.omega == "homogeneo":
+                ok = n_tr > 0
+                om = np.where(ok, (om[ok] * n_tr[ok]).sum() / n_tr[ok].sum(), np.nan)
+            Se0 = S - common
+            iu = np.triu_indices(ctx.p, 1)
+            news = np.any([F[f][iu] != 0 for f in h1.NEWS], axis=0)
+            c = classes(news, F["cooccur"][iu], cuts)
+            view = c >= 0
+            view[view] = np.isfinite(om[c[view]])
+            i, j = iu[0][view], iu[1][view]
+            r = np.tanh(_zhat(beta, self.regs, z, F)[view])
+            ss = Se0[i, i] * Se0[j, j]
+            Se, info = est.black_litterman_cov(Se0, i, j, r * np.sqrt(ss), (1 - r * r) ** 2 * ss * om[c[view]], T)
+            S = common + Se
+            for g in range(5):
+                ctx.info[f"omega_{g}"] = float(om[g])
+                ctx.info[f"views_{g}"] = int((c[view] == g).sum())
+        ctx.info.update({"delta": delta, "trained_months": k, **info})
+        return S
+
+
 def make(name: str, params: dict | None = None):
     params = params or {}
     if name in STATISTICAL:
@@ -140,4 +250,6 @@ def make(name: str, params: dict | None = None):
         return Statistical(name)
     if name in NEWS:
         return NewsResidual(name, **params)
+    if name == BL:
+        return NewsBL(name, **params)
     raise ValueError(f"cov {name!r}: use um de {list(NAMES)}")

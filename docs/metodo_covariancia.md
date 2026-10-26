@@ -1079,27 +1079,484 @@ Teste sintético em `tests/test_backtester.py`:
   V P'(P V P')⁻¹;
 - conferência contra o BL escrito com matrizes densas num caso pequeno.
 
+*Nota de implementação, depois do commit ce5f630 e antes de rodar
+(2026-10-22):*
+- **Código:**
+  - `estimators.black_litterman_cov` resolve o sistema por gradiente
+    conjugado: V P'α = vec(Σ₀ A Σ₀)/T, sem formar V;
+  - `covariance.NewsBL` e `_Omega` montam as visões e a confiança;
+  - `backtests/secao16/` tem 14 TOMLs, `rodar.sh` e `avaliar.py`.
+- **Ruído amostral:** o termo 1/(d_m − 3) usa, para cada par, o número de
+  pregões em comum no mês (`n_fut` do painel), e não o número de pregões do
+  mês. Os dois só diferem quando falta retorno.
+- **Conferências:**
+  - o BL bate com o BL denso a 1e-12, e Ω → ∞ e Ω → 0 se comportam como
+    previsto (`tests/test_backtester.py`);
+  - ω_c bate com um cálculo independente em pandas a 4e-15 (mês 60).
+- **Visto antes de rodar:** num teste de fumaça de 4 meses (2015-01 a
+  2015-04), os ω_c crescem com a evidência, de 0,010 (classe 0) a 0,038
+  (classe 4).
+
+## 17. Resultado do Black-Litterman na covariância (2026-10-22, avaliado contra a seção 16)
+
+`backtests/secao16/rodar.sh` e `python backtests/secao16/avaliar.py`
+(`logs/secao16_avaliacao.log`).
+
+**Critério 1 (principal, GMV sem restrição, n = 100): NÃO atendido.**
+
+| Σ̂ | vol. | Sharpe | razão contra setor | p |
+|---|---|---|---|---|
+| fator + resíduo setor | 12,83% | 0,632 | — | — |
+| setor + BL notícias | 13,71% | 0,609 | 1,143 | 0,015 |
+| BL placebo | 14,62% | 0,556 | 1,300 | 0,012 |
+| BL Ω homogêneo | 13,61% | 0,596 | 1,126 | 0,021 |
+| setor + notícias (δ único, seção 10) | 12,83% | 0,641 | 1,001 | 0,87 |
+| LW fator único | 12,85% | 0,634 | 1,003 | 0,52 |
+
+O BL **aumenta** a variância da GMV em 14%. Ele fica melhor que o placebo
+(1,14 contra 1,30), mas pior que o prior.
+
+**Critério 2 (confirmação): NÃO atendido.**
+- n = 50: razão 1,10 (p = 0,19); placebo 1,16.
+- n = 200: razão 1,20 (p = 0,001); placebo 1,36.
+
+**Robustez (descritiva).**
+- Variância mínima com teto de 10%: 0,998 (p = 0,88), um empate.
+- TE mínimo (variância ativa): 2,02 (p = 0,000); o placebo dá 2,27.
+
+**Diagnóstico.**
+- Os ω_c crescem com a evidência: as medianas vão de 0,013 (classe 0) a
+  0,058 (classe 4).
+- Visões por mês, medianas: ~2.700 na classe 0 e 190–660 nas classes 1–4.
+- A projeção PSD não agiu em nenhum mês.
+- O número de condição mediano **cai** de 183 (setor) para 137. Mesmo assim, a
+  variância realizada sobe.
+
+**Conclusão.**
+1. H2 é rejeitada também no quarto desenho.
+2. Confiança por par não resolve o problema. As visões movem milhares de
+   covariâncias residuais em direções que a GMV explora, e o erro de cada
+   visão (ω ≈ 0,01–0,06 em z) é da mesma ordem do sinal que ela carrega.
+3. O placebo piora mais que o grafo verdadeiro. A informação existe, como na
+   H1, mas não vira carteira melhor.
+
+## 18. Desenho fixado antes de rodar: o roteiro `grafo_noticias_covariancia.md` (2026-10-26)
+
+Escrito ANTES de implementar ou rodar qualquer parte deste desenho com dados
+reais. Mudanças depois do commit desta seção precisam ser declaradas como tal.
+
+O arquivo `grafo_noticias_covariancia.md` ("o roteiro", na raiz do
+repositório) propõe 9 modelos (M1–M9), 13 hipóteses e um protocolo de
+avaliação. Para não confundir com as H1–H3 e os M0–M4 das seções 1 e 8, as
+hipóteses do roteiro aparecem aqui como **G1–G13**, e os modelos como **M1–M9
+do roteiro**.
+
+### 18.1 O que já foi visto (transparência)
+
+- **Seções 8–17.** H1 confirmada, com t até 9,7 na correlação residual. H2
+  rejeitada em quatro desenhos de carteira. O universo era `news.universe`
+  (top-n por eventos).
+- **Pertinentes ao roteiro:**
+  - A "exposição comum" da seção 4.1 é o cosseno entre vetores de exposição
+    com IDF, sem sinal. É quase a projeção bipartida do M2 com Ω = I.
+    - Ela sobreviveu na H1 (t = 7,4).
+    - Seção 8: as relações diretas tipadas quase não acrescentam, e a cadeia
+      (`supply_chain`, `partnership`) fica negativa (t = −3,2) com controle
+      de co-ocorrência.
+- **Notebook `notebooks/tuplas_e_precos.ipynb` (exploratório, sem critério).**
+  - Usou o S&P 500 point-in-time de 2019 a 2023, janela de 252 pregões.
+  - A regra "exposição PSD", (1−λ)r̄ + λG com G = cosseno das exposições
+    incluindo ligações indiretas, empatou com o LW de correlação constante
+    no erro de correlação do mês seguinte (λ ≈ 0,006–0,019).
+  - Shrinkage para o alvo de notícias: κ pior que o do LW correlação
+    constante e igual ao placebo.
+  - Médias simples com a amostral: 100% dos dias com matriz não PSD.
+
+  **Esse período (2019–2023) é o holdout proposto abaixo, então o holdout não
+  é virgem para construções do tipo M2.** Isso fica declarado. A separação
+  dev/holdout ainda protege a escolha de hiperparâmetros, que é feita por
+  regra automática no dev.
+- **Nenhum dos itens novos rodou**: universo S&P 500 point-in-time nas
+  regressões, M1, M3–M9, placebos P1–P6, normalizações, MCS, DM e QAP.
+
+### 18.2 O que o roteiro pede e não dá para fazer (desvios declarados)
+
+| item do roteiro | situação | motivo |
+|---|---|---|
+| 2.1 identificador permanente (CIK/PERMNO) | parcial | ticker + `graph_nodes.tickers`; o CIK da SEC é o atual |
+| 2.2 rotulagem manual | **preparada, não executada** | a amostra estratificada e o cálculo das métricas ficam prontos; a rotulagem é humana (dois anotadores) |
+| 2.2 `evidence_span` | ausente | o schema da extração não tem o campo; exigiria nova extração (GPU paga). Substituto: auditoria automática da presença literal dos agentes no texto da unidade |
+| 5.1 retorno de deslistagem | ausente | o FNSPID não tem; retorno faltante conta 0, como nas seções 12–17 |
+| 5.1 GICS | substituído | Fama-French 12/49 e SIC de 2 dígitos (SEC) |
+| 5.2 covariância realizada intradiária; perda de Stein | ausentes | só há preço diário; com N > h a covariância do mês é singular e a perda de Stein não existe. A log-verossimilhança preditiva é a QLIKE com Σ_real = (1/h) Σ r r' (mesma ordenação) |
+| market cap, book-to-market | substituídos | tamanho = log do volume financeiro mediano na janela; B/M fica de fora |
+| 6.1 B7 com FF5 + momentum | substituído | fatores construídos no próprio universo: mercado, 12 indústrias FF, tamanho (volume financeiro) e momentum 12-1 |
+| 6.1 B10 DCC; M7 DCC-X | fora | DCC composto com N ≈ 400 fica para depois; o B10 é EWMA |
+| 6.3 grafos externos (Revere, TNIC, analistas) | fora | sem acesso |
+| 7.1 holdout pós-cutoff do LLM | impossível | o FNSPID termina em 2023, antes do cutoff do Qwen2.5 |
+| 7.1 anonimização e reextração | **preparada, não executada** | exige GPU (custo): só com confirmação explícita |
+| 7.1 teste de eventos famosos | fora | sem lista de desfechos |
+| 8 Dow 30, S&P 100 | substituídos | S&P 100 ≈ as 100 maiores do S&P por volume financeiro; sem Dow 30 |
+| G4 surpresa de Kuttner | substituída | variação do yield de 2 anos (FRED DGS2) nos dias de FOMC (calendário do Fed) |
+
+### 18.3 Dados comuns a tudo
+
+- **Universo U_t.** Membros do S&P 500 no último registro estritamente antes
+  de t (`data/reference/sp500`, fja05680, versão "(Updated)"), com retorno
+  válido do FNSPID em ≥ 95% dos 252 pregões antes de t. São ~370–460 ações,
+  ~350 depois de 2020-07 (tickers truncados). Antes de rodar, os setores
+  (SIC → FF12/FF49) são completados para todos esses tickers pela etapa
+  `sectors`. Sem setor, `same_*` = 0.
+- **Datas.** t = 1º pregão de cada mês, de 2011-01 a 2023-12. A janela
+  in-sample tem 252 pregões; o horizonte de carteira vai até o pregão
+  anterior ao próximo t.
+- **Grafo em t.** Eventos limpos (`news.graph_events`) com data em
+  [t − 365 d, t). Peso de cada evento: sign·strength·0,5^(idade/τ). O τ
+  padrão (meia-vida) é de 90 dias.
+- **Pares e agentes.**
+  - Aresta direta: w_ij = soma dos eventos entre i e j (os dois sentidos,
+    todas as classes).
+  - w⁺ e w⁻ são as somas dos eventos positivos e negativos, em módulo.
+  - Por grupo de classe: w^(k).
+  - Exposição: Ã_im = soma dos eventos entre a ação i e o nó m ∉ U_t (Fed,
+    petróleo, empresas fora do universo...), com sinal. Pesa por IDF
+    log(N/df_m), como na seção 4.1; as linhas são normalizadas.
+- **Projeção bipartida:** g_ij = (ÃÃ')_ij, o cosseno com sinal. É PSD por
+  construção; linha sem exposição fica com C^G_ii = 1 e zeros fora da
+  diagonal.
+- **Atenção.** m_i = nº de eventos de i na janela (inclui eventos com nós
+  fora de U).
+- **Normalizações (seção 2.4 do roteiro).** Aplicadas aos módulos; o sinal
+  médio volta multiplicando:
+  - bruta;
+  - IDF (padrão da exposição);
+  - grau: D^−½ |W| D^−½ (e D_s^−½ |A| D_a^−½ no bipartido);
+  - PMI: max(PMI, 0) dos documentos em comum;
+  - z contra o modelo de configuração: (w − k_i k_j/2m)/√(k_i k_j/2m).
+- **Grupos de classe para G3.** São seis:
+  - cadeia: `supply_chain`;
+  - parceria: `partnership`;
+  - concorrência: `competition`;
+  - legal: `legal_regulatory`;
+  - controle: `ma`, `ownership`;
+  - impacto: `impact`.
+
+  O resto vai para "outros", que entra como controle.
+
+### 18.4 Hipóteses diádicas (G1, G2, G3, G6, G8, G9): teste e critério
+
+**Painel.**
+- Cada t, de 2011-01 a 2023-12, tem uma cross-section de pares i < j de U_t.
+- y = z da correlação **residual** realizada nos h pregões a partir de t,
+  com h ∈ {21, 63, 126}; o principal é h = 21.
+- O resíduo vem do fator de mercado de U_t: b estimado na janela in-sample
+  e aplicado à frente, como na seção 10.
+- Regressores (padronizados na data):
+  - sgnlog(w) = sign(w)·log(1+|w|);
+  - g;
+  - controles: z_hist residual (252 pregões), same_ff49, same_sic2,
+    distância de tamanho, log(1+m_i)+log(1+m_j) e |log(1+m_i) − log(1+m_j)|.
+
+**Inferência.**
+- **Fama-MacBeth** com Newey-West, com L = 3 + h/21 defasagens.
+- **QAP.** Em cada data, as linhas e colunas de todas as matrizes de notícia
+  (w, g e atenção) são permutadas juntas. São 200 permutações (seed 7), cada
+  uma refazendo o Fama-MacBeth.
+- O p é o maior dos dois (NW unicaudal e QAP).
+
+| | estatística principal | sucesso |
+|---|---|---|
+| **G1** | β de sgnlog(w), h = 21 | β > 0 com p < limite (18.8); positivo nos três subperíodos (2011–14, 2015–18, 2019–23); t > 2 só com pares intra-setor (FF12) e só com pares inter-setor |
+| **G2** | β⁺ − β⁻, com log(1+w⁺) e log(1+w⁻) no lugar de sgnlog(w) | β⁺ − β⁻ > 0 com p < limite. O roteiro escreve a nula como β⁺ = −β⁻, mas, com w⁻ medido em módulo, "o sinal não importa" é β⁺ = β⁻; vale a segunda. A nula fraca β⁻ ≥ 0 também é reportada |
+| **G3** | Wald da igualdade dos 6 β de grupo, com log(1+\|w^(k)\|) no lugar de sgnlog(w) e covariância NW da série de coeficientes | igualdade rejeitada com p < limite. Expectativas registradas agora: cadeia > 0; parceria ≥ 0 e pequena; legal ≤ 0; concorrência, controle e impacto sem sinal esperado. Os β individuais vão com Benjamini-Hochberg (exploratório) |
+| G6 | interação sgnlog(w) × cobertura do par (log(1+m_i)+log(1+m_j)) e tercis de tamanho | descritiva; as duas direções do roteiro ficam registradas |
+| **G8** | Δρ_{t→t+21} em Δsgnlog(w)_t (mudança contra t−1 mês), ρ_t e ρ_t − ρ̄_ij (média das 12 datas anteriores); reverso: Δsgnlog(w)_{t→t+1} em Δρ_{t−1→t} | b > 0 com p < limite **e** \|b padronizado\| > \|coeficiente reverso padronizado\| |
+| **G9** | Fama-MacBeth por ação: beta de baixa futuro (63 pregões, dias de mercado < 0) em centralidade de autovetor de \|W\|+\|G\| em U_t, com controles: tamanho, beta passado e FF12 | coeficiente > 0 com p < limite. PageRank, grau, beta e co-assimetria são descritivos |
+
+Os horizontes de 63 e 126 dias, as normalizações e os τ de 30, 180 e 365
+dias são robustez, sem critério.
+
+### 18.5 Avaliação walk-forward (G5, G7, G10–G13)
+
+**Períodos.**
+- O desenvolvimento (**dev**) vai de 2013-01 a 2018-12 (72 meses).
+- O **holdout** vai de 2019-01 a 2023-12 (60 meses) e roda **uma vez**, com
+  as escolhas do dev congeladas.
+- Os coeficientes treinados (alvo do setor em R0, θ do M6) usam só os meses
+  com período de carteira terminado antes de t, a partir de 2011.
+- Embargo: zero dias. O grafo usa dt < t, e a data não tem hora.
+
+**Estimadores.**
+
+| código | Σ̂ | par |
+|---|---|---|
+| B0 | 1/N | — |
+| B1 | amostral (pseudo-inversa) | — |
+| B2 | LW identidade | — |
+| B3 | LW correlação constante | — |
+| B4 | LW fator único | — |
+| **B5** | alvo de blocos setoriais: R_ij = correlação média do bloco (FF12_i, FF12_j), δ da fórmula da seção 4.3 | **referência principal** |
+| B6 | LW não linear | — |
+| B7 | fatores observáveis do universo (mercado, 12 indústrias FF, tamanho, momentum 12-1) + resíduo diagonal | M1 |
+| B8 | POET: k por Bai-Ng (IC2, k ≤ 10), limiar adaptativo, C escolhido no dev ∈ {0,25; 0,5; 1} | M3 |
+| B9 | fator de mercado + glasso na correlação residual, γ = 0, λ₀ escolhido no dev | M4 |
+| B10 | EWMA (λ = 0,97, pseudo-inversa) | — |
+| B11 | HRP com a covariância amostral | M8 |
+| R0 | fator + resíduo setor (seção 10, β treinado no painel S&P) | elo com as seções 10–17 |
+| **M2** | δ·T^G + (1−δ)·S, T^G = Δ C^G Δ, δ analítico (seção 4.3); τ e normalização escolhidos no dev | **modelo principal** |
+| M2-abs, M2-bin | M2 com \|Ã\| e com 1[Ã ≠ 0] | G2 (carteira) |
+| M2-δgmv, M2-δqlike | δ escolhido nos 12 meses anteriores, grade 0, 0,05, …, 1, pela variância realizada da GMV / pela QLIKE | escolha de δ |
+| M2-res | fator + resíduo encolhido para C^G | R0 |
+| M2+W | C^G = corr(G + α·K_β(W)), kernel de difusão no Laplaciano assinado, α e β do dev | — |
+| M1 | fatores Fed (−ΔDGS2), petróleo (USO), China (FXI), dólar (UUP), ouro (GLD) + mercado; β_i ridge centrado em κ·ã_i,m (exposição com sinal ao nó), λ e κ escolhidos no dev | B7′ = mesmo modelo com MQO |
+| M3 | POET com suporte do grafo: resíduo amostral só nos pares com w ≠ 0 ou g no quantil que iguala a densidade média do POET; projeção PSD | B8 e suporte placebo de mesma densidade |
+| M4 | glasso ponderado, λ_ij = λ₀ exp(−γ\|w̃_ij\|), w̃ = g + sgnlog(w) reescalado para [−1, 1]; (λ₀, γ) do dev | B9 |
+| M5 | Σ̂ = B^G F̂ B^G' + D̂, B^G = q autovetores do Laplaciano normalizado de C^G − I, q ∈ {3, 5, 10} do dev; e PCA-k + grafo-q contra PCA-(k+q) | — |
+| M6 | C^G(θ, φ) = corr(Σ θ_k K(W^(k)) + Σ φ_k Ã^(k)Ã^(k)'), com θ, φ ≥ 0 por MQO não negativo diádico nos meses de treino | ablação por camada |
+| M8 | comunidades (Louvain em G⁺ = max(G, 0)): modelo em blocos; HRP (a) com a distância de C^G, (b) com λC^G + (1−λ)ρ̂, λ do dev, (c) com bissecção restrita às comunidades no 1º nível | B11, FF12, clusters de correlação |
+
+**Carteiras.**
+- **GMV sem restrição (principal).**
+- GMV long-only com teto de 5%.
+- HRP.
+- ERC (só com Σ̂ positiva definida).
+- TE mínimo contra o SPY, long-only, teto de 5%.
+- MVO com sinal fixo: μ = z transversal do momentum 12-1, γ = 5, long-only,
+  teto de 5%.
+
+As cinco últimas carteiras são descritivas e rodam para B0–B6, B8, R0, M2,
+M3, M4 e M8.
+
+**Configuração e métricas.**
+- Custo de 10 bps sobre o giro contra os pesos derivados, como nas seções
+  12–17.
+- Métricas da seção 5 do roteiro:
+  - vol.;
+  - razão de previsão de risco;
+  - estatística de viés da Barra;
+  - Sharpe e Sortino;
+  - MDD e CVaR 5%;
+  - giro;
+  - retorno líquido a 0, 5, 10 e 20 bps;
+  - N efetivo e peso máximo;
+  - κ;
+  - QLIKE (principal estatística);
+  - Frobenius em covariância e em correlação;
+  - Spearman dos pares;
+  - erro em pares com e sem aresta.
+
+**Escolhas no dev (regra automática, registrada aqui).**
+
+| modelo | o que se escolhe | grade | critério no dev |
+|---|---|---|---|
+| M2 | τ e normalização | τ ∈ {30, 90, 180, 365}, normalização ∈ {IDF, bruta, grau, PMI, z} | menor variância realizada da GMV |
+| B9, M4 | λ₀ e γ (γ = 0 no B9) | λ₀ ∈ {0,02, 0,05, 0,1, 0,2}, γ ∈ {0, 0,5, 1, 2} | maior log-verossimilhança gaussiana fora da amostra |
+| B8 | C | {0,25; 0,5; 1} | menor variância realizada da GMV |
+| M5 | q | {3, 5, 10} | menor QLIKE |
+| M1 | λ e κ | (*) | menor QLIKE |
+| M2+W | α e β | (*) | menor variância realizada da GMV |
+| M8 (b) | λ | {0,25; 0,5; 0,75} | menor variância realizada do HRP |
+
+(*) As grades de M1 e M2+W ficam no código do commit da implementação,
+antes de qualquer execução no dev.
+
+Empates (diferença < 0,1%) ficam com o padrão: τ = 90 e IDF.
+
+**Placebos (G10)** no M2 escolhido, R = 200 por data (seed 7):
+
+| placebo | preserva |
+|---|---|
+| P1 | os valores não nulos de Ã sorteados em posições aleatórias |
+| **P2** | rewiring do bipartido com grau de cada ação e de cada agente preservado (curveball), o peso viaja com a aresta |
+| P3 | permutação das ações dentro do setor FF12 |
+| P4 | sinais aleatórios |
+| P5 | o grafo de t − 2 anos |
+| P6 | só co-menção: cosseno dos vetores de documentos das marcações do FNSPID; e P6b, co-ocorrência nos artigos extraídos, sem tipo nem sinal |
+
+### 18.6 Critérios das hipóteses de carteira (holdout)
+
+| | estatística | sucesso |
+|---|---|---|
+| **G5** | razão de variâncias dos retornos diários líquidos da GMV M2 / B5 (bootstrap circular em blocos de 10 dias, 2.000 reamostragens, seed 7, bicaudal) | razão < 1 com **p < 0,01** (quinto desenho da H2 econômica: 0,05/5) **e** p ajustado (18.8) < 0,05. Os critérios do roteiro também são reportados: M2 no MCS a 90% (QLIKE mensal e r² diário da GMV) com o B5 fora, ou DM (HLN) significativo |
+| G7 | regressão da diferença mensal de perda (QLIKE; variância da GMV no mês) B5 − M2 em tercis de vol. realizada do SPY nos 21 pregões antes de t (cortes do dev) e nos episódios 2018Q4, 2020Q1 e 2022; HAC | descritiva |
+| **G10** | variância da GMV do M2 contra a distribuição dos 200 P2 | M2 abaixo do percentil 5 dos P2 (p empírico < 0,05) **e** razão M2/P6 < 1 com p < 0,05; P1, P3, P4 e P5 são descritivos |
+| **G11** | ganho de log-verossimilhança fora da amostra do M4 sobre o B9 (média mensal, DM-HLN); e fração de pares com aresta e correlação parcial ≠ 0 contra a fração sem aresta (Fisher por mês, combinado) | DM > 0 com p < limite |
+| **G12** | média, nos meses, de mean cos θ_ℓ entre B^G (q do dev) e os q primeiros autovetores da covariância amostral dos 63 pregões seguintes | acima do percentil 95 de 200 P2 |
+| **G13** | razão de variâncias HRP-(a) / B11 | < 1 com p < limite; ARI/NMI de comunidades × FF12 × clusters de correlação e o modelo em blocos são descritivos |
+
+### 18.7 Seção 2 e 7 do roteiro: extração e descritivas
+
+- **Etapa 1 (validação).**
+  - Auditoria automática: fração das tuplas limpas em que agent_a e agent_b
+    aparecem no texto da unidade extraída, literalmente ou por token
+    distintivo. O texto vem de `extraction_units`, copiado do Drive para
+    `data/curated`.
+  - Amostra estratificada para rotulagem: 25 tuplas por classe nas 16
+    classes × 2 períodos (2011–2018, 2019–2023) = 800 tuplas na planilha.
+    Mais 100 artigos inteiros para o recall.
+  - Script que calcula as métricas da tabela 2.2 do roteiro quando a planilha
+    voltar preenchida.
+  - Sem critério até haver rótulos.
+- **Etapa 2 (descritivas da seção 2.5).** Por ano:
+  - nós e arestas;
+  - distribuição de graus;
+  - fração de arestas negativas por classe;
+  - cobertura por quintil de tamanho;
+  - Jaccard entre anos consecutivos;
+  - fração intra-setor.
+
+  Portão descritivo, "o grafo não é só setor reescrito": R² de g em
+  same_ff49 + same_sic2 + same_ff12 < 0,5. Se falhar, segue-se e
+  declara-se.
+- **Vazamento (7.1).** Preparar o script de anonimização (máscaras
+  `[EMPRESA_A]` em 300 unidades) para rodar na GPU só com autorização.
+
+### 18.8 Múltiplos testes e robustez
+
+- **Família confirmatória:** G1, G2, G3, G5, G8, G9, G10, G11, G12 e G13
+  (10 testes, um p principal cada). Holm a 5% (FWER sob qualquer
+  dependência), mais o limite próprio de G5. "p < limite" acima é p de Holm
+  < 0,05. Romano-Wolf entra só dentro da comparação de estimadores do G5 (as
+  perdas são bootstrapadas juntas). Hansen SPA e White RC testam "o melhor
+  modelo com grafo contra B5" levando em conta todos os modelos com grafo.
+- **Sharpe deflacionado** do M2, com o número de configurações avaliadas no
+  dev (log em `logs/secao18_dev.log`).
+- **Robustez (seção 8 do roteiro), uma dimensão por vez, na comparação
+  principal M2 contra B5:**
+  - janela de 126 e de 504 pregões;
+  - rebalanceamento semanal e trimestral;
+  - meia-vida;
+  - normalização;
+  - kernel (Gram, difusão, Higham de I + αW̃);
+  - universo (S&P 100 aproximado, sem financeiras SIC 60–67, `news.universe`
+    n = 100);
+  - por ano, e antes e depois de 2020;
+  - log contra retorno simples;
+  - winsorização 1/99%;
+  - custos de 0, 5 e 20 bps;
+  - restrições (long-only com teto);
+  - agentes: só nós sem ticker;
+  - sem artigos de *market wrap* (unidade com ≥ 5 tickers distintos nos
+    eventos);
+  - bootstrap estacionário com bloco de Politis-White.
+
+  Todas são reportadas; robusto = mesmo sinal na maioria.
+
+### 18.9 G4 (exposição a agentes em dias de evento)
+
+- **Dias de evento:** o dia do comunicado de cada reunião do FOMC, agendada
+  ou extraordinária, de 2011 a 2023 (último dia da reunião, ou o 1º pregão
+  depois dele). Fonte: calendário do Fed. Ficam de fora *notation vote*,
+  conference call e reunião cancelada.
+- **Surpresa:** ΔDGS2 do dia, do FRED.
+- **Modelo:** r_i = a_i + b_i r_m + c (ã_i,Fed × surpresa) + d·surpresa + e,
+  com o controle β̂_hist,Fed × surpresa.
+- **Exploratório, fora da família:** a surpresa é um proxy diário, não a de
+  Kuttner.
+
+### 18.10 Implementação e ordem
+
+- **Código:**
+  - pacote `newsmanager/grafo/`, com etapas `python -m newsmanager.grafo
+    <etapa>`;
+  - testes sintéticos em `tests/test_grafo.py`:
+    - placebos preservam graus e setores;
+    - glasso ponderado satisfaz KKT;
+    - POET, kernel de difusão PSD;
+    - MCS, DM-HLN, Politis-White e Holm contra casos conhecidos;
+  - scripts em `backtests/secao18/`.
+- **Ordem:**
+  1. setores completos;
+  2. etapas 1 e 2;
+  3. diádico;
+  4. dev, com escolhas congeladas e registradas em
+     `logs/secao18_escolhas.json`;
+  5. holdout, uma vez;
+  6. robustez.
+
+  Antes do holdout, as escolhas do dev vão para uma nota nesta seção.
+
+*Nota de implementação (2026-10-26, escrita no mesmo dia da seção, antes de
+qualquer execução nos períodos avaliados).* São detalhes que a tabela 18.5
+deixava em aberto, fixados no código:
+
+- **M1.**
+  - O mercado (média igual) entra como fator sem penalidade.
+  - Prior: β_im = κ·dp_i(β̂_MQO,m)·ã_im / max_i|ã_im|.
+  - Penalidade: λ_m = c·T·Var(f_m).
+  - Grade: κ ∈ {0; 0,5; 1; 2}, c ∈ {0,1; 1; 10}.
+- **M2+W.** C = corr(C^G + α·K_β(W/max|W|)), com α ∈ {0,25; 0,5; 1} e
+  β ∈ {0,5; 1; 2}.
+- **M4.** w̃ = (C^G − I) + sgnlog(w)/max|sgnlog(w)|, reescalado para máximo 1.
+- **M3.** São os d pares de maior 10·1[w ≠ 0] + g, com d = nº de pares do
+  POET com o C escolhido. O C do POET sobe ×1,25 até Σ̂ ser PD.
+- **M5.** As cargas incluem uma coluna de mercado (1/√p) além dos q
+  autovetores.
+- **M6.**
+  - 14 camadas: difusão (β = 1, W/max) de cada um dos 7 grupos de classe e
+    Gram (IDF, com sinal) por tipo de agente (empresa, governo/banco central,
+    commodity, país, moeda, macro, setor/índice).
+  - c ≥ 0 por MQO não negativo na correlação residual realizada (ρ, não z),
+    centrada por mês.
+  - Alvo residual: R = nearest_corr(r̄_e + Σ c_k (L_k − L̄_k)) dentro do
+    "fator + resíduo", como no R0.
+- **MVO.** μ_i = 0,05·σ_i·z_i (Grinold e Kahn, IC = 0,05).
+- **Σ̂ singulares.** B1 e B10 usam a pseudo-inversa na GMV. Também ficam com
+  QLIKE indefinida e, por isso, fora do MCS de QLIKE. O ERC só roda com Σ̂ PD.
+- **Placebos.** P1, P2 e P4 agem sobre Ã já ponderado, antes da
+  normalização das linhas. O P5 é o snapshot em t − 730 dias com o mesmo
+  U_t.
+- **G8.** ρ_t é a correlação residual dos últimos 21 pregões da janela; ρ̄
+  é a média (em z) dos 12 blocos de 21 pregões; y é padronizado por data.
+- **G9.** A centralidade usa |W|/max|W| + |C^G − I|.
+- **G12.** V_q são os autovetores da covariância amostral dos retornos
+  totais nos 63 pregões após t.
+- **Painel diádico.** A correlação futura exige ≥ 70% dos h pregões.
+- **Teste de fumaça (sem olhar métricas).**
+  - Walk-forward com todos os estimadores e as variantes de robustez em
+    2012-06/07, que é só treino.
+  - Painel diádico de 2011-01 a 2011-03, numa pasta separada, apagada em
+    seguida.
+  - O código só foi conferido quanto a rodar.
+- **Testes sintéticos:** `tests/test_grafo.py`.
+
 ## Referências
 
 - Anderson, T. W. (2003). *An Introduction to Multivariate Statistical Analysis*, 3ª ed. Wiley.
+- Aronow, P.; Samii, C.; Assenova, V. (2015). Cluster-robust variance estimation for dyadic data. *Political Analysis* 23(4).
+- Bai, J.; Ng, S. (2002). Determining the number of factors in approximate factor models. *Econometrica* 70(1).
+- Bailey, D.; López de Prado, M. (2014). The deflated Sharpe ratio. *J. Portfolio Management* 40(5).
 - Becquin, G.; Esmeir, S. (2023). Semantic Similarity Covariance Matrix Shrinkage. *Findings of EMNLP 2023*, 9977–9992. https://aclanthology.org/2023.findings-emnlp.668/
+- Benjamini, Y.; Hochberg, Y. (1995). Controlling the false discovery rate. *JRSS-B* 57(1).
 - Black, F.; Litterman, R. (1992). Global portfolio optimization. *Financial Analysts Journal* 48(5), 28–43.
+- Blondel, V.; Guillaume, J.-L.; Lambiotte, R.; Lefebvre, E. (2008). Fast unfolding of communities in large networks. *J. Stat. Mech.* P10008.
 - Bun, J.; Bouchaud, J.-P.; Potters, M. (2017). Cleaning large correlation matrices: tools from random matrix theory. *Physics Reports* 666.
+- Cai, T.; Liu, W. (2011). Adaptive thresholding for sparse covariance matrix estimation. *JASA* 106.
 - Chan, L.; Karceski, J.; Lakonishok, J. (1999). On portfolio optimization: forecasting covariances and choosing the risk model. *RFS* 12, 937–974.
-- Cohen, L.; Frazzini, A. (2008). Economic links and predictable returns. *Journal of Finance* 63(4).
 - Choueifaty, Y.; Coignard, Y. (2008). Toward maximum diversification. *J. Portfolio Management* 35(1).
+- Cohen, L.; Frazzini, A. (2008). Economic links and predictable returns. *Journal of Finance* 63(4).
 - Cornuéjols, G.; Tütüncü, R. (2007). *Optimization Methods in Finance*. Cambridge University Press.
 - DeMiguel, V.; Garlappi, L.; Uppal, R. (2009). Optimal versus naive diversification. *RFS* 22(5).
+- Diebold, F.; Mariano, R. (1995). Comparing predictive accuracy. *JBES* 13(3).
 - Elton, E.; Gruber, M. (1973). Estimating the dependence structure of share prices. *Journal of Finance* 28.
 - Engle, R.; Colacito, R. (2006). Testing and valuing dynamic correlations for asset allocation. *JBES* 24(2).
+- Fama, E.; MacBeth, J. (1973). Risk, return, and equilibrium: empirical tests. *JPE* 81(3).
+- Fan, J.; Liao, Y.; Mincheva, M. (2013). Large covariance estimation by thresholding principal orthogonal complements. *JRSS-B* 75(4).
 - Friedman, J.; Hastie, T.; Tibshirani, R. (2008). Sparse inverse covariance estimation with the graphical lasso. *Biostatistics* 9(3).
 - Guo, L.; Peng, L.; Tao, Y.; Tu, J. Joint News, Attention Spillover, and Stock Returns. arXiv:1703.02715.
+- Hansen, P. (2005). A test for superior predictive ability. *JBES* 23(4).
+- Hansen, P.; Lunde, A.; Nason, J. (2011). The model confidence set. *Econometrica* 79(2).
+- Harvey, D.; Leybourne, S.; Newbold, P. (1997). Testing the equality of prediction mean squared errors. *Int. J. Forecasting* 13(2).
 - He, G.; Litterman, R. (1999). The intuition behind Black-Litterman model portfolios. Goldman Sachs Investment Management Research.
 - Higham, N. (2002). Computing the nearest correlation matrix. *IMA J. Numer. Anal.* 22.
 - Hoberg, G.; Phillips, G. (2016). Text-based network industries and endogenous product differentiation. *JPE* 124(5).
+- Holm, S. (1979). A simple sequentially rejective multiple test procedure. *Scand. J. Statistics* 6(2).
 - Jagannathan, R.; Ma, T. (2003). Risk reduction in large portfolios: why imposing the wrong constraints helps. *J. Finance* 58(4).
 - Jorion, P. (1986). Bayes-Stein estimation for portfolio analysis. *JFQA* 21(3).
 - Kan, R.; Zhou, G. (2007). Optimal portfolio choice with parameter uncertainty. *JFQA* 42(3).
+- Kondor, R.; Lafferty, J. (2002). Diffusion kernels on graphs and other discrete input spaces. *ICML*.
+- Krackhardt, D. (1988). Predicting with networks: nonparametric multiple regression analysis of dyadic data. *Social Networks* 10(4).
+- Kunegis, J. et al. (2010). Spectral analysis of signed graphs for clustering, prediction and visualization. *SDM*.
 - Laloux, L.; Cizeau, P.; Bouchaud, J.-P.; Potters, M. (1999). Noise dressing of financial correlation matrices. *PRL* 83.
 - Ledoit, O.; Wolf, M. (2003). Improved estimation of the covariance matrix of stock returns with an application to portfolio selection. *J. Empirical Finance* 10.
 - Ledoit, O.; Wolf, M. (2004a). Honey, I shrunk the sample covariance matrix. *J. Portfolio Management* 30(4).
@@ -1113,10 +1570,16 @@ Teste sintético em `tests/test_backtester.py`:
 - Mantegna, R. (1999). Hierarchical structure in financial markets. *EPJ B* 11.
 - Markowitz, H. (1952). Portfolio selection. *Journal of Finance* 7(1).
 - Menzly, L.; Ozbas, O. (2010). Market segmentation and cross-predictability of returns. *Journal of Finance* 65(4).
+- Newey, W.; West, K. (1987). A simple, positive semi-definite, heteroskedasticity and autocorrelation consistent covariance matrix. *Econometrica* 55(3).
 - Patton, A. (2011). Volatility forecast comparison using imperfect volatility proxies. *J. Econometrics* 160(1).
 - Peralta, G.; Zareei, A. (2016). A network approach to portfolio selection. *J. Empirical Finance* 38.
+- Politis, D.; Romano, J. (1994). The stationary bootstrap. *JASA* 89(428).
+- Politis, D.; White, H. (2004). Automatic block-length selection for the dependent bootstrap. *Econometric Reviews* 23(1); correção de Patton, Politis e White (2009).
 - Pozzi, F.; Di Matteo, T.; Aste, T. (2013). Spread of risk across financial markets: better to invest in the peripheries. *Scientific Reports* 3, 1665.
 - Qian, E.; Gorman, S. (2001). Conditional distribution in portfolio theory. *Financial Analysts Journal* 57(2), 44–51.
+- Romano, J.; Wolf, M. (2005). Stepwise multiple testing as formalized data snooping. *Econometrica* 73(4).
 - Scherbina, A.; Schlusche, B. (2016). Economic linkages inferred from news stories and the predictability of stock returns. AEI WP; (2020) Follow the leader, *Review of Finance* 24(1).
+- Strona, G. et al. (2014). A fast and unbiased procedure to randomize ecological binary matrices with fixed row and column totals. *Nature Communications* 5, 4114.
 - Tang, Y.; Zhou, Y.; Hong, M. (2019). News co-occurrences, stock return correlations, and portfolio construction implications. *JRFM* 12(1), 45.
 - Tumminello, M.; Aste, T.; Di Matteo, T.; Mantegna, R. (2005). A tool for filtering information in complex systems. *PNAS* 102(30).
+- White, H. (2000). A reality check for data snooping. *Econometrica* 68(5).

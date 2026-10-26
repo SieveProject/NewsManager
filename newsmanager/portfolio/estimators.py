@@ -186,6 +186,55 @@ def nearest_corr(R: np.ndarray, eps: float = 1e-4) -> np.ndarray:
     return R
 
 
+def black_litterman_cov(S0: np.ndarray, i: np.ndarray, j: np.ndarray, q: np.ndarray, omega: np.ndarray,
+                        T: int, rtol: float = 1e-10) -> tuple[np.ndarray, dict]:
+    """Black-Litterman com visões sobre elementos de Σ (docs/metodo_covariancia.md, seção 16).
+
+    Prior vec Σ ~ (vec S0, V), V_(ij),(kl) = (s_ik s_jl + s_il s_jk)/T (Wishart);
+    visões σ_ij = q + ε, ε ~ N(0, diag ω), nos pares i < j. Posterior (Kalman):
+
+        vec Σ = vec S0 + V P' α,   (P V P' + Ω) α = q - P vec S0
+
+    só fora da diagonal (as variâncias ficam as de S0). V P' α = vec(S0 A S0)/T
+    com A simétrica, A_ij = A_ji = α_ij: nem V nem P V P' são formados, e o
+    sistema é resolvido por gradiente conjugado com precondicionador de Jacobi.
+    Ao fim, projeção para PSD na escala de correlação (nearest_corr)."""
+    from scipy.sparse.linalg import LinearOperator, cg
+    p, K = len(S0), len(q)
+    sd = np.sqrt(np.diag(S0))
+    info = {"n_views": K, "cg_iter": 0, "psd_projected": 0.0}
+    if K == 0:
+        return S0.copy(), info
+
+    def vp(x):                                   # V P' x como matriz p x p
+        A = np.zeros((p, p))
+        A[i, j] = x
+        A[j, i] = x
+        return S0 @ A @ S0 / T
+
+    def mv(x):
+        return vp(x)[i, j] + omega * x
+
+    diag = (S0[i, i] * S0[j, j] + S0[i, j] ** 2) / T + omega
+    it = [0]
+
+    def count(_):
+        it[0] += 1
+
+    alpha, code = cg(LinearOperator((K, K), matvec=mv, dtype=float), q - S0[i, j], rtol=rtol, atol=0.0,
+                     maxiter=10 * K, M=LinearOperator((K, K), matvec=lambda x: x / diag, dtype=float),
+                     callback=count)
+    if code != 0:
+        raise RuntimeError(f"gradiente conjugado não convergiu ({code}, {K} visões)")
+    S = S0 + vp(alpha)
+    np.fill_diagonal(S, np.diag(S0))
+    R = S / np.outer(sd, sd)
+    R = (R + R.T) / 2
+    info["cg_iter"] = it[0]
+    info["psd_projected"] = float(np.linalg.eigvalsh(R)[0] < 1e-4)
+    return nearest_corr(R) * np.outer(sd, sd), info
+
+
 def multi_factor(X: np.ndarray, G: np.ndarray, resid: str = "diag") -> np.ndarray:
     """Σ̂ = B' Σ_g B + Σ̂_e com fatores observados G (T x k, mesmos dias de X).
 

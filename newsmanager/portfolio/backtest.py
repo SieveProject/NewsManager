@@ -120,6 +120,15 @@ def _target(b: np.ndarray, regs: list[str], z_hist: np.ndarray, F: dict[str, np.
     """Matriz de correlação-alvo p x p prevista pela regressão."""
     p = len(z_hist)
     iu = np.triu_indices(p, 1)
+    R = np.eye(p)
+    R[iu] = np.tanh(_zhat(b, regs, z_hist, F))
+    R.T[iu] = R[iu]
+    return est.nearest_corr(R)
+
+
+def _zhat(b: np.ndarray, regs: list[str], z_hist: np.ndarray, F: dict[str, np.ndarray]) -> np.ndarray:
+    """z previsto pela regressão para os pares i < j (ordem de np.triu_indices)."""
+    iu = np.triu_indices(len(z_hist), 1)
     cols = []
     for r in regs:
         v = z_hist[iu] if r == "z_hist" else F[r][iu]
@@ -129,11 +138,7 @@ def _target(b: np.ndarray, regs: list[str], z_hist: np.ndarray, F: dict[str, np.
     ok = np.isfinite(zh)
     level = zh[ok].mean()
     X = np.where(np.isfinite(X), X, np.nanmean(X, axis=0))
-    zhat = level + (X - X.mean(axis=0)) @ b
-    R = np.eye(p)
-    R[iu] = np.tanh(zhat)
-    R.T[iu] = R[iu]
-    return est.nearest_corr(R)
+    return level + (X - X.mean(axis=0)) @ b
 
 
 def _features_for_regression(F: dict[str, np.ndarray]) -> dict[str, np.ndarray]:

@@ -141,13 +141,20 @@ def classify(sic: int | None, ranges: list[tuple[int, int, int, str]], other: tu
     return other
 
 
-def build(cfg: Config, user_agent: str | None = None, tickers: list[str] | None = None) -> dict:
+def build(cfg: Config, user_agent: str | None = None, tickers: list[str] | None = None,
+          merge: bool = False) -> dict:
+    """`merge`: mantém as linhas já gravadas e só consulta a SEC para os
+    tickers que faltam (usado por `sectors --sp500`)."""
     ua = user_agent or os.environ.get("NM_SEC_USER_AGENT")
     if not ua or "@" not in ua:
         raise ConfigError('a SEC exige contato: NM_SEC_USER_AGENT="Seu Nome seu@email"')
     con = duckdb.connect(str(cfg.db), read_only=True)
     if tickers is None:
         tickers = [t for (t,) in con.execute("SELECT DISTINCT ticker FROM news.universe ORDER BY 1").fetchall()]
+    old_path = sectors_dir(cfg) / "sectors.parquet"
+    old = pq.read_table(old_path).to_pylist() if merge and old_path.exists() else []
+    done = {x["ticker"] for x in old}
+    tickers = [t for t in tickers if t not in done]
     names = dict(con.execute("SELECT ticker, name FROM news.tickers WHERE ticker IN (SELECT unnest(?))",
                              [tickers]).fetchall())
     labels = dict(con.execute("SELECT node_id, label FROM news.graph_nodes WHERE node_id IN (SELECT unnest(?))",
@@ -235,6 +242,9 @@ def build(cfg: Config, user_agent: str | None = None, tickers: list[str] | None 
 
     out = sectors_dir(cfg)
     out.mkdir(parents=True, exist_ok=True)
+    if old:
+        print(f"[sectors] {len(old)} tickers já gravados mantidos; {len(rows)} novos")
+        rows = old + rows
     pq.write_table(pa.Table.from_pylist(rows), out / "sectors.parquet", compression="zstd")
     db = duckdb.connect(str(cfg.db))
     db.execute(f"CREATE OR REPLACE VIEW news.sectors AS SELECT * FROM read_parquet('{out / 'sectors.parquet'}')")

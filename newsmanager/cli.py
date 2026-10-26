@@ -115,7 +115,15 @@ def cmd_universe(cfg, args) -> int:
 
 
 def cmd_sectors(cfg, args) -> int:
-    sectors.build(cfg)
+    if args.sp500:
+        from .grafo import dados
+        con = query.connect(cfg)
+        tk = sorted(set(dados.sp500_tickers(cfg, "2010-01-01", "2023-12-31", con))
+                    | {t for (t,) in con.execute("SELECT DISTINCT ticker FROM news.universe").fetchall()})
+        con.close()
+        sectors.build(cfg, tickers=tk, merge=True)
+    else:
+        sectors.build(cfg)
     return 0
 
 
@@ -192,8 +200,10 @@ def _dispatch(argv: list[str] | None = None) -> int:
     su.add_argument("--min-price", type=float, default=None)
     su.add_argument("--min-dollar-volume", type=float, default=None)
 
-    sub.add_parser("sectors", help="SIC da SEC + indústrias Fama-French dos tickers do universo "
-                                   '(exige NM_SEC_USER_AGENT="Nome e-mail")')
+    ss = sub.add_parser("sectors", help="SIC da SEC + indústrias Fama-French dos tickers do universo "
+                                        '(exige NM_SEC_USER_AGENT="Nome e-mail")')
+    ss.add_argument("--sp500", action="store_true",
+                    help="acrescenta os membros do S&P 500 (2010-2023) com preço, sem refazer os já gravados")
 
     sh = sub.add_parser("h1", help="H1: notícias preveem a correlação futura além da histórica?")
     sh.add_argument("--n", type=int, default=100)
