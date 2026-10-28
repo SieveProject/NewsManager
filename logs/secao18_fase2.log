@@ -1,0 +1,15 @@
+holdout: 33 estimadores, escolhas /Users/gabri/Classes/PapersTCC/NewsManager/logs/secao18_escolhas.json
+[wf] holdout: 2011-12-01 (12/156, p=354, 2s)
+[wf] holdout: 2012-12-03 (24/156, p=367, 4s)
+[wf] holdout: 2013-12-02 (36/156, p=374, 6s)
+[wf] holdout: 2014-12-01 (48/156, p=381, 8s)
+[wf] holdout: 2015-12-01 (60/156, p=391, 10s)
+[wf] holdout: 2016-12-01 (72/156, p=434, 12s)
+[wf] holdout: 2017-12-01 (84/156, p=445, 15s)
+[wf] holdout: 2018-12-03 (96/156, p=455, 17s)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: divide by zero encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: overflow encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: invalid value encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)

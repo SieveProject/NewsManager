@@ -1,0 +1,9 @@
+2026-10-26 13:24:17 dev M2: 20 configurações, critério gmv
+2026-10-26 13:25:04 dev B8: 3 configurações, critério gmv
+2026-10-26 13:25:18 dev M4: 16 configurações, critério qlike
+2026-10-26 14:48:34 dev M5: 3 configurações, critério qlike
+2026-10-26 14:48:54 dev M1: 12 configurações, critério qlike
+2026-10-26 14:49:54 dev M2W: 9 configurações, critério gmv
+2026-10-26 14:50:17 dev M8b: 1 configurações, critério hrp
+2026-10-26 14:51:30 escolhas do dev: {'criado': '2026-10-26 14:51:29', 'dev': ('2013-01-01', '2018-12-31'), 'M2': {'tau': 180, 'norm': 'z'}, 'M2_trials': {'n': 20, 'var_sr': 2.3984834203963203e-05}, 'B8': {'C': 0.5}, 'M5': {'q': 10}, 'M1': {'kappa': 1.0, 'c': 0.1}, 'M2W': {'alpha': 0.25, 'beta': 2.0}, 'M4': {'lam0': 0.2, 'gamma': 2.0}, 'B9': {'lam0': 0.2}, 'M8b': {'lam': 0.25}}
+2026-10-28 10:36:28 holdout: 33 estimadores, escolhas /Users/gabri/Classes/PapersTCC/NewsManager/logs/secao18_escolhas.json

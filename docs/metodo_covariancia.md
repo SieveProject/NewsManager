@@ -1520,6 +1520,44 @@ deixava em aberto, fixados no código:
   - O código só foi conferido quanto a rodar.
 - **Testes sintéticos:** `tests/test_grafo.py`.
 
+*Nota do dev (2026-10-26, depois da fase 1 e antes do holdout).*
+
+- **Escolhas congeladas** (`logs/secao18_escolhas.json`, regra da 18.5,
+  aplicada sem ajuste):
+
+  | estimador | critério no dev | escolha |
+  |---|---|---|
+  | M2 | variância GMV | τ = 180, norma z (20 tentativas; Var(SR) = 2,4·10⁻⁵ para o deflated Sharpe) |
+  | B8 / M3 (POET) | variância GMV | C = 0,5 |
+  | M5 | QLIKE | q = 10 |
+  | M1 | QLIKE | κ = 1, c = 0,1 |
+  | M2+W | variância GMV | α = 0,25, β = 2 |
+  | M4 / B9 | QLIKE | λ₀ = 0,2, γ = 2 (B9: λ₀ = 0,2) |
+  | M8b | HRP | λ = 0,25 (única) |
+
+  Observações, sem efeito sobre as escolhas:
+  - o λ₀ do M4 caiu na borda da grade (o maior valor);
+  - no M1, κ quase não muda a QLIKE (diferença de 10⁻⁵ entre κ = 0 e 2 com
+    c = 0,1): o prior de notícias pesa pouco;
+  - os avisos de `slogdet` no log vêm da grade interna de encolhimento
+    (Σ̂ não PD recebe perda infinita); nenhuma QLIKE mensal ficou indefinida.
+- **Correções feitas depois do commit 200bdd5** (só leitura de dados, sem
+  mudar teste, estimador ou critério):
+  - `amostra`: o `groupby` perdia a coluna `unit_id` (KeyError);
+  - `anonimizacao`: lia `kind_a/kind_b` de `news.relations_clean`, que não
+    tem essas colunas; passou a ler `news.relations_linked`.
+- **Cobertura da etapa 1.** O texto das unidades disponível
+  (`data/curated/extraction_units`, cópia do Drive) é o da amostra de 25%:
+  - 740.467 das 1.063.603 tuplas (70%) têm texto para a auditoria;
+  - o recall ficou com 63 unidades (não 100) e a anonimização com 218
+    (não 300).
+  As anotações manuais e a reextração anonimizada (GPU) ainda não foram
+  feitas.
+- **O que já foi visto antes do holdout.** Os testes diádicos (G1, G2, G3,
+  G6, G8, G9), o G4 e os painéis de robustez (τ e normalização) rodaram no
+  período inteiro, como manda a 18.4. Os resultados entram na seção de
+  resultados. Nenhuma métrica de carteira de 2019–2023 foi calculada.
+
 ## Referências
 
 - Anderson, T. W. (2003). *An Introduction to Multivariate Statistical Analysis*, 3ª ed. Wiley.

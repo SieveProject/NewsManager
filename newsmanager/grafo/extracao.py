@@ -128,7 +128,7 @@ def amostra(cfg: Config) -> dict:
     txt = con.execute(f"""SELECT unit_id, published_at, title, body FROM read_parquet('{_units(cfg)}')
                           WHERE unit_id IN ({ids})""").df()
     con.close()
-    tl = tup.groupby("unit_id").apply(lambda g: json.dumps(g.drop(columns="unit_id").to_dict("records"),
+    tl = tup.groupby("unit_id").apply(lambda g: json.dumps(g.to_dict("records"),
                                                            ensure_ascii=False), include_groups=False)
     rec = txt.merge(tl.rename("tuplas_extraidas"), left_on="unit_id", right_index=True, how="left")
     rec["n_tuplas_corretas"] = ""
@@ -208,7 +208,7 @@ def anonimizacao(cfg: Config, n: int = 300) -> Path:
                                         FROM (SELECT DISTINCT unit_id FROM news.graph_events
                                               WHERE dt >= DATE '2011-01-01')) WHERE k <= {n})
         SELECT x.unit_id, x.title, x.body FROM read_parquet('{_units(cfg)}') x JOIN s USING (unit_id)""").fetchall()
-    names = con.execute("""SELECT unit_id, agent_a, kind_a, agent_b, kind_b FROM news.relations_clean
+    names = con.execute("""SELECT unit_id, agent_a, kind_a, agent_b, kind_b FROM news.relations_linked
                            WHERE unit_id IN (SELECT unnest(?))""", [[x[0] for x in u]]).fetchall()
     con.close()
     comp: dict[str, set] = {}
