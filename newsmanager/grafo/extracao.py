@@ -199,38 +199,242 @@ def metricas(paths: list[str], recall: str | None = None) -> dict:
     return res
 
 
+SUFFIX_RX = re.compile(r"[\s,]+(?:inc|incorporated|corp|corporation|co|company|ltd|limited|llc|plc|lp|l\.p|n\.v|s\.a|"
+                       r"ag|se|sa|nv|holdings?|group|& co|the)\.?$", re.I)
+DATE_RX = re.compile(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:,\s*\d{4})?"
+                     r"|\b(?:19|20)\d{2}\b")
+
+
+def _name_variants(nm: str) -> set[str]:
+    """'Ansys Inc. (ANSS)' -> {'Ansys Inc.', 'Ansys'}: sem o ticker entre parênteses e sem sufixo societário."""
+    base = re.sub(r"\s*\([^)]*\)", "", nm).strip()
+    out = {base}
+    cur = base
+    while True:
+        nxt = SUFFIX_RX.sub("", cur).strip(" ,.")
+        if nxt == cur or len(nxt) < 3:
+            break
+        out.add(nxt)
+        cur = nxt
+    if cur.lower().startswith("the ") and len(cur) > 7:
+        out.add(cur[4:])
+    return {v for v in out if len(v) >= 3 and v.lower() not in GENERIC}
+
+
+def mask_unit(title: str, body: str, companies: list[tuple[str, str | None]], symbols: list[str]) -> tuple[str, str, dict, list[str]]:
+    """Mascara empresas (nomes, variantes sem sufixo e tickers) e datas. companies: (nome, ticker).
+    Devolve título, corpo, máscara -> {nomes, ticker} e a lista de tickers do arquivo já mascarada."""
+    groups: dict[str, dict] = {}
+    for nm, tk in companies:
+        m = re.search(r"\(([A-Z][A-Z.\-]{0,5})\)", nm or "")
+        tk = tk or (m.group(1) if m else None)
+        key = tk or SUFFIX_RX.sub("", re.sub(r"\s*\([^)]*\)", "", nm)).strip().lower()
+        g = groups.setdefault(key, {"nomes": set(), "ticker": tk})
+        g["nomes"] |= _name_variants(nm)
+    for s in symbols or []:
+        if s and s not in groups and not any(g["ticker"] == s for g in groups.values()):
+            groups[s] = {"nomes": set(), "ticker": s}
+    mapping, subs = {}, []
+    for k, (key, g) in enumerate(sorted(groups.items())):
+        tag = f"[EMPRESA_{chr(65 + k % 26)}{k // 26 or ''}]"
+        mapping[tag] = {"nomes": sorted(g["nomes"]), "ticker": g["ticker"], "chave": key}
+        subs += [(re.compile(rf"(?<![\w\[]){re.escape(v)}(?:'s)?(?!\w)", re.I), tag) for v in g["nomes"]]
+        if g["ticker"]:
+            # ticker só em caixa alta (evita 'ON', 'ALL' como palavra) e em formatos de cotação
+            subs += [(re.compile(rf"(?:NYSE|NASDAQ|Nasdaq|AMEX)\s*:\s*{re.escape(g['ticker'])}\b"), tag),
+                     (re.compile(rf"(?<![\w\[]){re.escape(g['ticker'])}(?![\w\]])"), tag)]
+    subs.sort(key=lambda s: -len(s[0].pattern))                 # nomes longos antes dos curtos
+
+    def apply(t: str) -> str:
+        for rx, tag in subs:
+            t = rx.sub(tag, t)
+        return DATE_RX.sub("[DATA]", t)
+
+    sym = [next((tg for tg, m in mapping.items() if m["ticker"] == s), "[EMPRESA]") for s in symbols or []]
+    return apply(title or ""), apply(body or ""), mapping, sym
+
+
 def anonimizacao(cfg: Config, n: int = 300) -> Path:
-    """Prepara 300 unidades com nomes de empresas e datas mascarados para
-    reextrair com o mesmo prompt (teste 7.1.3). Não roda o LLM."""
+    """Prepara 300 unidades com nomes de empresas, tickers e datas mascarados para
+    reextrair com o mesmo prompt (teste 7.1.3). Não roda o LLM (ver anon_run)."""
     con = query.connect(cfg)
     u = con.execute(f"""
         WITH s AS (SELECT unit_id FROM (SELECT unit_id, row_number() OVER (ORDER BY hash(unit_id || 'anon')) AS k
                                         FROM (SELECT DISTINCT unit_id FROM news.graph_events
                                               WHERE dt >= DATE '2011-01-01')) WHERE k <= {n})
-        SELECT x.unit_id, x.title, x.body FROM read_parquet('{_units(cfg)}') x JOIN s USING (unit_id)""").fetchall()
-    names = con.execute("""SELECT unit_id, agent_a, kind_a, agent_b, kind_b FROM news.relations_linked
+        SELECT x.unit_id, x.title, x.body, x.all_symbols FROM read_parquet('{_units(cfg)}') x JOIN s USING (unit_id)
+        ORDER BY x.unit_id""").fetchall()
+    names = con.execute("""SELECT unit_id, agent_a, kind_a, ticker_a, agent_b, kind_b, ticker_b FROM news.relations_linked
                            WHERE unit_id IN (SELECT unnest(?))""", [[x[0] for x in u]]).fetchall()
-    con.close()
     comp: dict[str, set] = {}
-    for uid, a, ka, b, kb in names:
-        for nm, k in ((a, ka), (b, kb)):
-            if k == "company" and nm and len(nm) >= 3:
-                comp.setdefault(uid, set()).add(nm)
-    date_rx = re.compile(r"\b(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2}(?:,\s*\d{4})?|\b(19|20)\d{2}\b")
+    for uid, a, ka, ta, b, kb, tb in names:
+        for nm, k, tk in ((a, ka, ta), (b, kb, tb)):
+            if (k == "company" or tk) and nm and len(nm) >= 2:
+                comp.setdefault(uid, set()).add((nm, tk))
+    # nome canônico de cada ticker da unidade (agentes e arquivo), para mascarar empresas
+    # citadas no texto que não viraram agente ("Cadence Design Systems ( CDNS )")
+    tks = sorted({tk for s in comp.values() for _, tk in s if tk} | {s for x in u for s in (x[3] or [])})
+    canon: dict[str, set] = {}
+    for tk, nm in con.execute("""SELECT DISTINCT ticker, canonical FROM news.entity_map
+                                 WHERE link = 'issuer' AND ticker_check = 'name' AND ticker IN (SELECT unnest(?))""",
+                              [tks]).fetchall():
+        canon.setdefault(tk, set()).add(nm)
+    con.close()
+    for uid, *_, syms in u:
+        tk_u = {tk for _, tk in comp.get(uid, set()) if tk} | set(syms or [])
+        for tk in tk_u:
+            comp.setdefault(uid, set()).update((nm, tk) for nm in canon.get(tk, ()))
     out = annot_dir(cfg) / "secao18_anonimizacao.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
+    resid = 0
     with out.open("w") as f:
-        for uid, title, body in u:
-            txt = f"{title or ''}\n{body or ''}"
-            mapping = {}
-            for k, nm in enumerate(sorted(comp.get(uid, []), key=len, reverse=True)):
-                tag = f"[EMPRESA_{chr(65 + k % 26)}{k // 26 or ''}]"
-                mapping[tag] = nm
-                txt = re.sub(re.escape(nm), tag, txt, flags=re.I)
-            txt = date_rx.sub("[DATA]", txt)
-            f.write(json.dumps({"unit_id": uid, "text": txt, "mascaras": mapping}, ensure_ascii=False) + "\n")
-    print(f"[anonimizacao] {len(u)} unidades em {out} (reextração exige GPU: só com autorização)")
+        for uid, title, body, syms in u:
+            t, b, mapping, sym = mask_unit(title, body, sorted(comp.get(uid, [])), list(syms or []))
+            left = [v for m in mapping.values() for v in ([m["ticker"]] if m["ticker"] else []) + m["nomes"]
+                    if re.search(rf"(?<!\w){re.escape(v)}(?!\w)", t + "\n" + b, re.I if v != m["ticker"] else 0)]
+            resid += bool(left)
+            f.write(json.dumps({"unit_id": uid, "title": t, "body": b, "symbols": sym, "mascaras": mapping,
+                                "residuo": left}, ensure_ascii=False) + "\n")
+    print(f"[anonimizacao] {len(u)} unidades em {out}; {resid} com nome/ticker residual "
+          f"(reextração exige GPU: só com autorização)")
     return out
+
+
+def anon_run(cfg: Config, host: str, model: str, concurrency: int = 8) -> Path:
+    """Reextrai as unidades mascaradas com o mesmo prompt, schema, max_chars e modelo da
+    extração (roda na GPU). Data -> '[DATA]'; tickers do arquivo -> máscaras."""
+    import asyncio
+    from ..extract.cli import _repo, _required_num_ctx
+    from ..extract.client import OllamaClient, OllamaConfig
+    from ..extract.prompt import DEFAULT_MAX_CHARS, load as load_prompt
+
+    pr = load_prompt(_repo() / "prompts" / "extraction.txt", _repo() / "prompts" / "schema.json",
+                     DEFAULT_MAX_CHARS, model=model)
+    num_ctx = -(-_required_num_ctx(DEFAULT_MAX_CHARS, pr.template, 768) // 256) * 256
+    oll = OllamaConfig(host=host, model=model, num_ctx=num_ctx, num_predict=768, concurrency=concurrency,
+                       timeout_s=300.0)
+    units = [json.loads(x) for x in (annot_dir(cfg) / "secao18_anonimizacao.jsonl").read_text().splitlines()]
+    out = annot_dir(cfg) / "secao18_anon_saida.jsonl"
+
+    async def go():
+        async with OllamaClient(oll) as cl:
+            h = await cl.health()
+            if not h["has_model"]:
+                raise RuntimeError(f"{model} não está em {host}: {h['models']}")
+            await cl.warm()
+
+            async def one(u):
+                text, trunc = pr.render(article=u["body"], title=u["title"], date="[DATA]",
+                                        symbols=", ".join(u["symbols"]) or None)
+                r = await cl.generate(text, pr.schema)
+                try:
+                    tup = json.loads(r.text)["tuples"] if r.ok else None
+                except (ValueError, KeyError, TypeError):
+                    tup = None
+                return {"unit_id": u["unit_id"], "ok": tup is not None, "tuples": tup, "truncated": trunc,
+                        "prompt_version": pr.version, "model": model}
+            return await asyncio.gather(*(one(u) for u in units))
+
+    res = asyncio.run(go())
+    out.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in res))
+    print(f"[anon_run] {sum(r['ok'] for r in res)}/{len(res)} ok, prompt_version {pr.version}: {out}")
+    return out
+
+
+def anon_comparar(cfg: Config, h: int = 21) -> dict:
+    """Compara a reextração mascarada com a original (7.1.3): pareamento por par de agentes
+    (máscara -> chave da empresa), concordância de direção, tipo e força, e se as
+    divergências se alinham com o retorno futuro do agente afetado (agent_b)."""
+    from scipy import stats
+    units = {d["unit_id"]: d for d in map(json.loads, (annot_dir(cfg) / "secao18_anonimizacao.jsonl").read_text().splitlines())}
+    anon = {d["unit_id"]: d for d in map(json.loads, (annot_dir(cfg) / "secao18_anon_saida.jsonl").read_text().splitlines())}
+    con = query.connect(cfg)
+    orig = con.execute("""SELECT unit_id, published_at, agent_a, ticker_a, agent_b, ticker_b, relation_type, direction,
+                                 strength, noise FROM news.relations_linked WHERE unit_id IN (SELECT unnest(?))""",
+                       [list(anon)]).df()
+
+    def key_orig(nm, tk, masks):
+        for m in masks.values():
+            if (tk and m["ticker"] == tk) or SUFFIX_RX.sub("", re.sub(r"\s*\([^)]*\)", "", nm or "")).strip().lower() == m["chave"] \
+                    or re.sub(r"\s*\([^)]*\)", "", nm or "").strip() in m["nomes"]:
+                return m["chave"]
+        return (nm or "").strip().lower()
+
+    def key_anon(nm, masks):
+        m = re.search(r"\[EMPRESA_[A-Z]\d*\]", nm or "")
+        if m and m.group(0) in masks:
+            return masks[m.group(0)]["chave"]
+        return (nm or "").strip().lower()
+
+    rows = []
+    n_orig = n_anon = 0
+    for uid, a in anon.items():
+        if not a["ok"]:
+            continue
+        masks = units[uid]["mascaras"]
+        o = orig[orig.unit_id == uid]
+        n_orig += len(o)
+        n_anon += len(a["tuples"])
+        at = {}
+        for t in a["tuples"]:
+            at.setdefault(frozenset((key_anon(t["agent_a"], masks), key_anon(t["agent_b"], masks))), []).append(t)
+        for r in o.itertuples():
+            ka, kb = key_orig(r.agent_a, r.ticker_a, masks), key_orig(r.agent_b, r.ticker_b, masks)
+            cand = at.get(frozenset((ka, kb)), [])
+            t = cand[0] if cand else None
+            rows.append({"unit_id": uid, "dt": r.published_at, "ticker_b": r.ticker_b, "limpa": r.noise is None,
+                         "par_achado": t is not None, "s_o": 1 if r.direction == "positive" else -1,
+                         "f_o": r.strength, "tipo_o": (r.relation_type or "").lower(),
+                         "s_a": None if t is None else (1 if t["direction"] == "positive" else -1),
+                         "f_a": None if t is None else t["strength"],
+                         "tipo_a": None if t is None else (t["relation_type"] or "").lower()})
+    import pandas as pd
+    df = pd.DataFrame(rows)
+    m = df[df.par_achado].copy()
+    # retorno futuro (h pregões a partir do dia seguinte à publicação) do agente afetado
+    tk = sorted({x for x in m.ticker_b.dropna()})
+    if tk:
+        lst = ", ".join("'" + x.replace("'", "") + "'" for x in tk)
+        ret = con.execute(f"SELECT ticker, date, ret FROM news.returns WHERE ticker IN ({lst})").df()
+        ret["date"] = pd.to_datetime(ret["date"])
+        fut = []
+        for r in m.itertuples():
+            s = ret[(ret.ticker == r.ticker_b) & (ret.date > pd.Timestamp(r.dt).normalize())].sort_values("date").head(h)
+            fut.append(float(np.prod(1 + s.ret) - 1) if len(s) >= int(0.7 * h) else np.nan)
+        m["r_fut"] = fut
+    else:
+        m["r_fut"] = np.nan
+    con.close()
+    m["d"] = m.s_o * m.f_o - m.s_a * m.f_a
+    ok = m.dropna(subset=["r_fut"])
+
+    def corr(x, y):
+        if len(x) < 10 or np.std(x) == 0:
+            return {"rho": None, "p": None, "n": int(len(x))}
+        r, p = stats.spearmanr(x, y)
+        return {"rho": float(r), "p": float(p), "n": int(len(x))}
+
+    res = {
+        "unidades": len(anon), "unidades_ok": int(sum(a["ok"] for a in anon.values())),
+        "unidades_com_residuo": int(sum(bool(u["residuo"]) for u in units.values())),
+        "tuplas_orig": n_orig, "tuplas_anon": n_anon,
+        "frac_orig_reencontradas": float(df.par_achado.mean()) if len(df) else None,
+        "frac_orig_limpas_reencontradas": float(df[df.limpa].par_achado.mean()) if len(df) else None,
+        "pareadas": int(len(m)),
+        "direcao_igual": float((m.s_o == m.s_a).mean()) if len(m) else None,
+        "tipo_igual": float((m.tipo_o == m.tipo_a).mean()) if len(m) else None,
+        "forca_media_orig": float(m.f_o.mean()) if len(m) else None,
+        "forca_media_anon": float(m.f_a.mean()) if len(m) else None,
+        "forca_dif_media_abs": float((m.f_o - m.f_a).abs().mean()) if len(m) else None,
+        f"alinhamento_divergencia_retorno_{h}d": corr(ok.d, ok.r_fut),
+        f"alinhamento_original_retorno_{h}d": corr(ok.s_o * ok.f_o, ok.r_fut),
+        f"alinhamento_anon_retorno_{h}d": corr(ok.s_a * ok.f_a, ok.r_fut),
+    }
+    out = cfg.root.parent / "logs" / "secao18_anonimizacao.json"
+    out.write_text(json.dumps(res, indent=2, ensure_ascii=False))
+    df.to_csv(annot_dir(cfg) / "secao18_anon_pareamento.csv", index=False)
+    print(f"[anon_comparar] {json.dumps(res, ensure_ascii=False)}\n-> {out}")
+    return res
 
 
 # ------------------------------------------------------------------ etapa 2

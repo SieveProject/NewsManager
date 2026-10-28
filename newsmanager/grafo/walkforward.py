@@ -223,6 +223,11 @@ def estimate(name: str, prm: dict, mes: Mes, state: dict) -> tuple[np.ndarray, d
         S, info["delta"] = ge.block_target(X, mes.sec["ff12"], True)
         return S, info
     if name == "B6":
+        # pregão inteiro sem retorno (emendas do arquivo de preços) vira linha zero no
+        # demeaned e reduz o posto: o lw_nonlinear supõe posto T - 1 e usa um autovalor
+        # nulo (1/λ = ∞, Σ̂ singular). Corrigido depois do holdout (análise posterior).
+        if prm.get("fix_nan_rows"):
+            X = X[~np.isnan(X).all(axis=1)]
         return est.lw_nonlinear(X), info
     if name == "B7":
         return ge.observable_factor(X, mes.sec["ff12"], mes.size, mes.mom), info

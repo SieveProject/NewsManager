@@ -528,7 +528,64 @@ Isso repete o padrão das seções 8–17 com um programa muito maior: H1
     indica Σ̂ quase singular depois da projeção PSD.
   
   Nenhum dos dois entra na família primária: o M3 só no par M3/B8 do G5,
-  que é secundário. Investigar e corrigir agora seria mexer depois de ver
-  o holdout. Se forem corrigidos, entram como análise posterior, rotulada.
+  que é secundário. A investigação está na seção 9: o B6 tinha defeito
+  (corrigido como análise posterior) e o M3 não tem (o problema é o
+  desenho).
 - **G13:** as medidas de partição (ARI/NMI) saíram vazias (`particoes: {}`).
   São descritivas e não afetam o p do G13.
+
+## 9. Análises posteriores ao holdout (rotuladas, fora do pré-registro)
+
+### 9.1 B6 (LW não linear): defeito confirmado e corrigido
+
+- **Causa.** Nos pregões de emenda do arquivo de preços, a linha inteira do
+  dia vem sem retorno (NaN), por exemplo em 2020-06 e 2021-03. O
+  `demeaned` zera essa linha, o que reduz o posto da matriz amostral para
+  abaixo de T − 1. O `lw_nonlinear` supõe posto T − 1 e por isso inclui um
+  autovalor nulo, o que dá 1/λ = ∞ e encolhimento zero no espaço nulo.
+  O Σ̂ sai singular: autovalores entre 10⁻³⁰ e 10⁻¹⁵ e N efetivo da GMV
+  abaixo de 1.
+- **Alcance.** O defeito atinge só o B6, nos meses cuja janela contém
+  esses pregões (2020-05 a 2021-07). Por isso o `B6|erc` faltou nesses
+  meses.
+- **Correção** em `walkforward.estimate` (`B6` com
+  `fix_nan_rows=True`): pregões inteiramente vazios saem da janela antes do
+  estimador. A função compartilhada `portfolio.estimators.lw_nonlinear`
+  não foi alterada, porque as seções 10–15 dependem dela.
+- **Resultado** no holdout (tag `wf/pos_B6fix`, só o B6, mesmas
+  carteiras):
+
+| | vol. GMV anual |
+|---|---|
+| B6 original (defeituoso) | 28,6% |
+| **B6 corrigido** | **14,4%** |
+| B5 | 15,2% |
+| M2 | 16,0% |
+| M4 | 14,4% |
+
+| razão de variâncias | razão | IC 95% | p |
+|---|---|---|---|
+| B6 corrigido / B5 | 0,901 | 0,827–0,971 | 0,006 |
+| M2 / B6 corrigido | 1,238 | 1,147–1,389 | < 0,001 |
+| M4 / B6 corrigido | 0,997 | 0,931–1,064 | 0,92 |
+
+O B6 corrigido fica entre os melhores e o M2 continua pior que ele. O
+`B6|erc` agora existe em todos os meses. Nenhum veredito da seção 7 muda:
+o B6 não entra na família primária. Os MCS da 7.2, que incluíam o B6
+defeituoso, não foram recalculados.
+
+### 9.2 M3: sem defeito de código; o problema é o desenho
+
+O M3 zera o resíduo fora do suporte do grafo, o que dá uma matriz de
+correlação muito indefinida (autovalor mínimo de −1,27 em 2019-06 e de
+−0,78 em 2022-06). A projeção registrada (correlação PSD mais próxima)
+devolve uma matriz com autovalor mínimo de cerca de 10⁻⁴. Com isso, o
+menor autovalor de Σ̂ fica cerca de 1.000 vezes menor que o do POET
+(4·10⁻⁹ contra 7·10⁻⁶), e a GMV concentra peso nessas direções quase sem
+variância.
+
+O M3-placebo tem o mesmo suporte aleatório de mesma densidade e o mesmo
+problema, então a comparação M3 × M3plac é justa. Já a M3 × B8 (razão de
+4,56) mede sobretudo esse efeito numérico, não o valor do grafo. Não houve
+correção: qualquer piso de autovalor seria um estimador novo, escolhido
+depois de ver o holdout.

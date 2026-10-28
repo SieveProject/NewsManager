@@ -28,6 +28,11 @@ def main(argv: list[str] | None = None) -> int:
     sm.add_argument("planilhas", nargs="+")
     sm.add_argument("--recall", default=None)
     sub.add_parser("anonimizacao")
+    sr = sub.add_parser("anon-run")
+    sr.add_argument("--host", default="http://127.0.0.1:11434")
+    sr.add_argument("--model", default="qwen2.5:14b-instruct")
+    sr.add_argument("--concurrency", type=int, default=8)
+    sub.add_parser("anon-comparar")
     sub.add_parser("descritivas")
     sd = sub.add_parser("diadico-painel")
     sd.add_argument("--tau", type=float, default=90.0)
@@ -54,6 +59,12 @@ def main(argv: list[str] | None = None) -> int:
         if a.cmd in ("auditoria", "amostra", "anonimizacao", "descritivas"):
             from . import extracao
             getattr(extracao, a.cmd)(cfg)
+        elif a.cmd == "anon-run":
+            from . import extracao
+            extracao.anon_run(cfg, a.host, a.model, a.concurrency)
+        elif a.cmd == "anon-comparar":
+            from . import extracao
+            extracao.anon_comparar(cfg)
         elif a.cmd == "metricas":
             from . import extracao
             extracao.metricas(a.planilhas, a.recall)
