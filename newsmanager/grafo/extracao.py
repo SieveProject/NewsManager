@@ -173,14 +173,18 @@ def metricas(paths: list[str], recall: str | None = None) -> dict:
     frames = [pd.read_csv(p) for p in paths]
     res = {}
     for name, f in zip(paths, frames):
-        f = f[f["relacao_ok"].astype(str).str.strip() != ""]
+        # linha sem rótulo (NaN vira "nan" no astype(str)) fica fora
+        f = f[pd.to_numeric(f["relacao_ok"], errors="coerce").notna()]
         num = lambda c: pd.to_numeric(f[c], errors="coerce")  # noqa: E731
-        conf = pd.crosstab(f["rel_class"], f["classe_correta"].fillna(f["rel_class"]))
+        # classe e sinal só se julgam quando a relação existe no texto
+        r = f[num("relacao_ok") == 1]
+        cls = r["classe_correta"].fillna(r["rel_class"])
+        conf = pd.crosstab(r["rel_class"], cls)
         res[Path(name).name] = {
             "n": int(len(f)), "precisao_entidade": float(num("entidades_ok").mean()),
             "precisao_relacao": float(num("relacao_ok").mean()),
-            "acuracia_classe": float((f["classe_correta"].fillna(f["rel_class"]) == f["rel_class"]).mean()),
-            "acuracia_sinal": float(num("sinal_ok").mean()),
+            "acuracia_classe": float((cls == r["rel_class"]).mean()),
+            "acuracia_sinal": float(pd.to_numeric(r["sinal_ok"], errors="coerce").mean()),
             "spearman_forca": float(spearmanr(f["strength"], num("forca_humana_0a3"), nan_policy="omit").statistic),
             "confusao_classe": conf.to_dict()}
     if len(frames) == 2:
