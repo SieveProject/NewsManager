@@ -292,7 +292,10 @@ def avaliar(cfg: Config) -> dict:
     from scipy import stats
     ch = escolhas()
     di, me, info = load(cfg, "holdout")
-    R = net_returns(di).dropna(how="any", axis=0)
+    R = net_returns(di)
+    # o ERC fica sem carteira quando Σ̂ não é PD e não entra em nenhum teste daqui:
+    # não deixar os meses dele derrubarem os dias das outras carteiras
+    R = R.dropna(how="any", axis=0, subset=[c for c in R.columns if not c.endswith("|erc")])
     res: dict = {"escolhas": {k: v for k, v in ch.items() if not k.endswith(("_dev", "_dev_var"))}}
 
     # G5
@@ -351,6 +354,10 @@ def avaliar(cfg: Config) -> dict:
     ep = np.array([[d[:7] in ("2018-10", "2018-11", "2018-12"), d[:7] in ("2020-01", "2020-02", "2020-03"),
                     d[:4] == "2022"] for d in dates], float)
     X = np.column_stack([np.ones(len(dq)), terc == 1, terc == 2, ep])
+    names = ["const(tercil1)", "tercil2", "tercil3", "2018Q4", "2020Q1", "2022"]
+    # episódio ou tercil sem nenhum mês no período (2018Q4 fica fora do holdout) sai da regressão
+    keep = [k for k in range(X.shape[1]) if k == 0 or X[:, k].any()]
+    X = X[:, keep]
     g7 = {}
     for nm, y in (("qlike", dq), ("var_gmv", dv)):
         bh, *_ = np.linalg.lstsq(X, y, rcond=None)
@@ -358,8 +365,9 @@ def avaliar(cfg: Config) -> dict:
         V = inf.nw_cov(X * e[:, None], 4) * len(y)
         XtXi = np.linalg.inv(X.T @ X / len(y))
         se_ = np.sqrt(np.diag(XtXi @ V @ XtXi) / len(y))
-        g7[nm] = dict(zip(["const(tercil1)", "tercil2", "tercil3", "2018Q4", "2020Q1", "2022"],
-                          [{"coef": float(c), "t": float(c / s) if s > 0 else None} for c, s in zip(bh, se_)]))
+        g7[nm] = {n: None for n in names}
+        g7[nm].update({names[k]: {"coef": float(c), "t": float(c / s) if s > 0 else None}
+                       for k, c, s in zip(keep, bh, se_)})
     res["G7"] = g7
 
     # G10, G12 (placebos)

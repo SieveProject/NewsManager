@@ -1,0 +1,3 @@
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/_core/_methods.py:49: RuntimeWarning: invalid value encountered in reduce
+  return umr_sum(a, axis, dtype, out, keepdims, initial, where)
+[avaliar] /Users/gabri/Classes/PapersTCC/NewsManager/logs/secao18_avaliacao.json
