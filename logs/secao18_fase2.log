@@ -13,3 +13,15 @@ holdout: 33 estimadores, escolhas /Users/gabri/Classes/PapersTCC/NewsManager/log
   sign, logdet = _umath_linalg.slogdet(a, signature=signature)
 /Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: invalid value encountered in slogdet
   sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: divide by zero encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: overflow encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: invalid value encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: divide by zero encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: overflow encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
+/Users/gabri/Classes/PapersTCC/NewsManager/.venv/lib/python3.14/site-packages/numpy/linalg/_linalg.py:2366: RuntimeWarning: invalid value encountered in slogdet
+  sign, logdet = _umath_linalg.slogdet(a, signature=signature)
