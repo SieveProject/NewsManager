@@ -4,7 +4,9 @@ Infraestrutura para a tese (TCC, finanças) do Gabriel: transforma o corpus de
 notícias FNSPID (`nasdaq_exteral_data.csv`, 21,6 GB, Hugging Face) em tuplas
 `(agent_a, agent_b, relation_type, direction, strength) + published_at` via LLM
 local (Ollama), para cruzar com um painel de preços. Leia `README.md` (desenho e
-números medidos) e `deploy/RUNBOOK.md` (sequência numa GPU alugada).
+números medidos, resultados da tese na Parte 5) e `deploy/RUNBOOK.md` (sequência
+numa GPU alugada). O texto da tese está em `monografia/` (ver "Monografia e
+documentos" abaixo).
 
 O estado de uma run em andamento, se houver, fica em `CLAUDE.local.md`.
 
@@ -45,6 +47,8 @@ sectors --sp500 -> grafo <etapa> (seção 18)               python -m newsmanage
     que roda **uma vez** (`programa.holdout` recusa refazer sem `--force`).
   - Ordem: `backtests/secao18/fase1.sh`, nota com as escolhas do dev na
     seção 18, depois `fase2.sh`.
+  - **Já executado**: fase 1 em 2026-10-26, holdout em 2026-10-28 (uma vez; não
+    refazer). Resultados em `docs/secao18_resultados.md`.
   - Texto das unidades em `data/curated/extraction_units` (cópia do Drive,
     474 MB).
   - Teste: `tests/test_grafo.py`.
@@ -107,6 +111,49 @@ sectors --sp500 -> grafo <etapa> (seção 18)               python -m newsmanage
 - Testes: `tests/test_e2e_subset.py 3 32` (ingestão real, ~100 MB) e
   `tests/test_extract_e2e.py` (extração com Ollama simulado). Rode na VM.
 
+## Monografia e documentos
+
+- `monografia/`: LaTeX (abnTeX2, natbib autor-ano), um `.tex` por capítulo,
+  `Monografia.tex` principal, `referencias.bib`, esboço em `ORGANOGRAMA.md`.
+  Compilar: `cd monografia && /opt/homebrew/bin/tectonic -X compile Monografia.tex`
+  (não há `pdftoppm`; para ver uma figura, compile-a isolada e use `sips`).
+  Depois de editar, recompile e confira que não há referência nem citação
+  indefinida.
+- **Três hipóteses, investigadas a fundo** (decisão do usuário, 2026-11-10):
+  - H1a: a exposição comum a entidades não negociadas prevê a correlação futura.
+  - H1b: os tipos de relação direta têm efeitos diferentes (inclui a análise do sinal).
+  - H2: o *prior* de setor + notícias dá carteira melhor que o de setor e que o
+    placebo; desenhos D1–D9, universos das 50/100/200 mais citadas, 2013–2023.
+- **Fora do texto, não reintroduzir**: H1c (centralidade), o programa final de
+  carteiras (D10: M1–M9, B0–B11, P1–P6, dev/holdout), G4–G13, análises de
+  robustez, colunas de subperíodo, tabelas que não sustentam uma hipótese e
+  qualquer menção a testes ou hipóteses fora das três. H2 é negativa e fica no
+  centro: não é uma seleção de vencedoras.
+- Texto conciso: ~52 páginas de corpo (8 capítulos), apêndices A (prompt e
+  esquema) e B (reprodutibilidade). Autocontido: não remeter a `docs/`.
+- Numeração: equações (1.1), (2.1)–(2.5), (3.1)–(3.11), (5.1); tabelas da
+  Metodologia 3.1 hipóteses, 3.2 testes de pares, 3.3 desenhos. Mudou uma
+  equação ou sua numeração: atualize `docs/equacoes/equacoes.tex` junto.
+- Inferência no texto: Fama-MacBeth com Newey-West (L = 3 + h/21); QAP com
+  1.000 permutações (`scripts/revisao_qap.py`, sementes 101–104 × 250, um
+  processo por semente, horas de CPU; saídas em `logs/revisao_qap/`);
+  *bootstrap* circular em blocos (10 dias, 2.000 réplicas); Bonferroni entre
+  desenhos; Benjamini-Hochberg nos coeficientes de grupo.
+- IDF como implementado: `idf_m = log(n_t/df_m)`, `n_t` = empresas com ticker no
+  grafo da janela, `df_m` = quantas delas se ligam a `m`.
+- `docs/equacoes/equacoes.tex`: cada equação da monografia (variáveis, domínios,
+  unidades). `docs/guia/guia_tese.tex`: guia com o registro completo do que foi
+  rodado (G1–G13, D10), de propósito mais amplo que a monografia.
+  `docs/revisao_monografia.md`: revisão do texto e o destino de cada achado
+  (inclui por que o alvo do M2 não mede o conteúdo das notícias: é quase
+  diagonal e singular, com classes de ação no mesmo nó).
+  `docs/metodo_covariancia.md` e `docs/secao18_resultados.md`: pré-registros e
+  resultados em ordem cronológica; não reescrever o que já foi registrado.
+- `scripts/conferir_numeros.py` recalcula os números citados na monografia e
+  no README -> `logs/conferencia_numeros.txt`.
+- A entrada `ross1976` do `referencias.bib` foi escrita de memória: conferir
+  antes da entrega.
+
 ## Decisões já tomadas (não reabrir sem motivo novo)
 
 - **Modelo: `qwen2.5:14b-instruct`.** Comparado ao `deepseek-r1:14b` nos mesmos
@@ -119,14 +166,14 @@ sectors --sp500 -> grafo <etapa> (seção 18)               python -m newsmanage
 - **Máximo de 8 tuplas por artigo** (prompt + `maxItems` no schema).
 - Ruído residual (métricas, grupos genéricos, fontes, ETF→holding…) é tratado
   pelo `filter` (`newsmanager/extract/noise.py`), que **marca** e não apaga:
-  use `news.relations_clean` (86,2% das relações) na análise. Indicadores
+  use `news.relations_clean` (86,1% das relações) na análise. Indicadores
   macro e setores NÃO são ruído — não amplie as listas sem medir amostras.
 - **Link: `qwen2.5:7b-instruct`** (só escolhe num enum fechado). No piloto de
   400 entidades o 3B teve a mesma velocidade e classificou tipos pior.
 
-## Estado atual (2026-10-16)
+## Estado atual (2026-11-11)
 
-- Extração `v=a05d0c0dc189`: 572.762 unidades (~34% do corpus; amostra de 25%
+- Extração `v=a05d0c0dc189`: 572.762 unidades (35,6% das 1.607.982 elegíveis; amostra de 25%
   ampliada para 40% e parada por crédito em 2026-10-15), 1.270.582 relações,
   86,1% limpas. Tudo no Drive (`gdrive:NewsManager`). A amostra de 25%
   (401.609 unidades) e os produtos derivados dela estão em `data/archive/*_25pct/`.
@@ -135,9 +182,19 @@ sectors --sp500 -> grafo <etapa> (seção 18)               python -m newsmanage
   tickers novos aceitos por evidência (875 menções) ficaram sem verify
   (declarado na seção 13 do método). Runs `l=863c9944d819` e `l=0a3720a0b0ce`
   são do piloto (prompt antigo): não usar no build.
-- Grafo: 1.064.801 eventos limpos, 255.384 nós. Resultados da tese até aqui:
-  seções 8–13 de `docs/metodo_covariancia.md` (H1 confirmada, H2 rejeitada nos
-  três desenhos).
+- Grafo: 1.064.801 eventos limpos, 255.384 nós.
+- Experimentos concluídos; não há run pendente. Registro em
+  `docs/metodo_covariancia.md` (seções 8–18) e `docs/secao18_resultados.md`.
+  - H1: ganho fora da amostra sobre persistência + setor de +0,0033 de R² na
+    correlação total (t = 4,3) e +0,0027 na residual (t = 8,8; 84% dos meses).
+  - H1a: exposição comum +0,0038 por desvio-padrão (t = 11,1; QAP p = 0,001) no
+    S&P 500 (155 meses, 12,2 milhões de pares-mês).
+  - H1b: Wald = 77,9 (QAP p = 0,001; Bonferroni ×3 = 0,003); aresta com sinal
+    −0,0016 (t = −9,1).
+  - H2: rejeitada nos nove desenhos; D8 (+21% de variância ativa) e D9 (+14%)
+    significativamente piores com notícias.
+- Monografia: texto completo nas três hipóteses, compila sem referências
+  indefinidas. Guia de equações e guia da tese alinhados a ela.
 - Nenhuma instância Vast ativa.
 - Limitações conhecidas: tickers pequenos usados como nome (AVGO, DHI, RIG, ~250
   menções) e empresas renomeadas (Momo, FTI) ficam sem ticker; IDs canônicos não

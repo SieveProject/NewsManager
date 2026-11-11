@@ -1,0 +1,76 @@
+% Monografia de Trabalho de Conclusão de Curso - Engenharia Elétrica, UFMG
+% Grafos de notícias extraídos por LLM na estimação da matriz de covariância
+%-----------------------------------------------------------
+
+
+%---------------Inicialização de pacotes--------------------
+
+\documentclass[12pt,a4paper,notitlepage,twoside]{book}
+\usepackage{times}
+
+\usepackage{graphicx}
+\usepackage[brazil]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amsthm,amsfonts,amssymb}
+\usepackage{icomma}
+\usepackage[table]{xcolor}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{fvextra}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit}
+\usepackage[round,authoryear]{natbib}
+\usepackage[colorlinks]{hyperref}
+\usepackage{abntex2abrev}
+
+
+\usepackage[a4paper,top=30mm,bottom=30mm,inner=30mm,outer=25mm,headheight=7mm,headsep=6mm,footskip=7mm]{geometry}
+
+\makeindex
+
+\def\baselinestretch{1.0}
+
+% Marca o que ainda falta escrever; aparece em vermelho no PDF.
+% Para a versão final, troque a definição por: \newcommand{\pendente}[1]{}
+\newcommand{\pendente}[1]{{\color{red!70!black}\small[\textbf{A escrever:} #1]}}
+
+%---------------Início do documento-------------------------
+
+\begin{document}
+
+\include{Capa/capa}
+
+\pagenumbering{roman}
+\include{Resumo/Resumo}
+\include{Agradecimentos/Agradecimentos}
+\include{TabelaConteudo/TabelaConteudo}
+\include{ListaFiguras/ListaFiguras}
+\include{ListaTabelas/ListaTabelas}
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\include{Introducao/Introducao}                    % 1
+\include{Revisao/Revisao}                          % 2
+\include{Metodologia/Metodologia}                  % 3
+\include{Dados/Dados}                              % 4
+\include{Extracao/Extracao}                        % 5
+\include{ResultadosCorrelacao/ResultadosCorrelacao} % 6
+\include{ResultadosCarteiras/ResultadosCarteiras}  % 7
+\include{Conclusao/Conclusao}                      % 8
+
+\addcontentsline{toc}{chapter}{Referências Bibliográficas}
+\bibliographystyle{plainnat}
+\begin{small}
+\bibliography{referencias}
+\end{small}
+
+\appendix
+\include{Apendices/Prompt}
+\include{Apendices/Reprodutibilidade}
+
+\end{document}
+
+%---------------Fim do documento----------------------------

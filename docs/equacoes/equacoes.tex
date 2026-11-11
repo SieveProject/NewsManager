@@ -1,0 +1,936 @@
+% Guia das equações da monografia
+% "Grafos de notícias extraídos por LLM na estimação da matriz de covariância"
+% Documento independente: compile com  tectonic -X compile equacoes.tex
+%-----------------------------------------------------------
+\documentclass[11pt,a4paper]{article}
+\usepackage[brazil]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{times}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{icomma}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage[table]{xcolor}
+\usepackage[a4paper,top=25mm,bottom=25mm,left=25mm,right=25mm]{geometry}
+\usepackage[colorlinks,linkcolor=blue!50!black,hypertexnames=false]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+% Tabela de variáveis: símbolo | significado | domínio | unidade
+\newenvironment{vars}{%
+  \par\smallskip\small
+  \tabularx{\textwidth}{>{\raggedright\arraybackslash}p{1.9cm}>{\raggedright\arraybackslash}X%
+    >{\raggedright\arraybackslash}p{3.1cm}>{\raggedright\arraybackslash}p{2.3cm}}
+  \toprule
+  símbolo & significado & domínio & unidade \\
+  \midrule}{%
+  \bottomrule
+  \endtabularx\par\smallskip}
+
+\newcommand{\onde}[1]{\par\textbf{Onde aparece.} #1}
+\newcommand{\resultado}[1]{\par\textbf{Resultado.} #1}
+\newcommand{\leitura}[1]{\par\textbf{Leitura.} #1}
+\newcommand{\nota}[1]{\par{\small\textit{Nota de implementação.} #1}}
+\newcommand{\R}{\mathbb R}
+\newcommand{\un}{\mathbf 1}
+\newcommand{\ur}{[r]}           % unidade de retorno diário
+
+\title{Guia das equações da monografia\\[2pt]
+\large Grafos de notícias extraídos por LLM na estimação da matriz de covariância}
+\author{}
+\date{Documento de apoio --- novembro de 2026}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\clearpage
+
+%====================================================================
+\section{Como ler este guia}
+
+Este documento explica, uma a uma, as equações usadas na monografia: as que aparecem numeradas e as
+definições escritas em linha no texto (como $\mathrm{sgnlog}(w)$ ou o IDF). Para cada uma, dá:
+\begin{itemize}
+  \item a equação, com o número que tem na monografia (por exemplo, (3.1)); as que aparecem em linha
+        no texto vêm com a indicação \textit{Em linha no texto} e a seção onde estão;
+  \item uma tabela com cada variável, seu significado, seu domínio e sua unidade;
+  \item o resultado da equação (o que ela devolve, em que domínio e em que unidade) e como ele é usado
+        na tese, com os valores obtidos quando o texto os relata.
+\end{itemize}
+As equações estão agrupadas por assunto, na ordem em que o argumento as usa: carteiras, estimação de
+$\Sigma$, avaliação e inferência, grafo, regressões de correlação, estimadores com notícias e métricas
+de resultado.
+
+\subsection{As três hipóteses e suas equações}
+
+O trabalho investiga a fundo três hipóteses (Seção 3.3 da monografia). Cada uma usa um conjunto pequeno
+de equações deste guia:
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1cm}>{\raggedright\arraybackslash}p{4.6cm}X}
+\toprule
+& hipótese & equações \\
+\midrule
+H1a & a exposição comum prevê a correlação futura do par & peso do evento (3.1); IDF e exposição comum (3.2); Fisher $z$; regressão preditiva (3.3) e $R^2_{oos}$; fator de mercado (3.4); regressão de pares (3.5); Fama-MacBeth e QAP \\
+H1b & o tipo de relação importa; o sinal não indica o co-movimento & vínculos $d^{(k)}_{ij}$, $w^\pm_{ij}$, $\mathrm{sgnlog}$; regressão de pares (3.5); Wald; Benjamini-Hochberg \\
+H2 & o \emph{prior} de setor e notícias dá carteira melhor que o de setor e que o placebo & GMV (2.2); \emph{shrinkage} (2.4); alvo (3.6) e $\delta$ (3.7); fator + resíduo (3.8); Black-Litterman (3.9)--(3.11); razão de variâncias; Bonferroni \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Convenções de unidade}
+
+\begin{itemize}
+  \item \textbf{Retorno.} Todos os retornos são \emph{retornos simples diários} em fração decimal
+        ($0{,}01 = 1\%$ no dia), calculados com o preço de fechamento ajustado. Embora a fração seja
+        adimensional, convém rastrear o ``tamanho'' de cada grandeza: escreve-se $\ur$ para a unidade
+        de um retorno diário. Assim, uma variância diária tem unidade $\ur^2$, um desvio-padrão diário,
+        $\ur$, e a inversa de uma covariância, $\ur^{-2}$. Essa contabilidade mostra, por exemplo, por que
+        os pesos da GMV são adimensionais e por que a QLIKE depende da escala dos retornos.
+  \item \textbf{Anualização.} Usam-se 252 pregões por ano: volatilidade anual $=\sqrt{252}\times$
+        desvio-padrão diário; retorno médio anual $=252\times$ média diária.
+  \item \textbf{Tempo.} Há duas réguas de tempo no texto. O grafo usa \emph{dias corridos} (janela
+        $W=365$ dias, meia-vida $\tau=90$ dias), porque as notícias têm data de calendário. Os preços usam
+        \emph{pregões} (janela de estimação de 252 pregões, horizonte $h=21$ pregões, cerca de um mês).
+  \item \textbf{Pesos de carteira.} Frações do patrimônio, adimensionais, que somam 1. Um peso negativo
+        é uma posição vendida.
+  \item \textbf{Correlações, cossenos, forças de relação, $\delta$}: adimensionais.
+\end{itemize}
+
+\subsection{Índices e dimensões}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.4cm}X}
+\toprule
+símbolo & significado \\
+\midrule
+$p$ & número de ações do universo numa data: 50, 100 ou 200 nas carteiras ($n$ no texto); 344 a 474 nos testes de pares \\
+$N$ & número de observações (pregões) da janela de estimação; 252 por padrão \\
+$i,j,k,l$ & índices de ações, $1,\dots,p$ \\
+$m$ & índice de entidade fora do universo (Fed, petróleo, China...) na Seção~\ref{sec:grafo} \\
+$t$ & data (de rebalanceamento, no grafo; pregão, nas séries de retorno) \\
+$e$ & um evento do grafo (uma tupla extraída e limpa) \\
+$\un$ & vetor de uns de dimensão $p$ \\
+$\|\cdot\|_F$ & norma de Frobenius, $\|A\|_F^2=\sum_{i,j}A_{ij}^2$ \\
+$\operatorname{diag}(S)$ & matriz diagonal com a diagonal de $S$ \\
+$A\succ 0$, $A\succeq 0$ & $A$ positiva definida, positiva semidefinida \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Símbolos reutilizados com sentidos diferentes}
+
+A monografia segue a notação de cada fonte, e alguns símbolos têm mais de um sentido. O contexto
+resolve a ambiguidade, mas vale tê-los à vista:
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.4cm}X}
+\toprule
+símbolo & sentidos \\
+\midrule
+$\gamma$ & (i) aversão ao risco, Eq.~(2.1); (ii) $\hat\gamma=\|T-S\|_F^2$ na fórmula de $\delta$; (iii) coeficiente da exposição comum nas Eqs.~(3.3) e (3.5) \\
+$\rho$ & (i) correlação; (ii) $\hat\rho$, termo de covariância entre alvo e amostra na fórmula de $\delta$ \\
+$\kappa$ & (i) número de condição; (ii) $\hat\kappa$ na fórmula de Ledoit-Wolf \\
+$m$ & (i) retorno do mercado $m_t$; (ii) índice de entidade; (iii) $m_i$, eventos da ação $i$ \\
+$w$ & (i) vetor de pesos da carteira; (ii) peso de um evento $w_e(t)$ ou de um vínculo $w_{ij}$ \\
+$\beta$ & (i) coeficientes de regressão; (ii) beta de mercado (no texto, $b_i$) \\
+$N$ & número de pregões da janela; na expressão ``carteira $1/N$'', número de ativos (aqui, $p$) \\
+$n$ & (i) número de ações do universo das mais citadas (50, 100, 200); (ii) contagens $n_{im}$, $n_t$ no grafo \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+%====================================================================
+\section{Carteiras}
+\label{sec:carteiras}
+
+\subsection{Média-variância de Markowitz}
+
+\begin{equation}
+  \max_{w}\; w^\top\mu - \frac{\gamma}{2}\, w^\top\Sigma w
+  \quad\text{sujeito a}\quad w^\top\un = 1 .
+  \tag{2.1}
+\end{equation}
+
+\begin{vars}
+$w$ & vetor de pesos da carteira & $\R^p$, $\sum_i w_i=1$ & adimensional \\
+$\mu$ & vetor de retornos esperados & $\R^p$ & $\ur$ \\
+$\Sigma$ & matriz de covariância dos retornos & $p\times p$, simétrica, $\succeq 0$ & $\ur^2$ \\
+$\gamma$ & aversão ao risco & $\gamma>0$ & $\ur^{-1}$ \\
+$w^\top\mu$ & retorno esperado da carteira & $\R$ & $\ur$ \\
+$w^\top\Sigma w$ & variância da carteira & $\ge 0$ & $\ur^2$ \\
+\end{vars}
+
+\resultado{os pesos ótimos $w^*\in\R^p$ (adimensionais). Com só a restrição de orçamento, a solução tem
+forma fechada:
+\[
+  w^* = w_{\mathrm{GMV}} + \frac1\gamma\Bigl(\Sigma^{-1}\mu - \frac{\un^\top\Sigma^{-1}\mu}{\un^\top\Sigma^{-1}\un}\,\Sigma^{-1}\un\Bigr),
+\]
+isto é, a carteira de variância mínima mais uma posição autofinanciada (soma zero) que aposta nos
+retornos esperados, tanto maior quanto menor a aversão $\gamma$.}
+
+\leitura{para que a função objetivo tenha unidade de retorno, $\gamma$ tem unidade inversa de retorno;
+por isso o valor numérico de $\gamma$ ($\gamma=5$ na tese, desenho D4) só tem sentido junto com a escala
+em que $\mu$ e $\Sigma$ são medidos. Na tese, $\mu$ é a média de Bayes-Stein (Jorion, 1986) da janela.}
+
+\onde{Seção 2.1 (teoria) e Seção 3.8 (desenho D4, Markowitz).}
+
+\subsection{Carteira de variância mínima global (GMV)}
+
+\begin{equation}
+  w_{\mathrm{GMV}} = \frac{\Sigma^{-1}\un}{\un^\top\Sigma^{-1}\un}.
+  \tag{2.2}
+\end{equation}
+
+\begin{vars}
+$\Sigma^{-1}$ & matriz de precisão (inversa da covariância) & $p\times p$, $\succ 0$ & $\ur^{-2}$ \\
+$\un^\top\Sigma^{-1}\un$ & soma de todos os elementos da precisão (escalar) & $>0$ & $\ur^{-2}$ \\
+\end{vars}
+
+\resultado{os pesos da carteira de menor variância entre todas com $\sum_i w_i=1$, em $\R^p$,
+adimensionais (as unidades $\ur^{-2}$ do numerador e do denominador se cancelam). A variância
+mínima atingida é $1/(\un^\top\Sigma^{-1}\un)$, em $\ur^2$. É a solução de (2.1) no limite
+$\gamma\to\infty$, ou com $\mu$ ignorado. Na Introdução aparece como $w\propto\Sigma^{-1}\un$.}
+
+\leitura{na prática, $\Sigma$ é substituída por uma estimativa $\hat\Sigma$; como a GMV inverte a matriz,
+os menores autovalores de $\hat\Sigma$, os mais mal estimados, dominam os pesos. É por isso que a GMV é
+o ``laboratório'' para comparar estimadores: o melhor $\hat\Sigma$ tende a dar a menor variância
+realizada (Engle e Colacito, 2006). Nos universos das carteiras ($n=50$, 100 e 200 ações, com $N=252$), há
+sempre mais observações que ações, e a covariância amostral é invertível. A versão restrita (sem venda a
+descoberto e com teto de 10\% por ativo) não tem forma fechada e é resolvida por
+gradiente projetado (FISTA).}
+
+\onde{Seções 1.1, 2.1, 3.8; carteira principal de todos os desenhos.}
+
+\subsection{Máxima diversificação}
+
+{\small\textit{Em linha no texto: Seção 2.1.}}
+\[
+  \max_w\; \mathrm{DR}(w)=\frac{w^\top\sigma}{\sqrt{w^\top\Sigma w}}
+\]
+
+\begin{vars}
+$\sigma$ & vetor de volatilidades individuais, $\sigma_i=\sqrt{\Sigma_{ii}}$ & $\R^p_{+}$ & $\ur$ \\
+$w^\top\sigma$ & média ponderada das volatilidades & $\R$ & $\ur$ \\
+$\sqrt{w^\top\Sigma w}$ & volatilidade da carteira & $\ge 0$ & $\ur$ \\
+\end{vars}
+
+\resultado{a razão de diversificação $\mathrm{DR}\ge 1$ (para pesos não negativos), adimensional.
+Vale 1 se todos os ativos forem perfeitamente correlacionados; cresce quanto mais a combinação reduz o
+risco em relação à soma dos riscos individuais.}
+
+\leitura{é um problema de razão; com restrições, foi reescrito como programa convexo pela mudança de
+variáveis homogênea (Cornuéjols e Tütüncü, 2007) e resolvido por pontos interiores. Desenho D6.}
+
+\subsection{Mínimo \emph{tracking error}}
+
+{\small\textit{Em linha no texto: Seções 2.1 e 3.8.}}
+\[
+  \min_w\; \operatorname{Var}\bigl(w^\top r_t - r^{\mathrm{SPY}}_t\bigr)
+  = w^\top\Sigma w - 2\,w^\top\sigma_{\cdot b} + \sigma_b^2
+\]
+
+\begin{vars}
+$r^{\mathrm{SPY}}_t$ & retorno do índice de referência (ETF SPY) & $\R$ & $\ur$ \\
+$\sigma_{\cdot b}$ & vetor de covariâncias entre cada ativo e o índice & $\R^p$ & $\ur^2$ \\
+$\sigma_b^2$ & variância do índice & $>0$ & $\ur^2$ \\
+\end{vars}
+
+\resultado{os pesos que minimizam a variância do retorno ativo (o \emph{tracking error} ao quadrado,
+em $\ur^2$). A métrica do desenho D8 é a razão entre as variâncias do retorno ativo de duas carteiras
+(adimensional). O resultado relatado é $+21\%$ de variância ativa com notícias.}
+
+\subsection{HRP: distância e bissecção}
+
+{\small\textit{Em linha no texto: Seções 2.3 (Mantegna, 1999) e 3.8.}}
+\[
+  d_{ij}=\sqrt{2(1-\rho_{ij})}
+\]
+
+\begin{vars}
+$\rho_{ij}$ & correlação entre os ativos $i$ e $j$ & $[-1,1]$ & adimensional \\
+$d_{ij}$ & distância de correlação & $[0,2]$ & adimensional \\
+\end{vars}
+
+\resultado{uma métrica: $d_{ij}=0$ para ativos perfeitamente correlacionados, $\sqrt2$ para
+descorrelacionados, $2$ para perfeitamente anticorrelacionados. É a base da árvore geradora mínima e do
+agrupamento hierárquico da HRP. Na HRP, cada bissecção divide o capital entre os dois grupos $L$ e $R$ por
+\[
+  \alpha = 1-\frac{V_L}{V_L+V_R},\qquad V_g = \tilde w_g^\top\Sigma_g\tilde w_g,\ \ \tilde w_g\propto 1/\operatorname{diag}(\Sigma_g),
+\]
+em que $V_g$ é a variância (em $\ur^2$) da carteira de inverso da variância dentro do grupo; o grupo
+de menor variância recebe mais capital. A HRP do desenho D7 usa $d_{ij}=\sqrt{(1-\rho_{ij})/2}\in[0,1]$,
+a mesma distância dividida por 2, que produz a mesma árvore.}
+
+%====================================================================
+\section{Estimação da matriz de covariância}
+\label{sec:estimacao}
+
+\subsection{Covariância amostral}
+
+{\small\textit{Em linha no texto: Seção 2.2.1.}}
+\[
+  S=\frac{1}{N-1}\sum_{t=1}^{N}(r_t-\bar r)(r_t-\bar r)^\top
+\]
+
+\begin{vars}
+$r_t$ & vetor de retornos dos $p$ ativos no pregão $t$ & $\R^p$ & $\ur$ \\
+$\bar r$ & média dos retornos na janela & $\R^p$ & $\ur$ \\
+$N$ & tamanho da janela & inteiro, 252 & pregões \\
+$S$ & covariância amostral & $p\times p$, simétrica, $\succeq 0$ & $\ur^2$ \\
+\end{vars}
+
+\resultado{uma estimativa não viesada de $\Sigma$, com $p(p+1)/2$ parâmetros distintos (com $p=500$, mais
+de 125 mil). Seu posto é no máximo $N-1$: com $N<p$, $S$ é singular. O elemento $s_{ij}$ é a covariância
+diária entre $i$ e $j$; $s_{ii}$, a variância diária de $i$; a correlação amostral é
+$\hat r_{ij}=s_{ij}/\sqrt{s_{ii}s_{jj}}\in[-1,1]$.}
+
+\subsection{Número de condição}
+
+{\small\textit{Em linha no texto: Seções 2.2.1 e 3.10.}}
+\[
+  \kappa=\frac{\lambda_{\max}}{\lambda_{\min}}
+\]
+
+\resultado{um número real $\kappa\ge1$ (adimensional), $+\infty$ se a matriz é singular. Mede quanto a
+inversão amplifica o erro: um erro relativo $\varepsilon$ em $\hat\Sigma$ pode virar um erro relativo da
+ordem de $\kappa\varepsilon$ em $\hat\Sigma^{-1}$ e, portanto, nos pesos da GMV. Na tese é calculado sobre
+a correlação estimada, mês a mês, como diagnóstico (não como critério de sucesso).}
+
+\subsection{Modelo de fatores}
+
+\begin{equation}
+  \Sigma = B\,F\,B^\top + D
+  \tag{2.3}
+\end{equation}
+
+\begin{vars}
+$B$ & exposições (cargas) dos ativos aos fatores & $p\times k$ & $\ur$/[fator] \\
+$F$ & covariância dos fatores & $k\times k$, $\succeq0$ & [fator]$^2$ \\
+$D$ & variâncias idiossincráticas & $p\times p$ diagonal, $D_{ii}\ge0$ & $\ur^2$ \\
+$k$ & número de fatores & $k\ll p$ & --- \\
+\end{vars}
+
+\resultado{uma matriz $p\times p$ em $\ur^2$, positiva semidefinida, com ordem de $pk+k^2+p$ parâmetros
+em vez de $p^2$. Se os fatores são retornos de carteiras (mercado, setores), têm unidade $\ur$ e as cargas
+são adimensionais (betas). Caso usado na tese: um fator, o mercado, com a covariância residual não
+diagonal (Eq.~3.8); o alvo de fator único de Ledoit e Wolf é o mesmo modelo com $D$ diagonal.}
+
+\subsection{\emph{Shrinkage} linear}
+
+\begin{equation}
+  \hat\Sigma = \delta\,T + (1-\delta)\,S,\qquad 0\le\delta\le 1
+  \tag{1.1 e 2.4}
+\end{equation}
+
+\begin{vars}
+$S$ & covariância amostral & $p\times p$, $\succeq0$ & $\ur^2$ \\
+$T$ & matriz-alvo estruturada & $p\times p$, $\succeq0$ & $\ur^2$ \\
+$\delta$ & intensidade do \emph{shrinkage} & $[0,1]$ & adimensional \\
+\end{vars}
+
+\resultado{uma combinação convexa de duas matrizes positivas semidefinidas, logo também positiva
+semidefinida, em $\ur^2$. Com $\delta>0$ e $T\succ0$, $\hat\Sigma$ é positiva definida e invertível mesmo
+quando $S$ é singular. $\delta=0$ devolve a amostra; $\delta=1$, o alvo. Nos experimentos, os alvos
+dividem com $S$ as variâncias ($T_{ii}=s_{ii}$) e diferem nas correlações; então $\delta$ só move as
+covariâncias fora da diagonal.}
+
+\leitura{$\delta$ é escolhido para minimizar $\mathbb E\|\hat\Sigma-\Sigma\|_F^2$, que soma o viés do alvo
+e a variância da amostra (Eq.~2.5). Na leitura bayesiana, $T$ é a média de um \emph{prior} e $\delta$ a
+confiança nele. No desenho D1, a intensidade média ficou em torno de 0,2.}
+
+\subsection{Intensidade ótima de Ledoit-Wolf (alvo de correlação constante)}
+
+\begin{equation}
+  \delta^* = \max\!\left\{0,\ \min\!\left\{\frac{\hat\kappa}{N},\ 1\right\}\right\},
+  \qquad \hat\kappa = \frac{\hat\pi - \hat\rho}{\hat\gamma}
+  \tag{2.5}
+\end{equation}
+
+\begin{vars}
+$\hat\pi$ & soma das variâncias assintóticas de $\sqrt N s_{ij}$ (ruído da amostra) & $\ge0$ & $\ur^4$ \\
+$\hat\rho$ & soma das covariâncias assintóticas entre os elementos do alvo e de $S$ & $\R$ & $\ur^4$ \\
+$\hat\gamma$ & distância ao quadrado entre alvo e amostra, $\|T-S\|_F^2$ (viés do alvo) & $\ge0$ & $\ur^4$ \\
+$\hat\kappa$ & razão ruído/viés & $\R$ & pregões$^{\,0}$ (adim.) \\
+$N$ & tamanho da janela & inteiro & pregões \\
+\end{vars}
+
+\resultado{$\delta^*\in[0,1]$, adimensional (as unidades $\ur^4$ se cancelam). Cresce com o ruído da
+amostra ($\hat\pi$), cai com a distância ao alvo ($\hat\gamma$) e com o tamanho da janela ($N$): quanto
+mais longa a história, mais se confia em $S$. Os cortes em 0 e 1 garantem a combinação convexa.}
+
+\leitura{as definições completas dos estimadores estão na forma generalizada (Eq.~3.7,
+Seção~\ref{sec:delta-geral}), da qual esta é o caso de alvo de correlação constante, $r^T_{ij}=\bar r$.}
+
+%====================================================================
+\section{Avaliação de estimadores e inferência}
+\label{sec:inferencia}
+
+\subsection{Erro de correlação}
+
+{\small\textit{Em linha no texto: Seção 3.10.}}
+\[
+  L_\rho=\frac{2}{p(p-1)}\sum_{i<j}\bigl(\hat\rho_{ij}-\rho^{\mathrm{real}}_{ij}\bigr)^2
+\]
+
+\resultado{$L_\rho\in[0,4]$, adimensional: erro quadrático médio entre as correlações estimadas e as
+realizadas no mês seguinte. A diferença entre dois estimadores é testada na série mensal de $L_\rho$, com
+erro-padrão de Newey-West (teste do tipo Diebold-Mariano). No D1, o alvo com setor e notícias teve o menor
+$L_\rho$ de todos os estimadores (0,09\% abaixo da correlação constante), mas não a menor variância da GMV.}
+
+\subsection{$R^2$ fora da amostra}
+
+{\small\textit{Em linha no texto: Seção 3.5.1; Campbell e Thompson, 2008.}}
+\[
+  R^2_{oos}=1-\frac{\sum_{t}\sum_{(i,j)}\bigl(y_{ij,t}-\hat y_{ij,t}\bigr)^2}{\sum_{t}\sum_{(i,j)}\bigl(y_{ij,t}-\bar y_{t}\bigr)^2}
+\]
+
+\begin{vars}
+$y_{ij,t}$ & correlação futura do par em escala $z$, $z(\rho^{\mathrm{fut}}_{ij})$ & $\R$ & adimensional \\
+$\hat y_{ij,t}$ & previsão com coeficientes estimados só nos meses anteriores (janela expansiva) & $\R$ & adimensional \\
+$\bar y_t$ & média transversal de $y$ no mês $t$ & $\R$ & adimensional \\
+\end{vars}
+
+\resultado{um número $\le1$, adimensional, frequentemente relatado em pontos de $R^2$. Positivo quando a
+previsão erra menos que a média do mês; pode ser negativo. Como $y$ e os regressores são centrados no
+mês, o $R^2_{oos}$ mede só a capacidade de \emph{ordenar} os pares dentro de cada mês, e não o nível
+médio da correlação.}
+
+\leitura{o ``ganho'' das tabelas do Capítulo 6 é a diferença de $R^2_{oos}$ entre duas especificações.
+Exemplo: notícias sobre persistência e setor, $+0{,}0033$ ($t=4{,}3$) na correlação total, cerca de três
+décimos de ponto de $R^2$.}
+
+\subsection{Fama-MacBeth com Newey-West}
+
+{\small\textit{Em linha no texto: Seção 3.5.3.}}
+\[
+  \hat\beta_t=\arg\min_\beta\sum_{(i,j)}\bigl(y_{ij,t}-x_{ij,t}^\top\beta\bigr)^2,\qquad
+  \bar\beta=\frac1M\sum_{t=1}^M\hat\beta_t,\qquad
+  t_{\bar\beta}=\frac{\bar\beta}{\sqrt{\widehat{\mathrm{LRV}}/M}}
+\]
+\[
+  \widehat{\mathrm{LRV}}=\hat\gamma_0+2\sum_{L=1}^{\bar L}\Bigl(1-\frac{L}{\bar L+1}\Bigr)\hat\gamma_L,
+  \qquad \bar L=3+h/21
+\]
+
+\begin{vars}
+$\hat\beta_t$ & coeficientes da regressão transversal do mês $t$ & $\R^K$ & unid. de $y$ por d.p. de $x$ \\
+$M$ & número de meses & 156 (2011--2023) & meses \\
+$\hat\gamma_L$ & autocovariância de ordem $L$ da série $\hat\beta_t$ & $\R$ & (unid. de $\beta$)$^2$ \\
+$\bar L$ & defasagens de Newey-West & 4 (h=21), 6 (h=63), 9 (h=126) & meses \\
+\end{vars}
+
+\resultado{$\bar\beta$ é o efeito médio; como os regressores são padronizados no mês, cada coeficiente
+mede a variação de $z(\rho)$ (adimensional) por um desvio-padrão do regressor. $t_{\bar\beta}$ é
+adimensional e comparado com a normal. Rodar uma regressão por mês elimina a dependência entre pares do
+mesmo mês; o Newey-West corrige a autocorrelação entre meses, que existe porque os períodos futuros se
+sobrepõem quando $h>21$.}
+
+\leitura{exemplo: aresta direta com sinal, $\bar\beta=-0{,}0016$ ($t=-9{,}1$); exposição comum,
+$+0{,}0038$ ($t=+11{,}1$).}
+
+\subsection{QAP (permutação de nós)}
+
+{\small\textit{Em linha no texto: Seção 3.5.3.}}
+\[
+  p_{\mathrm{QAP}}=\frac{1+\#\{b:\ T^{(b)}\ge T^{\mathrm{obs}}\}}{1+B}
+\]
+
+\resultado{um $p$-valor em $[1/(1+B),\,1]$. Cada réplica $b$ permuta juntas as linhas e colunas de todas
+as matrizes de notícia do mês (os rótulos das ações), preservando a estrutura de dependência entre os
+pares, e refaz o Fama-MacBeth; $T$ é a estatística do teste (o coeficiente médio, em H1a e no sinal; a
+estatística de Wald, em H1b). Com $B=1.000$ permutações, o piso é $1/1001\approx0{,}001$. O $p$ de cada teste é o maior entre o de
+Fama-MacBeth e o do QAP. Em H1a, o maior coeficiente médio sob permutação é 0,0002, contra 0,0038 observado
+($p=0{,}001$); em H1b, a maior estatística de Wald sob permutação é 30,3, contra 77,9 ($p=0{,}001$).}
+
+\subsection{Teste de Wald da igualdade de coeficientes (H1b)}
+
+{\small\textit{Em linha no texto: Tabela 3.2.}}
+\[
+  W=(R\bar\beta)^\top\bigl(R\,\hat V_{NW}\,R^\top\bigr)^{-1}(R\bar\beta)\ \sim\ \chi^2_{q}
+\]
+
+\resultado{estatística $W\ge0$, adimensional. $R$ é a matriz $(q\times K)$ de contrastes que impõe
+$\beta_1=\dots=\beta_6$ (logo $q=5$), $\hat V_{NW}$ a covariância de Newey-West de $\bar\beta$. Valor
+relatado: $W=77{,}9$, $p$ QAP $=0{,}001$ ($p=0{,}003$ com Bonferroni para as três hipóteses): H1b confirmada.}
+
+\subsection{Razão de variâncias e \emph{bootstrap} em blocos}
+
+{\small\textit{Em linha no texto: Seção 3.10.}}
+\[
+  \mathrm{RV}=\frac{\hat\sigma^2_A}{\hat\sigma^2_B},\qquad
+  p=\Pr\nolimits^*\Bigl(\bigl|\log\mathrm{RV}^*-\log\mathrm{RV}\bigr|\ge|\log\mathrm{RV}|\Bigr)
+\]
+
+\begin{vars}
+$\hat\sigma^2_A,\hat\sigma^2_B$ & variâncias dos retornos diários líquidos das carteiras $A$ (com notícias) e $B$ (referência) nos mesmos pregões & $>0$ & $\ur^2$ \\
+$\mathrm{RV}^*$ & a razão recalculada numa reamostragem em blocos circulares de 10 pregões (2.000 réplicas) & $>0$ & adimensional \\
+\end{vars}
+
+\resultado{$\mathrm{RV}>0$, adimensional. $\mathrm{RV}<1$: a carteira com notícias tem menos risco.
+O intervalo de confiança de 95\% são os quantis 2,5\% e 97,5\% de $\mathrm{RV}^*$, e o $p$ é bicaudal.
+Reamostrar \emph{blocos} de dias, nos dois retornos ao mesmo tempo, preserva a dependência temporal e a
+correlação entre as carteiras. Exemplos: no D2 ($n=100$), $\mathrm{RV}=1{,}001$ ($p=0{,}89$), empate com
+o setor; no D9, $\mathrm{RV}=1{,}143$ ($p=0{,}015$), isto é, 14\% mais variância com notícias.}
+
+\subsection{Índice de Sharpe}
+
+{\small\textit{Em linha no texto: Seções 2.7 e 3.10.}}
+\[
+  \mathrm{SR}=\frac{252\,\overline{(r_t-r_f)}}{\sqrt{252}\,\hat\sigma(r_t)}
+\]
+
+\resultado{índice de Sharpe anualizado: retorno anual por unidade de volatilidade anual. Na tese, $r_f=0$
+e os retornos são líquidos de custos. A diferença de Sharpe entre duas carteiras (desenhos D4 e D5) é
+testada pelo mesmo \emph{bootstrap} em blocos da razão de variâncias.}
+
+\subsection{Correções para múltiplos testes}
+
+\textbf{Bonferroni sequencial (desenhos D2, D3, D9...)}: o $k$-ésimo desenho para a mesma hipótese usa
+$\alpha_k=0{,}05/k$ (por isso os critérios $p<0{,}025$, $0{,}01$ e $0{,}0125$ da Tabela 3.3).
+
+\textbf{Benjamini-Hochberg (coeficientes de grupo de H1b)}:
+\[
+  p^{\mathrm{BH}}_{(k)}=\min_{l\ge k}\ \min\Bigl\{1,\ \frac{m}{l}\,p_{(l)}\Bigr\},
+\]
+que controla a fração esperada de falsos positivos entre as rejeições (FDR), menos conservadora.
+
+Os $p$-valores são probabilidades em $[0,1]$, adimensionais.
+
+%====================================================================
+\section{O grafo de notícias}
+\label{sec:grafo}
+
+\subsection{A tupla extraída}
+
+\begin{equation}
+  (\text{agent\_a},\ \text{agent\_b},\ \text{relation\_type},\ \text{direction},\ \text{strength})
+  \tag{5.1}
+\end{equation}
+
+\begin{vars}
+agent\_a & agente que age & texto (nome) & --- \\
+agent\_b & agente que recebe o efeito & texto (nome) & --- \\
+relation\_type & ação, expressão verbal livre; agrupada depois em 16 classes $c_e$ & texto & --- \\
+direction & efeito sobre agent\_b & $\{$positivo, negativo$\}\to\mathrm{sgn}_e\in\{-1,+1\}$ & --- \\
+strength & força e certeza do efeito & $[0,1]$ & adimensional \\
+\end{vars}
+
+\resultado{não é uma equação numérica, mas define o evento: cada tupla limpa vira um evento $e$ datado
+pela publicação do artigo, $t_e$, com peso bruto $\mathrm{sgn}_e\,s_e\in[-1,1]$ (``$w=\pm$força'',
+Seção 5.6). Faixas do prompt: $0{,}8$--$1{,}0$ efeito explícito e material; $0{,}4$--$0{,}7$ declarado mas
+modesto; $0{,}1$--$0{,}3$ especulativo. No máximo 8 tuplas por artigo.}
+
+\subsection{Peso de um evento com decaimento}
+
+\begin{equation}
+  w_e(t) = \mathrm{sgn}_e\, s_e\, 0{,}5^{\,(t-t_e)/\tau}
+  \tag{3.1}
+\end{equation}
+
+\begin{vars}
+$\mathrm{sgn}_e$ & sinal (direção) do evento & $\{-1,+1\}$ & adimensional \\
+$s_e$ & força atribuída pelo LLM & $[0,1]$ & adimensional \\
+$t$ & data em que o grafo é consultado & data & dias corridos \\
+$t_e$ & data de publicação do artigo & $t-W\le t_e<t$ & dias corridos \\
+$t-t_e$ & idade do evento & $(0,W]$ & dias corridos \\
+$\tau$ & meia-vida & 90 & dias corridos \\
+$W$ & janela do grafo & 365 & dias corridos \\
+\end{vars}
+
+\resultado{$w_e(t)\in[-1,1]$, adimensional. O fator $0{,}5^{(t-t_e)/\tau}\in(0,1]$ cai à metade a cada
+$\tau$ dias: com $\tau=90$, um evento de 90 dias pesa 50\%, de 180 dias, 25\%, e de 365 dias, cerca de 6\%.
+Equivale a $e^{-\ln2\,(t-t_e)/\tau}$. A condição estrita $t_e<t$ garante que nada publicado no dia da
+decisão (talvez depois do fechamento) entre nela.}
+
+\subsection{Vínculo direto, por sinal e por grupo}
+
+{\small\textit{Em linha no texto: Seção 3.4.2.}}
+\[
+  w_{ij}=\sum_{e\in\mathcal E_{ij}} w_e(t),\qquad
+  w^{\pm}_{ij}=\sum_{e\in\mathcal E_{ij}:\,\mathrm{sgn}_e=\pm1}|w_e(t)|,\qquad
+  d^{(k)}_{ij}=\sum_{e\in\mathcal E_{ij}:\,c_e\in k}|w_e(t)|
+\]
+
+\begin{vars}
+$\mathcal E_{ij}$ & eventos da janela entre as ações $i$ e $j$, nos dois sentidos & conjunto & --- \\
+$w_{ij}$ & vínculo direto com sinal (simétrico, $w_{ii}=0$) & $\R$ & adim. (soma de forças) \\
+$w^+_{ij}$, $w^-_{ij}$ & somas dos módulos dos eventos positivos e negativos & $\ge0$ & adimensional \\
+$k$ & grupo de classes de relação (cadeia, parceria, concorrência, controle, legal, impacto, outros) & conjunto de classes & --- \\
+$d^{(k)}_{ij}$ & intensidade do vínculo no grupo $k$ & $\ge0$ & adimensional \\
+\end{vars}
+
+\resultado{matrizes $p\times p$ simétricas. A unidade é ``eventos-equivalentes'': um evento recente de
+força 1 vale 1. Os valores não são limitados, porque pares muito citados acumulam muitos eventos (cauda
+longa). Note que $w_{ij}=w^+_{ij}-w^-_{ij}$.}
+
+\subsection{Compressão logarítmica com sinal}
+
+{\small\textit{Em linha no texto: Seção 3.4.2.}}
+\[
+  \log(1+d),\qquad \mathrm{sgnlog}(w)=\mathrm{sgn}(w)\log(1+|w|)
+\]
+
+\resultado{$\log(1+d)\in[0,\infty)$ para $d\ge0$; $\mathrm{sgnlog}(w)\in\R$, com o mesmo sinal de $w$,
+contínua, ímpar e igual a 0 em 0. Comprime a cauda longa: $\mathrm{sgnlog}(1)=0{,}69$,
+$\mathrm{sgnlog}(10)=2{,}4$, $\mathrm{sgnlog}(100)=4{,}6$. É a forma em que os vínculos entram nas
+regressões de H1b (tipo e sinal das relações). Adimensional.}
+
+\subsection{Matriz de exposição e IDF}
+
+{\small\textit{Em linha no texto: Seção 3.4.3.}}
+\[
+  \tilde A_{im}=\sum_{e\in\mathcal E_{im}} w_e(t),\qquad
+  \mathrm{idf}_m=\log\frac{n_t}{\mathrm{df}_m}
+\]
+
+\begin{vars}
+$\tilde A$ & matriz ações $\times$ entidades fora do universo & $p\times M$ & adimensional \\
+$\mathcal E_{im}$ & eventos entre a ação $i$ e a entidade $m$ (exatamente uma ponta no universo) & conjunto & --- \\
+$n_t$ & número de empresas com \emph{ticker} presentes no grafo da janela (não só as do universo) & inteiro, milhares & empresas \\
+$\mathrm{df}_m$ & número dessas empresas ligadas à entidade $m$ na janela & $1,\dots,n_t$ & empresas \\
+$\mathrm{idf}_m$ & peso da coluna $m$ & $[0,\log n_t]$ & adimensional (nats) \\
+\end{vars}
+
+\resultado{cada coluna de $\tilde A$ é multiplicada por $\mathrm{idf}_m$. Uma entidade ligada a todas as
+empresas tem $\mathrm{idf}=\log 1=0$ e some; uma ligada a quase todas (``S\&P 500'') pesa pouco; uma ligada
+a poucas (``petróleo'', às petroleiras) tem peso alto. É a mesma ideia do TF-IDF em recuperação de
+informação. A frequência é contada em todas as empresas do grafo, e não só nas do universo, para que o peso
+de uma entidade não mude com o universo escolhido. Nas regressões do universo das mais citadas, $\tilde A$
+usa o módulo dos eventos; nos testes de pares, o sinal.}
+
+\subsection{Exposição comum}
+
+\begin{equation}
+  g_{ij} = \bigl(\tilde A\tilde A^\top\bigr)_{ij} = \cos(\tilde A_i,\tilde A_j)
+  =\frac{\sum_m \tilde A_{im}\tilde A_{jm}}{\|\tilde A_i\|\,\|\tilde A_j\|}
+  \tag{3.2}
+\end{equation}
+
+\begin{vars}
+$\tilde A_i$ & linha $i$ de $\tilde A$ (perfil de exposição da ação $i$), ponderada pelo IDF & $\R^M$ & adimensional \\
+$g_{ij}$ & exposição comum entre $i$ e $j$ & $[-1,1]$ (sinal) ou $[0,1]$ (módulo) & adimensional \\
+$G$ & matriz das exposições comuns (projeção do grafo bipartido ações--entidades) & $p\times p$, $\succeq0$ & adimensional \\
+\end{vars}
+
+\resultado{o cosseno entre os perfis de duas ações. A igualdade $(\tilde A\tilde A^\top)_{ij}=\cos$ vale
+porque as linhas de $\tilde A$ são normalizadas para norma 1 antes do produto. $g_{ij}=1$: as duas ações
+estão ligadas às mesmas entidades, nas mesmas proporções e com os mesmos sinais; $0$: não compartilham
+nenhuma entidade; negativo (só na versão com sinal): compartilham entidades com efeitos opostos (o Fed
+favorece uma e prejudica a outra). Uma ação sem exposição tem linha nula e $g_{ij}=0$ para $j\neq i$.}
+
+\leitura{$g_{ij}$ entra como regressor (Eqs.~3.3 e 3.5), e não diretamente como correlação: em média, vale
+cerca de 0,001 no universo do S\&P~500, onde só 18,9\% dos pares têm $g_{ij}\neq0$, enquanto a correlação
+dos retornos vale 0,3 a 0,5. A regressão converte a exposição comum na escala da correlação. Resultado-chave: coeficiente $+0{,}0038$
+($t=11{,}1$) na previsão da correlação residual, o teste de H1a; e $R^2$ médio de apenas 0,017 na regressão
+de $g_{ij}$ nos indicadores de setor, isto é, a exposição comum não é o setor disfarçado.}
+
+\subsection{Controles de atenção}
+
+{\small\textit{Em linha no texto: Seção 3.4.4.}}
+\[
+  \log(1+m_i)+\log(1+m_j),\qquad |\log(1+m_i)-\log(1+m_j)|
+\]
+
+\resultado{dois regressores $\ge0$, adimensionais, em que $m_i$ é o número de eventos da ação $i$ na
+janela (contagem). O primeiro mede a atenção total do par; o segundo, a assimetria de atenção. Os
+coeficientes estimados foram nulos (0,0000 e $-0{,}0002$).}
+
+%====================================================================
+\section{Previsão de correlação e testes diádicos}
+
+\subsection{Transformação de Fisher}
+
+{\small\textit{Em linha no texto: Seção 3.5.1.}}
+\[
+  z(\rho)=\operatorname{atanh}(\rho)=\frac12\ln\frac{1+\rho}{1-\rho},\qquad \rho=\tanh(z)
+\]
+
+\resultado{leva $\rho\in(-1,1)$ a $z\in\R$, adimensional. Para correlações amostrais de $n$ observações
+sob normalidade, $\operatorname{Var}(z)\approx1/(n-3)$, independente de $\rho$: a escala estabiliza a
+variância, de modo que pares com correlação alta e baixa entram na regressão com ruído comparável. Perto
+de zero, $z\approx\rho$. No código, $\rho$ é truncada em $\pm0{,}999$ ($|z|\le3{,}8$).}
+
+\subsection{Regressão preditiva da correlação}
+
+\begin{equation}
+  z(\rho^{\mathrm{fut}}_{ij}) = a + b\,z(\rho^{\mathrm{hist}}_{ij})
+  + \sum_k \beta_k\log\bigl(1+d^{(k)}_{ij}\bigr) + \gamma\, g_{ij}
+  + \theta^\top x_{ij} + \varepsilon_{ij}
+  \tag{3.3}
+\end{equation}
+
+\begin{vars}
+$\rho^{\mathrm{fut}}_{ij}$ & correlação realizada no período de carteira seguinte ($h$ pregões) & $(-1,1)$ & adimensional \\
+$\rho^{\mathrm{hist}}_{ij}$ & correlação nos 252 pregões anteriores a $t$ & $(-1,1)$ & adimensional \\
+$a$ & intercepto & $\R$ & adimensional \\
+$b$ & persistência da correlação & $\R$ (esperado em $(0,1)$) & adimensional \\
+$\beta_k$ & efeito do grupo de relação $k$ & $\R$ & $z$ por unidade de $\log(1+d)$ \\
+$\gamma$ & efeito da exposição comum & $\R$ & $z$ por unidade de $g$ \\
+$x_{ij}$ & controles: coocorrência, co-menção, mesmo setor FF49, mesmo SIC2 & vetor & contagens, indicadores 0/1 \\
+$\theta$ & coeficientes dos controles & $\R^{\dim x}$ & $z$ por unidade de $x$ \\
+$\varepsilon_{ij}$ & erro & $\R$ & adimensional \\
+\end{vars}
+
+\resultado{a previsão $\hat z_{ij}$ (adimensional) e, por $\tanh$, a correlação prevista em $(-1,1)$. Os
+coeficientes traduzem cada tipo de relação em correlação. A escada E0--E4 adiciona os blocos de
+regressores um a um; o ganho de E4 sobre E0 (ambos com setor) é o que as notícias acrescentam.
+$b<1$ captura a reversão parcial da correlação à média, o resultado de Elton e Gruber (1973).}
+
+\subsection{Fator de mercado e correlação residual}
+
+\begin{equation}
+  x_{it} = a_i + b_i\,m_t + e_{it}
+  \tag{3.4}
+\end{equation}
+
+\begin{vars}
+$x_{it}$ & retorno da ação $i$ no pregão $t$ & $\R$ & $\ur$ \\
+$m_t$ & retorno do mercado: média igual dos retornos do universo no dia & $\R$ & $\ur$ \\
+$a_i$ & intercepto (alfa diário) & $\R$ & $\ur$ \\
+$b_i$ & beta de mercado & $\R$ (típico 0,5--1,5) & adimensional \\
+$e_{it}$ & resíduo (parte idiossincrática) & $\R$ & $\ur$ \\
+\end{vars}
+
+\resultado{$\hat b_i=\widehat{\operatorname{Cov}}(x_i,m)/\widehat{\operatorname{Var}}(m)$ estimado na
+janela. A correlação residual realizada é a correlação entre $e_{it}=x_{it}-\hat a_i-\hat b_i m_t$ e
+$e_{jt}$ no período seguinte, com os $\hat b_i$ da janela e o $m_t$ observado; fica em $(-1,1)$ e é a
+variável dependente dos testes de pares ($h=21$ pregões). Ao tirar
+o mercado, a correlação de dois bancos passa a medir o que eles têm em comum além do mercado.}
+
+\subsection{Regressão dos testes de pares}
+
+\begin{equation}
+  z(\rho^{\mathrm{fut}}_{e,ij}) = a + b\,z(\rho^{\mathrm{hist}}_{e,ij}) + \gamma\,g_{ij}
+  + \sum_k \beta_k\log\bigl(1+d^{(k)}_{ij}\bigr) + \theta^\top c_{ij} + \varepsilon_{ij}
+  \tag{3.5}
+\end{equation}
+
+\begin{vars}
+$\rho^{\mathrm{fut}}_{e,ij}$ & correlação residual do par nos $h=21$ pregões seguintes & $(-1,1)$ & adimensional \\
+$\rho^{\mathrm{hist}}_{e,ij}$ & correlação residual do par na janela de 252 pregões & $(-1,1)$ & adimensional \\
+$g_{ij}$ & exposição comum, com sinal (Eq.~3.2) & $[-1,1]$ & adimensional \\
+$d^{(k)}_{ij}$ & vínculo direto no grupo $k$ (seis grupos e um residual) & $\ge0$ & adimensional \\
+$c_{ij}$ & controles: mesmo setor FF49, mesmo SIC2, distância de tamanho, atenção (soma e diferença) & vetor & indicadores e logs \\
+$\gamma$, $\beta_k$, $\theta$ & coeficientes, com os regressores padronizados no mês & $\R$ & $z$ por desvio-padrão \\
+\end{vars}
+
+\resultado{uma regressão por mês no universo do S\&P~500 (155 meses, 12,2 milhões de pares-mês), com a
+média dos coeficientes e a inferência de Fama-MacBeth e do QAP. H1a é o teste de $\gamma>0$: $+0{,}0038$,
+$t=11{,}1$, isto é, um desvio-padrão a mais de exposição comum corresponde a 0,004 a mais de correlação
+(em escala $z$). H1b é o teste de igualdade dos seis $\beta_k$. Na análise do sinal, a soma sobre os grupos
+é trocada por $\beta\,\mathrm{sgnlog}(w_{ij})$ ou pelos dois termos da subseção seguinte.}
+
+\leitura{difere da Eq.~(3.3) em três pontos: a correlação é a residual ao mercado, o universo não é
+escolhido pelas notícias, e a inferência é feita mês a mês, e não fora da amostra. As duas se
+complementam: a (3.3) mede quanto a previsão melhora; a (3.5), qual atributo carrega o efeito.}
+
+\subsection{Arestas positivas e negativas (sinal, em H1b)}
+
+{\small\textit{Em linha no texto: Seção 3.5.3, depois da Eq.~(3.5).}}
+\[
+  y_{ij}=\dots+\beta^+\log(1+w^+_{ij})+\beta^-\log(1+w^-_{ij}),\qquad H_0:\ \beta^+-\beta^-\le0
+\]
+
+\resultado{coeficientes em escala $z$ por desvio-padrão do regressor. Se o sinal do LLM indicasse a
+direção do co-movimento, $\beta^+$ seria positivo e maior que $\beta^-$. Resultado: $\beta^+=+0{,}0010$,
+$\beta^-=+0{,}0025$, diferença $-0{,}0015$ ($t=-7{,}3$). As duas formas de aresta elevam a correlação, e as
+negativas, quase todas de concorrência, elevam mais: o sinal descreve o efeito econômico de uma empresa
+sobre a outra, não a direção do co-movimento.}
+
+%====================================================================
+\section{Estimadores da matriz de covariância com notícias}
+
+\subsection{Alvo de correlação a partir das notícias}
+
+\begin{equation}
+  R^T_{ij} = \tanh\!\bigl(\bar z + \beta^\top f_{ij}\bigr),\qquad R^T_{ii}=1
+  \tag{3.6}
+\end{equation}
+
+\begin{vars}
+$\bar z$ & correlação média da janela em escala $z$ & $\R$ & adimensional \\
+$f_{ij}$ & atributos de notícia (e de setor) do par & $\R^K$ & como na Eq.~(3.3) \\
+$\beta$ & coeficientes estimados por MQO no painel dos meses anteriores, com $y$ e $f$ centrados no mês & $\R^K$ & $z$ por unidade de $f$ \\
+$R^T$ & correlação-alvo & $p\times p$, $R^T_{ij}\in(-1,1)$ & adimensional \\
+\end{vars}
+
+\resultado{uma matriz simétrica com diagonal 1 e elementos em $(-1,1)$. O $\tanh$ volta da escala $z$ para
+a de correlação. Com $\beta=0$, é a correlação constante $\tanh(\bar z)$ de Ledoit-Wolf. Como uma matriz
+assim montada pode não ser positiva semidefinida, é substituída pela correlação válida mais próxima
+(Higham, 2002). A covariância-alvo é $T=D^{1/2}R^TD^{1/2}$, com $D=\operatorname{diag}(S)$, isto é,
+$T_{ij}=R^T_{ij}\sqrt{s_{ii}s_{jj}}$ em $\ur^2$: correlações das notícias, variâncias dos preços.}
+
+\leitura{a correlação histórica do par fica de fora de $f_{ij}$ de propósito: a fórmula de $\delta$
+supõe um alvo que não depende da amostra $S$.}
+
+\subsection{Intensidade ótima generalizada}
+\label{sec:delta-geral}
+
+\begin{align}
+  \hat\pi &= \sum_{i,j}\hat\pi_{ij},\qquad
+  \hat\pi_{ij}=\frac1N\sum_{t=1}^N\bigl[(r_{it}-\bar r_i)(r_{jt}-\bar r_j)-s_{ij}\bigr]^2, \qquad
+  \hat\gamma = \|T-S\|_F^2, \nonumber\\
+  \hat\rho &= \sum_i\hat\pi_{ii} + \sum_{i\neq j}\frac{r^T_{ij}}{2}
+     \left(\sqrt{\frac{s_{jj}}{s_{ii}}}\,\hat\vartheta_{ii,ij} + \sqrt{\frac{s_{ii}}{s_{jj}}}\,\hat\vartheta_{jj,ij}\right),
+  \tag{3.7}\\
+  \delta^* &= \max\!\left\{0,\ \min\!\left\{\frac{\hat\pi-\hat\rho}{N\hat\gamma},\ 1\right\}\right\}, \nonumber
+\end{align}
+com
+\[
+  \hat\vartheta_{ii,ij}=\frac1N\sum_{t=1}^N\bigl[(r_{it}-\bar r_i)^2-s_{ii}\bigr]\bigl[(r_{it}-\bar r_i)(r_{jt}-\bar r_j)-s_{ij}\bigr].
+\]
+
+\begin{vars}
+$\hat\pi_{ij}$ & variância assintótica estimada de $\sqrt N s_{ij}$ & $\ge0$ & $\ur^4$ \\
+$\hat\pi$ & ruído total da amostra & $\ge0$ & $\ur^4$ \\
+$\hat\vartheta_{ii,ij}$ & covariância assintótica entre $\sqrt N s_{ii}$ e $\sqrt N s_{ij}$ & $\R$ & $\ur^4$ \\
+$r^T_{ij}$ & correlação-alvo do par ($=R^T_{ij}$) & $(-1,1)$ & adimensional \\
+$\hat\rho$ & quanto do ruído da amostra também está no alvo & $\R$ & $\ur^4$ \\
+$\hat\gamma$ & viés do alvo (distância à amostra) & $\ge0$ & $\ur^4$ \\
+$\delta^*$ & intensidade ótima & $[0,1]$ & adimensional \\
+\end{vars}
+
+\resultado{$\delta^*\in[0,1]$, adimensional. Por que há $\hat\rho$: o alvo usa as variâncias amostrais
+$s_{ii}$, então parte do erro de $S$ também está em $T$; $\hat\rho$ desconta esse erro comum (na
+diagonal, alvo e amostra coincidem, e o termo $\sum_i\hat\pi_{ii}$ anula a contribuição dela a
+$\hat\pi$). A única mudança em relação a Ledoit e Wolf (2004) é trocar a correlação constante $\bar r$
+pela correlação-alvo de cada par, $r^T_{ij}$. A mesma fórmula serve ao alvo de setor, ao alvo de notícias
+(D1) e ao \emph{shrinkage} da covariância residual (Eq.~3.8, D2 a D8). Nessas fórmulas, $S$ usa o divisor
+$N$. A intensidade só é grande quando o alvo está perto da amostra: por isso os alvos partem da correlação
+média da janela ($\bar z$), que preserva o modo de mercado. No D1, $\delta\approx0{,}2$.}
+
+\subsection{Fator de mercado mais resíduo encolhido}
+
+\begin{equation}
+  \hat\Sigma = \hat\sigma_m^2\, b\, b^\top + \hat\Sigma_e
+  \tag{3.8}
+\end{equation}
+
+\begin{vars}
+$\hat\sigma_m^2$ & variância do retorno de mercado $m_t$ na janela & $>0$ & $\ur^2$ \\
+$b$ & vetor de betas da Eq.~(3.4) & $\R^p$ & adimensional \\
+$\hat\Sigma_e$ & covariância dos resíduos $E$, encolhida para $R_{\mathrm{prior}}$ pela Eq.~(3.7) & $p\times p$, $\succeq0$ & $\ur^2$ \\
+$R_{\mathrm{prior}}$ & correlação residual \emph{a priori}: $I$, $\bar r_e$, setor, setor+notícias, placebo & correlação & adimensional \\
+\end{vars}
+
+\resultado{uma covariância $p\times p$ em $\ur^2$, caso particular da Eq.~(2.3) com um fator. O primeiro
+termo (posto 1) é o risco de mercado; o segundo, o risco específico e o que os pares compartilham além
+do mercado. Os estimadores do desenho D2 diferem \emph{só} em $R_{\mathrm{prior}}$; a comparação
+``setor+notícias contra setor'' isola o valor das notícias. Na versão com notícias,
+$R_{\mathrm{prior},ij}=\tanh(\bar z_e+\beta^\top[\text{setor},\text{notícias}])$, com $\beta$ ajustado à
+correlação residual realizada.}
+
+\subsection{Black-Litterman na covariância}
+
+\subsubsection*{Incerteza do \emph{prior} (Wishart)}
+
+\begin{equation}
+  V_{(ij),(kl)} = \frac{\sigma_{0,ik}\,\sigma_{0,jl} + \sigma_{0,il}\,\sigma_{0,jk}}{N}
+  \tag{3.9}
+\end{equation}
+
+\begin{vars}
+$\Sigma_0$ & covariância residual do prior (modelo com setor) & $p\times p$, $\succ0$ & $\ur^2$ \\
+$\sigma_{0,ik}$ & elemento $(i,k)$ de $\Sigma_0$ & $\R$ & $\ur^2$ \\
+$N$ & número de pregões da janela & 252 & pregões \\
+$V$ & covariância entre os elementos de $\operatorname{vec}\Sigma_0$ & $p^2\times p^2$, $\succeq0$ & $\ur^4$ \\
+\end{vars}
+
+\resultado{$V_{(ij),(kl)}=\operatorname{Cov}(s_{ij},s_{kl})$ para uma covariância amostral de $N$
+observações normais com covariância $\Sigma_0$. Em particular, $\operatorname{Var}(s_{ij})=(\sigma_{ii}\sigma_{jj}+\sigma_{ij}^2)/N$.
+O fator $1/N$ é o análogo da convenção de He e Litterman (1999) de tomar a incerteza do \emph{prior} como
+o inverso do tamanho da amostra. Por $V$ ter elementos fora da
+diagonal, uma visão sobre o par $(i,j)$ também move $(i,l)$ e $(j,l)$. Com $p=100$, $V$ teria $10^8$
+elementos e nunca é formada: só se usam produtos $V x$.}
+
+\subsubsection*{Visões}
+
+{\small\textit{Em linha no texto: Seção 3.6.3.}}
+\[
+  q_{ij}=\tanh(\hat z_{ij})\sqrt{s_is_j},\qquad P\operatorname{vec}\Sigma_e=\bigl(\Sigma_{e,ij}\bigr)_{(i,j)\in\text{visões}}
+\]
+
+\resultado{$q_{ij}$ em $\ur^2$: a covariância residual que o modelo de setor+notícias prevê para o par.
+$\hat z_{ij}$ é a previsão em escala $z$, $s_i=(\Sigma_0)_{ii}$ a variância residual. $P$ é uma matriz de
+seleção (zeros e uns), de dimensão (número de visões)$\times p^2$, adimensional.}
+
+\subsubsection*{Confiança das visões}
+
+\begin{equation}
+  \omega_c = \overline{\hat e^2}\big|_c - \overline{1/(d_m-3)},\qquad \omega_c\ge \frac{1}{N-3}
+  \tag{3.10}
+\end{equation}
+
+\begin{vars}
+$c$ & classe de evidência: 0 (só exposição comum ou co-menção), 1--4 (quartis de coocorrência) & $\{0,\dots,4\}$ & --- \\
+$\overline{\hat e^2}\big|_c$ & erro quadrático médio da visão em escala $z$ na classe $c$, nos meses de treino & $\ge0$ & adimensional ($z^2$) \\
+$d_m$ & pregões do mês $m$ (com que a correlação realizada é medida) & $\approx21$ & pregões \\
+$1/(d_m-3)$ & variância do ruído amostral de $z$ com $d_m$ observações & $>0$ & adimensional \\
+$\omega_c$ & variância do erro verdadeiro da visão & $\ge1/(N-3)\approx0{,}004$ & adimensional \\
+\end{vars}
+
+\resultado{a variância do erro da visão, descontado o ruído de medir uma correlação com só $\sim$21
+pregões (que inflaria o erro sem ser culpa da visão). O piso $1/(N-3)$ impede confiança maior que a de
+uma correlação medida com a janela inteira. Levada à escala da covariância pelo método delta:
+\[
+  \Omega_{ij}=(1-\tanh^2\hat z_{ij})^2\,s_is_j\,\omega_{c(ij)}\quad[\ur^4],
+\]
+pois $\mathrm d\tanh(z)/\mathrm dz=1-\tanh^2 z$. $\Omega$ é diagonal (visões com erros independentes).}
+
+\subsubsection*{Posterior}
+
+\begin{equation}
+  \operatorname{vec}\Sigma_e^{BL} = \operatorname{vec}\Sigma_0
+  + VP^\top\bigl(PVP^\top+\Omega\bigr)^{-1}\bigl(q-P\operatorname{vec}\Sigma_0\bigr)
+  \tag{3.11}
+\end{equation}
+
+\resultado{a média posterior da covariância residual, em $\ur^2$. Lê-se como um filtro de Kalman:
+$q-P\operatorname{vec}\Sigma_0$ é a ``surpresa'' (o que as notícias dizem menos o que o prior diz, em
+$\ur^2$); $VP^\top(PVP^\top+\Omega)^{-1}$ é o ganho (adimensional: $\ur^4\cdot\ur^{-4}$), próximo de 1
+quando a visão é precisa ($\Omega$ pequeno diante de $PVP^\top$) e próximo de 0 quando é ruidosa. Cada par
+recebe assim a confiança que a sua evidência justifica, ao contrário de um $\delta$ único. O sistema é
+resolvido por gradiente conjugado, e o resultado é projetado na correlação positiva semidefinida mais
+próxima. Desenho D9: $+14\%$ de variância ($p=0{,}015$).}
+
+%====================================================================
+\section{Métricas de resultado das carteiras}
+
+\begin{center}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{2.9cm}}
+\toprule
+métrica & definição & domínio e unidade \\
+\midrule
+volatilidade anual & $\sqrt{252}\;\hat\sigma(r_t)$, com $r_t$ o retorno diário líquido de custos & $\ge0$; \% ao ano \\
+retorno anual & $252\,\bar r$ & $\R$; \% ao ano \\
+Sharpe & $252\,\overline{(r_t-r_f)}\,/\,(\sqrt{252}\,\hat\sigma)$ & $\R$; adimensional \\
+perda máxima & $\min_t\bigl(V_t/\max_{s\le t}V_s-1\bigr)$, $V_t=\prod_{s\le t}(1+r_s)$ & $[-1,0]$; \% \\
+giro & $\sum_i|w_i^{\mathrm{alvo}}-w_i^{\mathrm{deriva}}|$ por rebalanceamento; ``giro/ano'' soma os do ano & $[0,2]$ por troca; vezes o patrimônio \\
+custo & $c\times$giro, $c=10$ pontos-base $=0{,}001$ & $\ge0$; fração do patrimônio \\
+razão de variâncias & $\hat\sigma^2_{\text{modelo}}/\hat\sigma^2_{\text{referência}}$ & $>0$; adimensional, $<1$ favorece o modelo \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\leitura{$w^{\mathrm{deriva}}$ são os pesos que a carteira teria depois de variar com os preços desde o
+último rebalanceamento: $w_i^{\mathrm{deriva}}=w_i\prod(1+r_{i})/\sum_k w_k\prod(1+r_k)$; é contra eles que
+o giro e o custo são cobrados. No desenho D8, por exemplo, o giro do mínimo \emph{tracking error} sobe de
+3,3 para 4,0 vezes o patrimônio por ano quando as notícias entram na matriz.}
+
+%====================================================================
+\section*{Referências citadas neste guia}
+\addcontentsline{toc}{section}{Referências citadas neste guia}
+\small
+As referências completas estão em \texttt{monografia/referencias.bib}. Citadas aqui: Campbell e Thompson
+(2008); Cornuéjols e Tütüncü (2007); Elton e Gruber (1973); Engle e Colacito (2006); He e Litterman (1999);
+Higham (2002); Jorion (1986); Ledoit e Wolf (2004, \emph{Honey}); Mantegna (1999).
+
+\end{document}

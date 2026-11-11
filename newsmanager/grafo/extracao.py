@@ -349,6 +349,7 @@ def anon_comparar(cfg: Config, h: int = 21) -> dict:
     """Compara a reextração mascarada com a original (7.1.3): pareamento por par de agentes
     (máscara -> chave da empresa), concordância de direção, tipo e força, e se as
     divergências se alinham com o retorno futuro do agente afetado (agent_b)."""
+    import pandas as pd
     from scipy import stats
     units = {d["unit_id"]: d for d in map(json.loads, (annot_dir(cfg) / "secao18_anonimizacao.jsonl").read_text().splitlines())}
     anon = {d["unit_id"]: d for d in map(json.loads, (annot_dir(cfg) / "secao18_anon_saida.jsonl").read_text().splitlines())}
@@ -386,7 +387,7 @@ def anon_comparar(cfg: Config, h: int = 21) -> dict:
             ka, kb = key_orig(r.agent_a, r.ticker_a, masks), key_orig(r.agent_b, r.ticker_b, masks)
             cand = at.get(frozenset((ka, kb)), [])
             t = cand[0] if cand else None
-            rows.append({"unit_id": uid, "dt": r.published_at, "ticker_b": r.ticker_b, "limpa": r.noise is None,
+            rows.append({"unit_id": uid, "dt": r.published_at, "ticker_b": r.ticker_b, "limpa": pd.isna(r.noise),
                          "par_achado": t is not None, "s_o": 1 if r.direction == "positive" else -1,
                          "f_o": r.strength, "tipo_o": (r.relation_type or "").lower(),
                          "s_a": None if t is None else (1 if t["direction"] == "positive" else -1),

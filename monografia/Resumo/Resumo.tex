@@ -1,0 +1,20 @@
+% !TEX root = ../Monografia.tex
+\addcontentsline{toc}{chapter}{Resumo}
+
+\begin{center}
+\huge{{\bf Resumo}}
+\vspace{2cm}
+\end{center}
+
+Este trabalho investiga se relações econômicas extraídas de notícias por um modelo de linguagem de grande porte (LLM) melhoram a estimação da matriz de covariância dos retornos de ações e, por meio dela, a construção de carteiras. A partir do corpus público FNSPID, um modelo executado localmente (Qwen2.5-14B-Instruct) leu 572.762 artigos e extraiu 1.270.582 relações tipadas, com sinal e intensidade, entre empresas e entidades econômicas como o Federal Reserve, o petróleo e a China. As entidades foram associadas a \textit{tickers} e organizadas num grafo dinâmico com 255 mil nós e 1,06 milhão de eventos entre 2011 e 2023, consultado apenas com informação anterior a cada data de decisão.
+
+A avaliação ocorreu em dois níveis. No estatístico, previsões fora da amostra e regressões de Fama-MacBeth com testes de permutação verificaram se os vínculos preveem a correlação futura entre pares de ações além da correlação histórica e do setor, por dois canais: a exposição comum das empresas às mesmas entidades não negociadas e o tipo da relação direta entre elas. No econômico, o grafo entrou na matriz de covariância como alvo de \textit{shrinkage}, como estrutura da correlação residual de um modelo de fatores e como visões de Black-Litterman, e as carteiras resultantes foram comparadas fora da amostra, entre 2013 e 2023, com estimadores de referência e com um placebo, em nove desenhos com o critério de sucesso registrado antes da execução e o nível de significância reduzido a cada nova tentativa.
+
+As notícias preveem a correlação futura além do histórico e do setor, com estatística $t$ de 8,8 na correlação residual. O canal mais forte é a exposição comum, que sobrevive aos controles de setor e de atenção da mídia num universo que não foi escolhido pelas notícias; o tipo de relação também importa, mas o sinal atribuído pelo modelo descreve o efeito econômico entre as empresas, e não a direção do co-movimento. O ganho de previsão é pequeno, cerca de três décimos de ponto de $R^2$. Nenhum dos desenhos de carteira reduziu de forma significativa a volatilidade realizada nem melhorou o índice de Sharpe em relação à referência de setor, e em dois deles as notícias pioraram a carteira. Conclui-se que a informação das notícias é real, mas pequena e esparsa: ela se perde na inversão da matriz ou é absorvida pelas restrições de carteira e pelos modelos de setor e de fatores.
+
+\vspace{1cm}
+\noindent\textbf{Palavras-chave:} matriz de covariância; grafos de conhecimento; modelos de linguagem; notícias financeiras; seleção de carteiras.
+
+\clearpage
+\thispagestyle{empty}
+\cleardoublepage

@@ -1,0 +1,30 @@
+{
+  "unidades": 218,
+  "unidades_ok": 218,
+  "unidades_com_residuo": 0,
+  "tuplas_orig": 872,
+  "tuplas_anon": 795,
+  "frac_orig_reencontradas": 0.33715596330275227,
+  "frac_orig_limpas_reencontradas": 0.3452685421994885,
+  "pareadas": 294,
+  "direcao_igual": 0.9115646258503401,
+  "tipo_igual": 0.5544217687074829,
+  "forca_media_orig": 0.7295918367346937,
+  "forca_media_anon": 0.7275510204081632,
+  "forca_dif_media_abs": 0.04489795918367347,
+  "alinhamento_divergencia_retorno_21d": {
+    "rho": -0.12568771927768763,
+    "p": 0.2605269355463067,
+    "n": 82
+  },
+  "alinhamento_original_retorno_21d": {
+    "rho": -0.017536183109942115,
+    "p": 0.8757405536485373,
+    "n": 82
+  },
+  "alinhamento_anon_retorno_21d": {
+    "rho": 0.08148296472836807,
+    "p": 0.4667706394525488,
+    "n": 82
+  }
+}

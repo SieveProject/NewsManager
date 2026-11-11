@@ -1,0 +1,265 @@
+% !TEX root = ../Monografia.tex
+\chapter{Resultados II: as Notícias e as Carteiras}
+\label{cap:res-carteiras}
+
+O Capítulo~\ref{cap:res-correlacao} mostrou que o grafo de notícias prevê a correlação futura entre ações
+além do histórico e do setor. Este capítulo responde à segunda parte da pergunta: essa informação, levada à
+estimação da matriz de covariância, produz carteiras melhores (H2)? Os desenhos são apresentados na ordem
+em que foram testados (Tabela~\ref{tab:desenhos}); do D2 em diante, cada um teve o critério de sucesso
+fixado antes da execução. Salvo indicação, os resultados usam a amostra final de artigos, o universo das
+100 ações mais citadas, o período de 2013 a 2023 e custos de 10 pontos-base; as volatilidades são
+anualizadas e as razões de variâncias dividem a variância do modelo pela da referência, de modo que valores
+abaixo de 1 indicam que o modelo com notícias reduz o risco. Em todos os desenhos, a pergunta é a mesma:
+a matriz com setor e notícias produz uma carteira melhor que a matriz só com setor, e melhor que o
+placebo?
+
+%--------------------------------------------------------------------
+\section{Alvo de shrinkage com notícias}
+\label{sec:d1}
+
+O primeiro caminho tentado usava como alvo a previsão completa da regressão do Capítulo~\ref{cap:res-correlacao},
+inclusive a correlação histórica. Ele foi descartado por construção, e não pelo resultado: o alvo dependia
+da própria amostra, o que viola a hipótese de alvo fixo da fórmula de $\delta$, e a intensidade ficava
+próxima de 1, de modo que $\hat\Sigma$ se reduzia à previsão da regressão. O desenho D1 usa, em vez disso,
+os alvos da Equação~\eqref{eq:alvo-prior}, sem a correlação histórica. A intensidade média de
+\emph{shrinkage} ficou em torno de 0,2. A Tabela~\ref{tab:d1} compara a variância da GMV com a do
+\emph{shrinkage} para a correlação constante de \citet{ledoit2004honey}, que corresponde ao alvo com $\beta=0$.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{D1: razão de variâncias da GMV contra o \emph{shrinkage} para a correlação constante.}
+\label{tab:d1}
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{GMV sem restrição} & \multicolumn{2}{c}{GMV sem venda a descoberto} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+estimador & razão & $p$ & razão & $p$ \\
+\midrule
+Ledoit-Wolf fator único & \textbf{0,903} & $<0{,}001$ & 0,997 & 0,77 \\
+Ledoit-Wolf não linear & 0,931 & 0,005 & 1,005 & 0,76 \\
+Ledoit-Wolf identidade & 0,939 & 0,005 & 1,014 & 0,43 \\
+alvo setor & 1,003 & 0,79 & 1,006 & 0,006 \\
+alvo notícias & 1,046 & $<0{,}001$ & 1,007 & 0,10 \\
+alvo setor + notícias & 1,037 & 0,002 & 1,007 & 0,09 \\
+placebo (notícias permutadas) & 1,038 & 0,001 & 1,001 & 0,80 \\
+covariância amostral & 1,233 & $<0{,}001$ & 1,026 & 0,12 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O alvo com notícias não reduz a variância da GMV: fica 3,7\% pior que a correlação constante, empatado com o
+placebo. Na versão sem venda a descoberto, todos os estimadores ficam a menos de 3\% uns dos outros. O
+resultado contrasta com a qualidade da previsão: o alvo com setor e notícias tem o \emph{menor} erro
+quadrático de correlação de todos os estimadores, 0,09\% abaixo da correlação constante, enquanto o placebo
+fica 0,33\% acima ($t=-3{,}9$) e o fator único, 1,05\% acima ($t=-3{,}9$). O fator único é o pior em erro de
+correlação e o melhor em variância da carteira. A GMV premia a estrutura de fatores da matriz, e não a
+precisão das correlações par a par; um alvo construído sobre a correlação constante parte da base errada.
+Essa constatação motivou o desenho seguinte, registrado como revisão motivada pelo resultado.
+
+%--------------------------------------------------------------------
+\section{Fator de mercado e correlação residual}
+\label{sec:d2}
+
+O desenho D2 aplica as notícias à correlação residual ao fator de mercado
+(Equação~\eqref{eq:fator-residuo}). Seu primeiro critério, que as notícias previssem a correlação residual
+além da persistência e do setor, foi atendido ($t=8{,}8$; Seção~\ref{sec:h1-residual}). A
+Tabela~\ref{tab:d2} mostra o critério de carteira.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{D2: GMV sem restrição com fator de mercado e resíduo encolhido para setor e notícias.}
+\label{tab:d2}
+\begin{tabular}{lccc}
+\toprule
+& $n=50$ & $n=100$ & $n=200$ \\
+\midrule
+volatilidade, fator + resíduo setor & 13,81\% & 12,83\% & 11,72\% \\
+volatilidade, + notícias & 13,83\% & 12,84\% & 11,87\% \\
+\textbf{razão notícias / setor} ($p$) & \textbf{1,003} (0,77) & \textbf{1,001} (0,89) & \textbf{1,024} (0,045) \\
+razão placebo / setor ($p$) & 1,011 (0,30) & 1,022 (0,006) & 1,021 (0,27) \\
+número de condição, setor $\to$ + notícias & 104 $\to$ 110 & 183 $\to$ 217 & 374 $\to$ 544 \\
+\midrule
+volatilidade, Ledoit-Wolf fator único & 13,78\% & 12,85\% & 11,79\% \\
+volatilidade, Ledoit-Wolf não linear & 13,98\% & 13,05\% & 12,16\% \\
+volatilidade, $1/N$ & 21,42\% & 19,95\% & 19,85\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O segundo critério, razão abaixo de 1 com $p<0{,}05$ e abaixo do placebo em $n=100$, \textbf{não foi
+atendido}: as notícias empatam com o setor (1,001). A confirmação em $n=50$ e $n=200$ também falha, e em
+$n=200$ as notícias chegam a piorar a carteira, no limite da significância ($p=0{,}045$). Com a amostra de
+25\%, o resultado era o mesmo em $n=100$ (1,001), com o placebo claramente pior.
+
+A última linha da tabela mostra o mecanismo. As notícias aumentam o número de condição da correlação
+estimada em todos os universos, de 6\% em $n=50$ a 45\% em $n=200$. A estrutura que elas acrescentam é
+esparsa e pequena, e abre o leque dos autovalores; como a GMV inverte a matriz, o ganho de previsão se
+perde na inversão. É o mecanismo de instabilidade de Markowitz descrito por \citet{lopezdeprado2016}.
+
+Há um achado lateral: o próprio modelo de fator de mercado com resíduo encolhido para o setor empata com o
+fator único de Ledoit e Wolf e supera o \emph{shrinkage} não linear em todos os universos.
+
+%--------------------------------------------------------------------
+\section{Variância mínima com restrições}
+\label{sec:d3}
+
+Na prática, a variância mínima é usada sem venda a descoberto e com teto de peso por ação, e as restrições
+funcionam elas próprias como \emph{shrinkage} \citep{jagannathan2003}. O desenho D3 pergunta se as notícias
+melhoram a carteira que um gestor de fato montaria, com teto de 10\% por ação. Por ser o segundo desenho
+para H2, o nível exigido caiu para $p<0{,}025$.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{D3: variância mínima sem venda a descoberto e com teto de 10\% ($n=100$).}
+\label{tab:d3}
+\begin{tabular}{lcccc}
+\toprule
+estimador & volatilidade & Sharpe & razão contra setor & $p$ \\
+\midrule
+fator + resíduo setor & 13,43\% & 0,778 & --- & --- \\
+setor + notícias & 13,42\% & 0,789 & 0,998 & 0,46 \\
+placebo & 13,39\% & 0,783 & 0,994 & 0,12 \\
+Ledoit-Wolf fator único & 13,39\% & 0,788 & 0,993 & 0,15 \\
+$1/N$ & 19,94\% & 0,663 & 2,205 & $<0{,}001$ \\
+\midrule
+\multicolumn{5}{l}{\emph{confirmação: razão notícias / setor ($p$); placebo / setor}} \\
+$n=50$ & \multicolumn{2}{c}{0,996 (0,06)} & \multicolumn{2}{c}{0,999} \\
+$n=200$ & \multicolumn{2}{c}{0,996 (0,09)} & \multicolumn{2}{c}{1,001} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O critério principal \textbf{não foi atendido}: a razão é 0,998, com $p=0{,}46$, e o placebo fica até um pouco
+melhor que as notícias. A razão fica abaixo de 1 em $n=50$ e $n=200$, mas as diferenças são de 0,2\% a 0,5\% da
+variância, menores que o ruído, e com teto o placebo empata com as notícias verdadeiras. Um teste
+exploratório anterior, com o grafo da amostra de 25\%, havia dado 0,994 com $p=0{,}017$; com a amostra final,
+o resultado \textbf{não se replicou}. Com restrições, todos os estimadores baseados em fator ficam a menos de
+0,05 ponto de volatilidade uns dos outros: as restrições já regularizam a matriz tanto que não sobra espaço
+para a informação das notícias.
+
+%--------------------------------------------------------------------
+\section{Outros otimizadores}
+\label{sec:d4}
+
+Os desenhos anteriores usaram apenas a variância mínima. Os desenhos D4 a D8 testam a mesma matriz em
+otimizadores que usam retorno esperado (Markowitz e máximo Sharpe), que buscam diversificação (máxima
+diversificação), que não invertem a matriz (HRP), onde as notícias perdiam o ganho no D2, e que perseguem
+um índice (mínimo \emph{tracking error}). Todos são sem venda a descoberto e com teto de 10\%, e o nível exigido
+é $p<0{,}01$ por otimizador.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{D4--D8: notícias contra setor em cinco otimizadores ($n=100$) e direção em $n=50$ e $n=200$.}
+\label{tab:d4}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}Xlcccccc}
+\toprule
+otimizador & estatística & notícias & $p$ & placebo & $p$ & $n=50$ & $n=200$ \\
+\midrule
+Markowitz ($\gamma=5$) & $\Delta$ Sharpe & $-0{,}015$ & 0,16 & $+0{,}004$ & 0,62 & $-0{,}003$ & $+0{,}006$ \\
+máximo Sharpe & $\Delta$ Sharpe & $-0{,}010$ & 0,43 & $+0{,}004$ & 0,76 & $-0{,}008$ & $+0{,}015$ \\
+máxima diversificação & razão de var. & 0,992 & 0,46 & 0,921 & 0,17 & 1,003 & 0,964 \\
+HRP & razão de var. & 1,007 & 0,14 & 1,002 & 0,59 & 0,992 & 1,001 \\
+mínimo \emph{tracking error} & razão de var. ativa & \textbf{1,214} & $\mathbf{<0{,}001}$ & 1,008 & 0,63 & \textbf{1,104} & \textbf{1,432} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Nenhum dos cinco otimizadores atende o critério (Tabela~\ref{tab:d4}). Em quatro deles, a matriz com
+notícias empata com a matriz com setor: as diferenças de Sharpe ficam abaixo de 0,02, as de variância abaixo
+de 1\%, a direção muda entre os universos e o placebo fica igual ou melhor.
+
+No mínimo \emph{tracking error}, as notícias \emph{pioram} a carteira de forma significativa e crescente com o
+universo: o erro de acompanhamento realizado sobe 10\% em $n=50$, 21\% em $n=100$ e 43\% em $n=200$, todos
+com $p<0{,}001$, e o giro sobe de 3,3 para 4,0 vezes o patrimônio por ano. O placebo não piora (1,008), de modo
+que o efeito vem da estrutura real das notícias. Replicar um índice depende de acertar a covariância
+conjunta de muitos ativos; as correlações residuais que as notícias acrescentam acertam a média dos pares,
+mas distorcem a cobertura entre eles. É o mesmo mecanismo da GMV sem restrição.
+
+Entre os otimizadores, a volatilidade anual vai de 13,4\% (variância mínima) a 24,6\% (Markowitz), mas,
+para um otimizador fixo, trocar a matriz muda a volatilidade em menos de um ponto: \textbf{o otimizador
+importa muito mais que o estimador}. Nenhum otimizador com retorno esperado superou o SPY em Sharpe líquido
+(0,82).
+
+%--------------------------------------------------------------------
+\section{Black-Litterman na covariância}
+\label{sec:d9}
+
+Nos desenhos anteriores, a notícia entra com um único $\delta$ para todos os pares. O desenho D9 dá a cada
+par a confiança que sua evidência justifica (Seção~\ref{sec:estimadores}) e volta à GMV sem restrição, onde o
+erro de $\hat\Sigma$ passa inteiro para os pesos. O nível exigido é $p<0{,}0125$.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{D9: GMV sem restrição com Black-Litterman na covariância residual ($n=100$).}
+\label{tab:d9}
+\begin{tabular}{lcccc}
+\toprule
+matriz & volatilidade & Sharpe & razão contra setor & $p$ \\
+\midrule
+fator + resíduo setor (prior) & 12,83\% & 0,632 & --- & --- \\
+setor + Black-Litterman notícias & 13,71\% & 0,609 & 1,143 & 0,015 \\
+Black-Litterman placebo & 14,62\% & 0,556 & 1,300 & 0,012 \\
+setor + notícias, $\delta$ único (D2) & 12,83\% & 0,641 & 1,001 & 0,87 \\
+Ledoit-Wolf fator único & 12,85\% & 0,634 & 1,003 & 0,52 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+O critério \textbf{não foi atendido}, e na direção contrária: o Black-Litterman \emph{aumenta} a variância da
+GMV em 14\% (Tabela~\ref{tab:d9}), resultado que se repete em $n=50$ (razão 1,10, $p=0{,}19$) e em $n=200$
+(1,20, $p=0{,}001$). O diagnóstico mostra que o método funcionou como previsto: a confiança estimada cresce com a evidência,
+de $\omega=0{,}013$ nos pares ligados só por exposição comum a $\omega=0{,}058$ no quartil de maior
+coocorrência; a projeção para matriz positiva semidefinida não precisou agir em nenhum mês; e o número de
+condição mediano até \emph{cai}, de 183 para 137. Mesmo assim, a variância realizada sobe. A cada mês, cerca
+de 2.700 visões de exposição comum e algumas centenas de visões de coocorrência movem milhares de covariâncias
+residuais, e o erro de cada visão, da ordem de 0,01 a 0,06 em escala $z$, tem a mesma magnitude do sinal
+que ela carrega. O placebo piora ainda mais (1,30): a informação existe, como no Capítulo~\ref{cap:res-correlacao},
+mas não vira carteira melhor.
+
+%--------------------------------------------------------------------
+\section{Síntese}
+\label{sec:sintese-h2}
+
+A Tabela~\ref{tab:sintese-h2} reúne os resultados dos nove desenhos.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Resultados de H2 em todos os desenhos testados.}
+\label{tab:sintese-h2}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}p{4.6cm}X}
+\toprule
+& desenho & resultado principal \\
+\midrule
+D1 & alvo de notícias, GMV & 3,7\% pior que a correlação constante; empata com o placebo \\
+D2 & fator + resíduo, GMV & empata com o setor em $n=50$ e $100$; pior em $n=200$ ($p=0{,}045$) \\
+D3 & variância mínima com teto & empata (0,998, $p=0{,}46$); placebo igual \\
+D4 & Markowitz & empata ($\Delta$ Sharpe $-0{,}015$) \\
+D5 & máximo Sharpe & empata ($\Delta$ Sharpe $-0{,}010$) \\
+D6 & máxima diversificação & empata (0,992); placebo melhor \\
+D7 & HRP & empata (1,007) \\
+D8 & mínimo \emph{tracking error} & \textbf{pior}: +21\% de variância ativa ($p<0{,}001$) \\
+D9 & Black-Litterman, GMV & \textbf{pior}: +14\% de variância ($p=0{,}015$) \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\textbf{H2 é rejeitada em todos os desenhos.} Em nenhum deles a informação das notícias reduziu de forma
+significativa a variância realizada ou melhorou o índice de Sharpe em relação à referência de setor, e em
+dois deles, o mínimo \emph{tracking error} e o Black-Litterman, a carteira com notícias foi
+significativamente pior. O resultado não depende do tamanho do universo, do otimizador, das restrições de
+peso nem do modo de combinar as notícias com os preços, e não mudou quando a amostra de artigos foi
+ampliada. A informação preditiva documentada no Capítulo~\ref{cap:res-correlacao} não se converte em ganho
+de carteira. Dois mecanismos explicam a diferença, conforme o tipo de carteira. Sem restrição de peso, as
+notícias acrescentam uma estrutura esparsa e pequena que piora o condicionamento da matriz (D2) ou, como
+no Black-Litterman, move muitas covariâncias com um erro da mesma ordem do sinal (D9); o otimizador
+inverte a matriz e explora justamente esse erro. Com restrições, a regularização imposta por elas já é
+tão forte que todos os estimadores baseados em fator empatam, e não sobra espaço para a informação das
+notícias (D3 a D7). O Capítulo~\ref{cap:conclusao} discute essas explicações.
+
+\clearpage

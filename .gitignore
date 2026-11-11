@@ -6,3 +6,10 @@ __pycache__/
 .ipynb_checkpoints/
 .venv/
 CLAUDE.local.md
+
+# LaTeX (monografia/)
+monografia/**/*.synctex.gz
+monografia/**/*.log
+monografia/**/*.aux
+monografia/**/*.blg
+monografia/**/*.bbl

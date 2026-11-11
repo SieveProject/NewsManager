@@ -1,0 +1,131 @@
+{
+  "anotador": "Claude Opus 5.5 (automático, não humano), 2026-10-28",
+  "planilha": "data/anotacao/secao18_tuplas_anotador_LLM.csv",
+  "tuplas_anotadas": 567,
+  "tuplas_amostra": 800,
+  "simples": {
+    "agentes": 0.8413,
+    "relacao": 0.8519,
+    "classe": 0.648,
+    "sinal": 0.913
+  },
+  "ponderada_classes": {
+    "agentes": 0.8134,
+    "relacao": 0.7884,
+    "classe": 0.6193,
+    "sinal": 0.9354
+  },
+  "por_periodo": {
+    "2011-2018": {
+      "agentes": 0.8352,
+      "relacao": 0.8462,
+      "classe": 0.6364,
+      "sinal": 0.9134
+    },
+    "2019-2023": {
+      "agentes": 0.8469,
+      "relacao": 0.8571,
+      "classe": 0.6587,
+      "sinal": 0.9127
+    }
+  },
+  "por_classe": {
+    "analyst": {
+      "agentes": 1.0,
+      "relacao": 0.973,
+      "classe": 0.8056,
+      "sinal": 0.9722
+    },
+    "business": {
+      "agentes": 0.4474,
+      "relacao": 0.8947,
+      "classe": 0.6765,
+      "sinal": 0.9706
+    },
+    "capital_return": {
+      "agentes": 0.5,
+      "relacao": 0.9,
+      "classe": 0.9259,
+      "sinal": 0.5926
+    },
+    "competition": {
+      "agentes": 0.8889,
+      "relacao": 0.6389,
+      "classe": 0.8261,
+      "sinal": 1.0
+    },
+    "financing": {
+      "agentes": 0.8529,
+      "relacao": 0.9412,
+      "classe": 0.75,
+      "sinal": 0.9375
+    },
+    "governance": {
+      "agentes": 0.95,
+      "relacao": 0.95,
+      "classe": 0.4211,
+      "sinal": 0.9474
+    },
+    "impact": {
+      "agentes": 0.7576,
+      "relacao": 0.6667,
+      "classe": 0.7273,
+      "sinal": 0.9545
+    },
+    "legal_regulatory": {
+      "agentes": 0.9512,
+      "relacao": 0.878,
+      "classe": 0.9167,
+      "sinal": 0.9722
+    },
+    "ma": {
+      "agentes": 0.9706,
+      "relacao": 0.9706,
+      "classe": 0.6667,
+      "sinal": 0.8485
+    },
+    "monetary": {
+      "agentes": 0.9143,
+      "relacao": 0.9143,
+      "classe": 0.6562,
+      "sinal": 0.9062
+    },
+    "other": {
+      "agentes": 0.6667,
+      "relacao": 0.8182,
+      "classe": 0.0741,
+      "sinal": 0.9259
+    },
+    "ownership": {
+      "agentes": 0.9062,
+      "relacao": 0.9062,
+      "classe": 0.7931,
+      "sinal": 0.8621
+    },
+    "partnership": {
+      "agentes": 1.0,
+      "relacao": 0.9118,
+      "classe": 0.7419,
+      "sinal": 1.0
+    },
+    "stance": {
+      "agentes": 0.8056,
+      "relacao": 0.7778,
+      "classe": 0.3214,
+      "sinal": 0.8571
+    },
+    "supply_chain": {
+      "agentes": 0.8158,
+      "relacao": 0.8421,
+      "classe": 0.4375,
+      "sinal": 0.9062
+    },
+    "trade_policy": {
+      "agentes": 0.9722,
+      "relacao": 0.6389,
+      "classe": 0.6087,
+      "sinal": 0.913
+    }
+  },
+  "spearman_forca": 0.3547
+}

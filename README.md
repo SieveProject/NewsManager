@@ -12,6 +12,10 @@ python -m newsmanager all          # probe → plan → ingest → curate → va
 duckdb data/corpus.duckdb            # then query it
 ```
 
+Parts 2–5 (in Portuguese) cover the LLM relation extraction, the dynamic
+knowledge graph, prices and universes, and the thesis itself: covariance
+estimators, portfolio backtests and the monograph in `monografia/`.
+
 ---
 
 ## Why not just read the CSV
@@ -48,6 +52,10 @@ contiguous prefix of heavily co-mentioned A-tickers *over*-counts. The true
 corpus-wide figure is only knowable from a full pass, and `nm-extract units`
 reports it exactly, once. Don't plan against either number above.
 
+The full build settled it: `curate` turned 15,549,299 rows into 12,746,534
+distinct documents (18.0% duplicates); 2,953,850 of them carry at least one
+ticker (5,730,655 article–ticker mentions, 8,552 tickers).
+
 Whatever the rate, the fix is the same: the curated layer splits `documents`
 from `mentions`, so per-article statistics stop double-counting multi-ticker
 stories and each article is sent to the LLM once.
@@ -58,8 +66,9 @@ Older rows (toward the end of the file) are Bloomberg-style wire copy with the
 summary columns empty. Expect era-dependent nulls; don't read them as corruption.
 
 **5. Past ~17.7 GB there is a third layout — and a Russian news portal.** The
-index column goes empty (records start with `,<timestamp>,`), 63% of all rows
-carry no ticker and 76% have no article body (headline-only). Bundled in are
+index column goes empty (records start with `,<timestamp>,`). Across the whole
+file, 63.1% of rows carry no ticker and 75.9% have no article body
+(headline-only); 10,322,619 documents are empty or shorter than 200 characters. Bundled in are
 799,037 articles from **lenta.ru**, a Russian general-news site (weather,
 politics, crime) with zero tickers, covering nearly all of 1999–2009. They stay
 in `documents`, but `units` excludes them from LLM extraction
@@ -308,18 +317,18 @@ python -m newsmanager.extract filter --keep comparison,membership
 
 Marca cada relação com o motivo de ruído — **marca, não apaga** — em
 `relations_flagged.parquet` (coluna `noise`) e cria `news.relations_clean`.
-Na run de 401.609 artigos com o Qwen:
+Na run final (572.762 unidades, 1.270.582 relações) com o Qwen:
 
 | motivo | relações | exemplo |
 |---|---|---|
 | `generic` | 7,3% | `Allakos → disappoints → investors` |
-| `comparison` | 2,1% | `Datadog → outperforms → Computer and Technology sector` |
+| `comparison` | 2,2% | `Datadog → outperforms → Computer and Technology sector` |
 | `membership` | 1,5% | `Nasdaq 100 → includes → Tesla`, `iShares ETF → affects → PepsiCo` |
 | `source` | 1,1% | `Zacks Investment Research → upgrades → Kaman` |
 | `self_loop` | 0,8% | `DuPont → expands → DuPont` |
 | `metric` | 0,8% | `Comcast → raises → dividend` |
 | `orgchart` | 0,2% | `Bank of England → appoints → Mark Carney` |
-| **limpas** | **86,2%** | 761.019 relações |
+| **limpas** | **86,1%** | 1.093.431 relações |
 
 Precisão estimada em amostras de 10–15 por motivo: ~9/10 ou mais em todos.
 Num sorteio de 40 do conjunto limpo, ~70% são relações econômicas claras; o
@@ -331,15 +340,17 @@ não são resolvidos aqui — isso é resolução de entidades, outra etapa.
 
 ## O que decide a sua conta de GPU
 
-**O comprimento dos artigos, mais que a quantidade.** Medido em 19.320 artigos:
+**O comprimento dos artigos, mais que a quantidade.** Medido nas 401.609 unidades
+da amostra de 25% (já deduplicadas e sem textos curtos):
 
 ```
-p50=3.518   p75=5.326   p90=6.976   p99=32.285   máx=272.968 caracteres
+p50=2.999   p75=4.812   p90=6.484   p99=37.328   máx=246.569 caracteres
 ```
 
-A cauda é brutal — o maior artigo sozinho tem ~68k tokens. `--max-chars` usa
-**8.000** por padrão: preserva **85,9% de todos os tokens truncando só 6,3% dos
-artigos**.
+A cauda é brutal — o maior artigo da amostra de 40% tem 325.845 caracteres
+(~80 mil tokens). `--max-chars` usa **8.000** por padrão: preserva **83,9% dos
+caracteres truncando só 5,1% das unidades**. (Uma medição anterior, em 19.320
+linhas cruas do CSV, dava p50=3.518, 85,9% e 6,3%.)
 
 **`num_ctx`, que a Ollama deixa em 2048.** Um artigo de 8.000 caracteres mais
 este prompt dá ~2.600 tokens: o padrão cortaria o fim da maioria dos artigos sem
@@ -446,26 +457,26 @@ O `entity_id` do link não serve direto como nó (medido na run `v=a05d0c0dc189`
 | slug colide com ticker | CORN (milho) = ETF CORN, FTC (agência) = FTC Solar, GDP | sem ticker, o nó leva o tipo: `CORN_COMMODITY` |
 | o resto | FOMC → Fed, META → FB, WTI/Brent → petróleo, USD, BTC | manual: `prompts/graph_aliases.csv` |
 
-Resultado: **197.550 nós** (5.654 com ticker e evento). O Fed é um nó com 151
-grafias (fed, us federal reserve, fomc, new york fed…) e 21.456 menções.
+Resultado: **255.384 nós** (5.894 com ticker e evento). O Fed é um nó com 200
+grafias (fed, us federal reserve, fomc, new york fed…) e 31.013 menções.
 Há mais nós que `entity_id`s porque os nomes separados do canônico errado
 viram nós próprios, quase todos na cauda.
 
 ## Arestas: eventos e classes
 
-`direction` é binária, então `w = ±strength`. Os 137 mil `relation_type`
+`direction` é binária, então `w = ±strength`. Os 184 mil `relation_type`
 distintos são mapeados por regex (`REL_CLASSES` em `newsmanager/extract/graph.py`)
 para 16 classes, e `relation_type` original fica no evento:
 
 ```
-impact 32,1%  competition 9,2%  ownership 7,4%  ma 7,1%  supply_chain 6,1%
-partnership 4,4%  legal_regulatory 4,1%  stance 3,2%  analyst 3,1%  business 2,9%
+impact 32,1%  competition 9,2%  ownership 7,3%  ma 7,0%  supply_chain 6,1%
+partnership 4,4%  legal_regulatory 4,1%  stance 3,3%  analyst 3,1%  business 2,9%
 financing 2,3%  monetary 2,0%  trade_policy 0,9%  governance 0,9%  capital_return 0,3%
 other 14,0%
 ```
 
 Laço criado pela fusão (Snap → "Snapchat shares", ambos `SNAP`) vira ruído
-`self_loop`: 26.426 eventos, quase todos "empresa → as próprias ações". Não são
+`self_loop`: 28.630 eventos, quase todos "empresa → as próprias ações". Não são
 arestas, mas ficam em `news.graph_events_all` como sinal sobre o próprio nó.
 
 ## Saída
@@ -481,7 +492,7 @@ data/curated/graph/v=<versão>/
   meta.json            graph_version = hash(GRAPH_REV, link_version, classes, aliases)
 ```
 
-Views: `news.graph_nodes`, `news.graph_events` (limpos: 741.409, 496.223 pares
+Views: `news.graph_nodes`, `news.graph_events` (limpos: 1.064.801, 673.261 pares
 distintos), `news.graph_events_all`, `news.graph_edges_weekly`,
 `news.graph_edges_monthly`. Cada view de período tem uma linha por
 (período, src, dst, classe).
@@ -544,14 +555,95 @@ backtest tem de tratá-las.
 
 | n | tickers distintos | troca/mês |
 |---|---|---|
-| 50 | 166 | 4,9% |
-| 100 | 334 | 5,0% |
-| 200 | 681 | 5,6% |
+| 50 | 166 | 4,3% |
+| 100 | 315 | 4,5% |
+| 200 | 651 | 5,2% |
 
-**Limitação:** depois de 2020-07, 39 das 200 ações mais noticiadas (BAC, FB,
-NFLX, MA, CSCO, MCD, SBUX, BLK…) não têm preço no FNSPID e saem do universo.
+**Limitação:** em junho de 2020, 32 das 200 ações do universo tinham a série
+encerrada em 2020-07 (BAC, FB, NFLX, MA, CSCO, MCD, SBUX, BLK…): sem preço no
+FNSPID depois disso, saem do universo a partir de julho.
+
+O universo S&P 500 point-in-time da seção 18 do método (`newsmanager/grafo/`)
+tem de 344 a 474 ações por mês, com mediana de 390 até 2020-06 e de 355 depois.
 
 ---
+
+# Parte 5 — Covariância, carteiras e monografia
+
+A pergunta da tese: o grafo de notícias contém informação sobre a covariância
+futura dos retornos que não está no histórico, no setor nem nos fatores? E essa
+informação produz carteiras melhores fora da amostra?
+
+```bash
+NM_SEC_USER_AGENT="Nome e-mail" python -m newsmanager sectors [--sp500]   # SIC da SEC -> Fama-French
+python -m newsmanager h1 [--residual]                # regressão preditiva E0–E4, R² fora da amostra
+python -m newsmanager backtest --n {50,100,200}      # desenhos D1 e D2 (GMV, 2013–2023)
+python -m newsmanager.backtester run backtests/<run>.toml    # desenhos D3 a D9
+python -m newsmanager.backtester compare ...                 # medidas e testes contra a run-base
+python -m newsmanager.grafo {diadico-painel,diadico}         # testes de pares no S&P 500
+PYTHONPATH=. python scripts/revisao_qap.py {h1a|h1b} SEMENTE R SAIDA.json   # QAP, uma semente por processo
+PYTHONPATH=. python scripts/revisao_qap.py juntar logs/revisao_qap/h1a_*.json
+```
+
+Cada desenho foi registrado em `docs/metodo_covariancia.md` **antes** de rodar
+e avaliado contra o que estava escrito: seção 9 (D1), 10–11 (D2), 12–13 (D3 e
+amostra ampliada), 14–15 (D4–D8), 16–17 (D9) e 18 (programa do grafo no
+S&P 500). O guia do motor de backtest está em `backtests/README.md`.
+
+## Resultado
+
+A monografia investiga três hipóteses:
+
+| | hipótese | resultado |
+|---|---|---|
+| **H1a** | a exposição comum de duas ações a entidades não negociadas (Fed, petróleo, China…) prevê a correlação futura | **confirmada**: +0,0038 de correlação residual por desvio-padrão (t = 11,1; QAP p = 0,001), com controles de setor e de atenção da mídia |
+| **H1b** | os tipos de relação direta têm efeitos diferentes | **confirmada**: Wald = 77,9 (QAP p = 0,001; 0,003 com Bonferroni), concorrência à frente. A aresta com sinal tem efeito **negativo** (−0,0016; t = −9,1): a direção do efeito econômico não é a direção da correlação |
+| **H2** | o *prior* de setor + notícias dá carteira melhor que o de setor e que o placebo | **rejeitada** nos nove desenhos (D1–D9; 50, 100 e 200 ações; 2013–2023). Em dois a carteira com notícias é pior: D8 (+21% de variância ativa) e D9 (+14% de variância) |
+
+Fora da amostra, os atributos do grafo acrescentam +0,0033 de R² à persistência
+com setor na correlação total (t = 4,3) e +0,0027 na residual ao fator de
+mercado (t = 8,8; ganho em 84% dos meses). A informação existe, mas é pequena
+e está na média das correlações par a par, que o otimizador não valoriza.
+
+O QAP usa 1.000 permutações (sementes 101 a 104, 250 cada); os resultados estão
+em `logs/revisao_qap/`. O programa completo da seção 18 (G1–G13, modelos M1–M9,
+placebos, dev/holdout) foi executado e está em `docs/secao18_resultados.md`,
+mas a monografia relata dele só os testes de pares de H1a e H1b.
+
+## Documentos
+
+| caminho | o que é |
+|---|---|
+| `monografia/` | o texto (LaTeX, abnTeX2, um `.tex` por capítulo); esboço em `monografia/ORGANOGRAMA.md` |
+| `docs/equacoes/equacoes.tex` | cada equação da monografia: variáveis, domínios, unidades e resultado |
+| `docs/guia/guia_tese.tex` | guia da tese com o registro completo do que foi rodado (G1–G13, D10) |
+| `docs/metodo_covariancia.md` | método, pré-registros e resultados, em ordem cronológica (seções 1–18) |
+| `docs/secao18_resultados.md` | resultados do programa da seção 18 |
+| `docs/revisao_monografia.md` | revisão do texto (métodos, equações, modelos) e o que foi feito com cada achado |
+
+```bash
+cd monografia && tectonic -X compile Monografia.tex    # ~52 páginas de corpo, 8 capítulos, 2 apêndices
+```
+
+---
+
+## Números da run final e conferência
+
+| | |
+|---|---|
+| artigos distintos no corpus | 12.746.534 (de 15.549.299 linhas) |
+| unidades elegíveis para extração | 1.607.982 |
+| unidades extraídas (`v=a05d0c0dc189`) | 572.762 (**35,6%**; a amostra de 25% eram 401.609) |
+| relações / limpas | 1.270.582 / 1.093.431 (86,1%) |
+| unidades com ao menos uma relação | 327.406 (57,2%), 3,9 relações em média |
+| nomes ligados (`l=c49291db2953`) | 304.430; 52,3% das relações limpas com ticker em um lado, 13,2% nos dois |
+| grafo | 255.384 nós, 1.064.801 eventos limpos, 673.261 pares |
+| preços | 7.693 tickers, 20.958.624 retornos válidos (2005–2023), 3.137 truncados |
+
+`scripts/conferir_numeros.py` recalcula esses números (e os da monografia) a
+partir de `data/` e `logs/`; a saída fica em `logs/conferencia_numeros.txt`.
+Os do corpus completo vêm dos logs da VM em `gdrive:NewsManager/logs`
+(`corpus.log`, `units.log`, `collect.log`, `link-prep.log`).
 
 ## Testing
 
@@ -560,6 +652,10 @@ python tests/test_e2e_subset.py 4 48   # pipeline de ingestão, arquivo real, ~2
 python tests/test_extract_e2e.py       # pipeline de extração, Ollama simulado
 python tests/test_graph.py             # grafo: regras de nó, classes, snapshot sem look-ahead
 python tests/test_prices.py            # preços: zip sintético com cada anomalia do FNSPID
+python tests/test_link.py              # ligação a tickers, Ollama simulado, retomada
+python tests/test_portfolio.py         # correlação com faltantes, Newey-West, Fama-MacBeth, Ledoit-Wolf
+python tests/test_backtester.py        # motor de backtest contra uma simulação dia a dia independente
+python tests/test_grafo.py             # peças da seção 18 contra casos conhecidos
 ```
 
 The ingest test runs every stage for real: range fetch, boundary contiguity,

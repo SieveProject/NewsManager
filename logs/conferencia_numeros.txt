@@ -1,0 +1,122 @@
+
+== marcações de ticker (data/curated/mentions)
+marcações=5,730,655  artigos com ticker=2,953,850  tickers=8,552
+  2009: artigos=6,190 marcações=12,338
+  2010: artigos=61,543 marcações=104,502
+  2011: artigos=123,047 marcações=193,656
+  2012: artigos=179,143 marcações=268,913
+  2013: artigos=169,231 marcações=278,934
+  2014: artigos=201,070 marcações=335,311
+  2015: artigos=297,207 marcações=519,074
+  2016: artigos=280,592 marcações=505,984
+  2017: artigos=247,156 marcações=456,332
+  2018: artigos=330,871 marcações=653,956
+  2019: artigos=338,389 marcações=637,008
+  2020: artigos=193,513 marcações=350,764
+  2021: artigos=123,702 marcações=181,209
+  2022: artigos=174,502 marcações=279,478
+  2023: artigos=227,680 marcações=953,125
+
+== tamanho dos artigos nas unidades extraídas localmente (amostra de 25%)
+unidades=401,609  mediana=2,999 caracteres  texto preservado com 8.000=83.9%  unidades truncadas=5.1%
+
+== extração (news.relations_flagged)
+tuplas=1,270,582  unidades com ao menos uma tupla=327,406  (57.2% de 572.762)  média=3.88 tuplas por unidade com relação
+  limpa         1,093,431  86.1%
+  generic          93,189   7.3%
+  comparison       27,568   2.2%
+  membership       19,427   1.5%
+  source           14,290   1.1%
+  self_loop         9,994   0.8%
+  metric            9,804   0.8%
+  orgchart          2,879   0.2%
+tipos de relação distintos: 184035
+  direção positive: 573,702 (força média 0.749)
+  direção negative: 519,729 (força média 0.720)
+
+== ligação a tickers (news.relations_linked, só limpas)
+menções com ticker=716,792 de 2,186,862 (32.8%)  tuplas com ticker em um lado=52.3%  nos dois=13.2%
+
+== grafo (news.graph_*)
+eventos limpos=1,064,801  pares distintos=673,261  nós=255,384  com ticker=5,979  com preço=5,957
+eventos em news.graph_events_all: 1,270,582
+   ('Federal Reserve', 'central_bank', 30769, 200, 31013)
+   ('crude oil', 'commodity', 19285, 1235, 20398)
+   ('China', 'country', 15726, 499, 15822)
+   ('Apple Inc.', 'company', 12779, 165, 13818)
+   ('S&P 500', 'index', 12584, 35, 20773)
+   ('Amazon Inc.', 'company', 9231, 86, 9709)
+   ('European Central Bank', 'central_bank', 8543, 36, 8587)
+   ('U.S. dollar', 'currency', 8052, 101, 8084)
+   ('Google Inc.', 'company', 7945, 98, 8714)
+   ('JPMorgan Chase & Co.', 'company', 7144, 45, 7323)
+   ('Goldman Sachs Group Inc.', 'company', 7109, 116, 7372)
+   ('Microsoft Corp.', 'company', 6844, 113, 7292)
+   ('U.S. economy', 'macro', 6005, 9, 6028)
+   ('U.S. government', 'government', 5975, 27, 5976)
+   ('gold', 'commodity', 5931, 227, 6174)
+  impact              32.1%  sinal médio +0.01
+  other               14.0%  sinal médio +0.08
+  competition          9.2%  sinal médio -0.87
+  ownership            7.3%  sinal médio +0.43
+  ma                   7.0%  sinal médio +0.41
+  supply_chain         6.1%  sinal médio +0.22
+  partnership          4.4%  sinal médio +0.79
+  legal_regulatory     4.1%  sinal médio -0.48
+  stance               3.3%  sinal médio -0.19
+  analyst              3.1%  sinal médio +0.25
+  business             2.9%  sinal médio +0.71
+  financing            2.3%  sinal médio +0.26
+  monetary             2.0%  sinal médio -0.23
+  governance           0.9%  sinal médio +0.63
+  trade_policy         0.9%  sinal médio -0.02
+  capital_return       0.3%  sinal médio -0.26
+
+== arestas diretas x entidades em comum, 2018, 100 tickers com mais eventos
+(4950, 0.12464646464646464, 0.7961616161616162)
+
+== preços (news.prices, news.returns, news.price_quality)
+(7693, datetime.date(2005, 1, 3), datetime.date(2023, 12, 28), 21520428)
+  válido          20,958,624
+  stale              436,540
+  gap                 81,050
+  splice              22,678
+  spike                7,760
+  first                7,693
+  spike_revert         6,083
+retornos válidos: (20958624, 7619)
+truncados: 3137
+  2020-07-06 AAPL: -74.9%
+  2020-07-06 GOOG: -94.9%
+  2020-07-06 KO: -9.5%
+  2020-07-06 PFE: -17.1%
+  2020-07-06 TSLA: -92.4%
+  2020-07-06 XOM: -15.5%
+datas com mais saltos de f > 5%: [('2020-07-06', 1918), ('2015-01-02', 481), ('2020-04-02', 151), ('2020-07-02', 100), ('2017-11-27', 60), ('2015-11-27', 56)]
+
+== universo das mais citadas (news.universe)
+  n=50: 156 datas, 166 tickers distintos, troca média 4.3%/mês
+  n=100: 156 datas, 315 tickers distintos, troca média 4.5%/mês
+  n=200: 156 datas, 651 tickers distintos, troca média 5.2%/mês
+setores: (902, 869)  cobertura ação-mês n=100: 99.8%
+
+== universo S&P 500 point-in-time (ações por mês)
+min=344 max=474 mediana antes de 2020-07=390 depois de 2020-08=355
+por ano (mediana): {2011: 353, 2012: 362, 2013: 372, 2014: 377, 2015: 389, 2016: 426, 2017: 440, 2018: 448, 2019: 460, 2020: 449, 2021: 352, 2022: 356, 2023: 365}
+
+== auditoria e anonimização (logs/secao18_*.json)
+{"total": {"tuplas": 1063603, "com_texto": 740467, "literal": 0.7277056236132062, "token": 0.981780416953085}, "por_classe": {"analyst": {"tuplas": 32980, "com_texto": 23004, "literal": 0.7501738828029908, "token": 0.974265345157364}, "business": {"tuplas": 30685, "com_texto": 21459, "literal": 0.7378256209515821, "token": 0.9814064029078708}, "capital_return": {"tuplas": 2771, "com_texto": 1889, "literal": 0.6739015352038116, "token": 0.9205929062996294}, "competition": {"tuplas": 97837, "com_texto": 67959, "literal": 0.809605791727365, "token": 0.9863741373475183}, "financing": {"tuplas": 24590, "com_texto": 17190, "literal": 0.6763816172193136, "token": 0.9833624200116347}, "governance": {"tuplas": 9756, "com_texto": 6721, "literal": 0.7732480285671776, "token": 0.9936021425383128}, "impact": {"tuplas": 341934, "com_texto": 237914, "literal": 0.694687996502938, "token": 0.975882041409
+{'unidades': 218, 'tuplas_orig': 872, 'tuplas_anon': 795, 'frac_orig_reencontradas': 0.33715596330275227, 'pareadas': 294, 'direcao_igual': 0.9115646258503401, 'tipo_igual': 0.5544217687074829, 'forca_media_orig': 0.7295918367346937, 'forca_media_anon': 0.7275510204081632, 'forca_dif_media_abs': 0.04489795918367347}
+portão: {'media': 0.01720525103904335, 'meses': 156, 'passa(<0.5)': True}
+FF12 intra-setor (arestas): {'2011': 0.528, '2012': 0.541, '2013': 0.466, '2014': 0.512, '2015': 0.494, '2016': 0.491, '2017': 0.448, '2018': 0.494, '2019': 0.454, '2020': 0.402, '2021': 0.346, '2022': 0.455, '2023': 0.35}
+Jaccard ticker-ticker: {'2011': 0.157, '2012': 0.17, '2013': 0.162, '2014': 0.116, '2015': 0.136, '2016': 0.148, '2017': 0.149, '2018': 0.169, '2019': 0.154, '2020': 0.142, '2021': 0.141, '2022': 0.133, '2023': 0.125}
+FOMC: 104
+
+== logs da VM (gdrive:NewsManager/logs)
+corpus.log : 15.549.299 linhas -> 12.746.534 artigos (18,0% de duplicação), 5.730.655 marcações, 8.552 tickers;
+             63,1% das linhas sem ticker, 75,9% sem texto (arquivo inteiro)
+units.log  : 12.746.534 artigos; -10.322.619 com menos de 200 caracteres ou vazios; -799.037 do lenta.ru;
+             amostra de 40% = 643.433 unidades
+collect.log: 572.762 unidades (0 falhas), 1.270.582 relações; filtro: 1.093.431 limpas (86,1%)
+link-prep  : 378.662 nomes -> 304.430 chaves (2.280.852 menções), universo 7.728 tickers (7.693 com preço)
+README     : 1.607.982 unidades elegíveis (100%); 401.609 = 25,0%; 572.762 = 35,6%

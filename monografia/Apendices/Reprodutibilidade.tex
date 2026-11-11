@@ -1,0 +1,54 @@
+% !TEX root = ../../Monografia.tex
+\chapter{Reprodutibilidade}
+\label{ap:reprodutibilidade}
+
+Todo o trabalho foi feito com código próprio, em Python, reunido no repositório do projeto
+(\texttt{NewsManager}), a partir de dados públicos: o conjunto FNSPID \citep{dong2024fnspid} e os registros
+da SEC. Este apêndice lista como cada resultado do texto é obtido.
+
+\section{Etapas e comandos}
+
+A Tabela~\ref{tab:comandos} lista as etapas na ordem de execução. Cada etapa grava seu produto em disco e
+pode ser retomada.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Etapas do processo e comando de cada uma.}
+\label{tab:comandos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.0cm}>{\raggedright\arraybackslash}X}
+\toprule
+etapa & comando \\
+\midrule
+ingestão e curadoria do corpus & \texttt{python -m newsmanager \{probe, plan, ingest, curate, validate\}} \\
+unidades e extração pelo LLM & \texttt{python -m newsmanager.extract \{units, run, collect, filter\}} \\
+ligação a \emph{tickers} & \texttt{python -m newsmanager.extract \{link-prep, link-run, link-verify, link-build\}} \\
+grafo de eventos & \texttt{python -m newsmanager.extract graph-build} \\
+preços, universos e setores & \texttt{python -m newsmanager \{prices, universe, sectors\}} \\
+regressão preditiva (E0--E4) & \texttt{python -m newsmanager h1} e \texttt{h1 --residual} \\
+desenhos D1 e D2 & \texttt{python -m newsmanager backtest --n \{50, 100, 200\}} \\
+desenhos D3 a D9 & \texttt{python -m newsmanager.backtester run backtests/*.toml} e \texttt{compare} \\
+testes de pares (H1a, H1b) & \texttt{python -m newsmanager.grafo \{diadico-painel, diadico\}} \\
+teste de permutação (QAP) & \texttt{scripts/revisao\_qap.py} \\
+validação da extração e descritivas & \texttt{python -m newsmanager.grafo \{auditoria, amostra, metricas, anonimizacao, anon-run, anon-comparar, descritivas\}} \\
+conferência dos números do texto & \texttt{scripts/conferir\_numeros.py} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Versões e sementes}
+
+\begin{itemize}
+  \item Extração: versão \texttt{a05d0c0dc189}, \emph{hash} do prompt, do esquema, do limite de caracteres
+        e do nome do modelo (Qwen2.5-14B-Instruct, servido pelo Ollama).
+  \item Ligação a \emph{tickers}: versão \texttt{c49291db2953}, \emph{hash} do prompt, do modelo
+        (Qwen2.5-7B-Instruct), dos tipos de agente e das listagens de referência.
+  \item Parâmetros fixos: janela de notícias de 365 dias, meia-vida de 90 dias, janela de estimação de
+        252 pregões, custo de 10 pontos-base, rebalanceamento no primeiro pregão do mês.
+  \item Sementes: 7 nos \emph{bootstraps} e nas permutações do placebo; 101 a 104 no QAP (250
+        permutações por semente).
+  \item Cada desenho de carteira foi registrado no repositório antes da execução; o histórico de versões
+        guarda o texto de cada pré-registro e a data.
+\end{itemize}
+
+\clearpage

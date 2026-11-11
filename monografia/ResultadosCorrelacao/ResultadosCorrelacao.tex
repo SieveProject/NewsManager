@@ -1,0 +1,232 @@
+% !TEX root = ../Monografia.tex
+\chapter{Resultados I: as Notícias e a Correlação Futura}
+\label{cap:res-correlacao}
+
+Este capítulo responde à primeira parte da pergunta de pesquisa: o grafo de notícias contém informação
+sobre a correlação futura entre ações que não está na correlação histórica nem no setor (H1)? A
+Seção~\ref{sec:h1} apresenta a regressão preditiva da correlação total, e a Seção~\ref{sec:h1-residual},
+a da correlação residual ao fator de mercado. A Seção~\ref{sec:canais} testa os dois canais pelos quais
+o grafo carregaria essa informação: a exposição comum (H1a) e o tipo de relação (H1b). A
+Seção~\ref{sec:sintese-h1} resume o que o grafo sabe sobre o co-movimento das ações.
+
+%--------------------------------------------------------------------
+\section{Previsão da correlação total}
+\label{sec:h1}
+
+A regressão da Equação~\eqref{eq:h1} foi estimada no universo das 100 ações mais citadas, em 156 datas
+mensais de janeiro de 2011 a dezembro de 2023, num total de 772.200 pares-data. A variável dependente é a
+correlação dos retornos no mês de carteira seguinte, em escala $z$; a correlação histórica usa os 252
+pregões anteriores; as notícias usam os 365 dias anteriores a cada data, com meia-vida de 90 dias, valores
+fixados antes dos testes e não calibrados. A avaliação fora da amostra cobre as 132 datas de 2013 a 2023,
+com os coeficientes de cada data estimados só com as datas anteriores.
+
+A exposição comum é o atributo mais frequente: 74,7\% dos pares-data têm ao menos uma entidade não
+negociada em comum. A co-menção no corpus aparece em 34,8\% e a coocorrência nos artigos extraídos, em
+28,4\%. As arestas diretas são raras: de 1,0\% (controle) a 4,4\% (concorrência e outras) dos pares-data,
+conforme o grupo de relação. Só 5,9\% dos pares são do mesmo setor Fama-French~49.
+
+A Tabela~\ref{tab:h1-total} mostra o ganho de cada especificação. O ganho é medido como a redução do erro
+quadrático fora da amostra, em fração da variância total da correlação, e testado com erro-padrão de
+Newey-West na série mensal das diferenças.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Previsão da correlação total fora da amostra (132 meses, 2013--2023, 100 ações).}
+\label{tab:h1-total}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}Xcccc}
+\toprule
+especificação & $R^2_{oos}$ & ganho & $t$ & meses com ganho \\
+\midrule
+\multicolumn{5}{l}{\emph{referência: E0, persistência}} \\
+E0 persistência & 0,1854 & --- & --- & --- \\
+E1 + co-menção & 0,1869 & +0,0015 & 2,7 & 69\% \\
+E2 + coocorrência & 0,1900 & +0,0046 & 5,8 & 75\% \\
+E3 + vínculos e exposição & 0,1890 & +0,0037 & 5,5 & 75\% \\
+E4 todas as notícias & 0,1910 & +0,0056 & 5,0 & 76\% \\
+E0 + setor & 0,1885 & +0,0031 & 4,4 & 70\% \\
+\midrule
+\multicolumn{5}{l}{\emph{referência: E0 + setor}} \\
+E1 + setor & 0,1892 & +0,0008 & 2,0 & 64\% \\
+\textbf{E4 + setor} & \textbf{0,1917} & \textbf{+0,0033} & \textbf{4,3} & \textbf{73\%} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Quatro resultados se destacam.
+
+\begin{enumerate}
+  \item \textbf{As notícias preveem a correlação além da persistência.} Todas as especificações com
+        notícias reduzem o erro fora da amostra em relação à correlação histórica, de forma
+        significativa. O ganho é pequeno em nível, cerca de meio ponto de $R^2$
+        sobre uma base de 18,5\%, mas a variável prevista é uma correlação de 21 pregões, dominada por
+        ruído amostral, e o ganho aparece em três de cada quatro meses.
+  \item \textbf{O grafo do LLM supera a co-menção do corpus.} A coocorrência nos artigos extraídos
+        rende três vezes o ganho da co-menção marcada no corpus (+0,0046 contra +0,0015). E todas as
+        notícias juntas ainda acrescentam +0,0041 sobre a co-menção ($t=5{,}6$). A informação do grafo
+        vai além da variável usada por \citet{tang2019}.
+  \item \textbf{As notícias acrescentam ao setor, e valem mais que ele.} O setor sozinho rende +0,0031
+        sobre a persistência, o resultado esperado por \citet{elton1973}; as notícias sozinhas rendem
+        +0,0056. Depois do setor, a co-menção quase desaparece ($t=2{,}0$), mas as notícias do grafo
+        continuam significativas ($+0{,}0033$, $t=4{,}3$).
+  \item \textbf{O canal é a exposição comum, não a relação direta.} Na regressão de Fama-MacBeth com
+        todos os atributos e o setor, a coocorrência ($t=9{,}7$) e a exposição comum a entidades não
+        negociadas ($t=6{,}1$) continuam fortes, e os coeficientes de setor caem a menos da metade (o do
+        mesmo setor FF49 vai de 0,0109 para 0,0044): parte do que o setor explica, as notícias também
+        explicam. Já os vínculos diretos por grupo de relação quase não acrescentam e, com os demais
+        controles, a cadeia de suprimentos chega a ter coeficiente negativo ($t=-3{,}0$). Com cobertura
+        de 1\% a 4\% dos pares e um alvo mensal ruidoso, não é possível separar o tipo da relação do fato
+        de as duas empresas aparecerem juntas nas notícias.
+\end{enumerate}
+
+%--------------------------------------------------------------------
+\section{Correlação residual}
+\label{sec:h1-residual}
+
+A correlação total entre ações é dominada pelo fator de mercado, que o grafo não precisa prever. A mesma
+análise foi feita com a correlação residual ao mercado (Equação~\ref{eq:fator-mercado}), que é a parte da
+covariância em que as notícias entram nos estimadores do Capítulo~\ref{cap:res-carteiras}. A persistência
+tem $R^2_{oos}$ de 0,1610, e o setor acrescenta $+0{,}0030$ ($t=5{,}0$). Sobre a persistência e o setor, todas
+as notícias acrescentam $+0{,}0027$, com $t=8{,}8$, e melhoram a previsão em 84\% dos meses. O ganho é um pouco menor em nível que na correlação
+total, mas muito mais estável: o $t$ sobe de 4,3 para 8,8. Tirar o mercado remove uma fonte comum de
+variação que as notícias não explicam, e o sinal específico de cada par fica mais nítido.
+
+O resultado também resiste à ampliação da amostra de artigos. Com a amostra de 25\%, o ganho das notícias
+sobre a persistência e o setor era de $+0{,}0031$ ($t=4{,}0$) na correlação total e de $+0{,}0026$
+($t=9{,}7$) na residual; com a amostra final, que tem 44\% mais eventos, os valores são $+0{,}0033$
+($t=4{,}3$) e $+0{,}0027$ ($t=8{,}8$).
+
+%--------------------------------------------------------------------
+\section{Os canais da informação: H1a e H1b}
+\label{sec:canais}
+
+Os testes desta seção usam o universo do S\&P~500 em cada data, que não depende das notícias: 155 meses
+entre 2011 e 2023, de 344 a 474 ações por mês e 12,2 milhões de pares-mês. A variável dependente é a
+correlação residual dos 21 pregões seguintes, em escala $z$, e a regressão é a da
+Equação~\eqref{eq:pares}. Nesse universo, mais amplo que o das ações mais citadas, as notícias são mais
+esparsas: 18,9\% dos pares-mês têm exposição comum não nula e 1,0\% tem aresta direta. A
+Tabela~\ref{tab:fm-residual} mostra a regressão com a aresta direta com sinal.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Regressão de Fama-MacBeth da correlação residual futura (S\&P~500, 155 meses). Coeficientes
+por desvio-padrão do regressor.}
+\label{tab:fm-residual}
+\begin{tabular}{lrr}
+\toprule
+regressor & coeficiente & $t$ \\
+\midrule
+\textbf{exposição comum}, $g$ & $\mathbf{+0{,}0038}$ & $\mathbf{+11{,}1}$ \\
+aresta direta com sinal, $\mathrm{sgnlog}(w)$ & $-0{,}0016$ & $-9{,}1$ \\
+correlação residual histórica, $z_{\mathrm{hist}}$ & $+0{,}105$ & $+16{,}7$ \\
+mesmo setor FF49 & $+0{,}013$ & $+14{,}4$ \\
+mesmo SIC de 2 dígitos & $+0{,}011$ & $+15{,}3$ \\
+distância de tamanho & $-0{,}0018$ & $-4{,}2$ \\
+atenção (soma) & $0{,}0000$ & $+0{,}1$ \\
+atenção (diferença) & $-0{,}0002$ & $-0{,}6$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{H1a: exposição comum a entidades não negociadas}
+\label{sec:h1a}
+
+A exposição comum tem o coeficiente positivo mais forte entre os atributos de notícia: $+0{,}0038$ por
+desvio-padrão, com $t=11{,}1$, depois de controlar a correlação residual histórica, os dois indicadores de
+setor, a distância de tamanho e a atenção da mídia. O coeficiente é positivo em 96\% dos meses. No teste
+de permutação, o maior coeficiente médio obtido com as ações permutadas é 0,0002, cerca de um dezesseis
+avos do observado ($p=0{,}001$, o menor possível). \textbf{H1a é confirmada.}
+
+A própria regressão afasta as duas explicações mais simples para o resultado. Os dois termos de atenção
+têm coeficiente nulo: $g$ não mede apenas quanto as duas empresas aparecem nas notícias. E os indicadores
+de setor estão na regressão; além disso, a regressão de $g_{ij}$ nesses indicadores tem $R^2$ médio de
+0,017 (Seção~\ref{sec:descritivas}), de modo que a exposição comum não é o setor disfarçado.
+
+O resultado repete, num universo que não foi escolhido pelas notícias, o que as
+Seções~\ref{sec:h1} e~\ref{sec:h1-residual} mostraram no universo das ações mais citadas: o canal que
+sobrevive aos controles é a exposição comum. É a evidência mais direta de que o grafo descreve uma
+estrutura de fatores: empresas que as notícias ligam às mesmas entidades se movem juntas, além do que o
+setor e o passado já indicam. A magnitude, porém, é pequena. Um desvio-padrão a mais de exposição comum
+corresponde a cerca de 0,004 a mais de correlação, contra 0,105 para um desvio-padrão da correlação
+histórica: a exposição comum acrescenta informação ao histórico, mas não o substitui.
+
+\subsection{H1b: tipo de relação}
+\label{sec:h1b}
+
+A Tabela~\ref{tab:h1b} traz o coeficiente de cada grupo de relação direta, com as arestas medidas sem
+sinal. As arestas diretas são raras: 0,49\% dos pares-mês têm alguma relação de concorrência, 0,16\% de
+parceria, 0,16\% de impacto, 0,09\% de cadeia de suprimentos, 0,09\% de controle e 0,02\% legal ou
+regulatória. Ainda assim, o teste de Wald rejeita a igualdade dos seis coeficientes: a estatística é
+77,9, e a maior obtida nas 1.000 permutações é 30,3 ($p=0{,}001$; $p=0{,}003$ com a correção de Bonferroni
+para as três hipóteses do trabalho).
+\textbf{H1b é confirmada}: o tipo de relação importa. O padrão segue a literatura de vínculos econômicos.
+A concorrência tem o maior efeito, como esperado para empresas que disputam o mesmo mercado de produtos
+\citep{hoberg2016}; a cadeia de suprimentos e as relações de controle (participações e aquisições) vêm em
+seguida, coerentes com o fluxo de demanda e de caixa compartilhado \citep{cohen2008,menzly2010}; e as
+relações legais e regulatórias, que não criam exposição econômica duradoura, não têm efeito.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{H1b: efeito de cada grupo de relação sobre a correlação residual futura.}
+\label{tab:h1b}
+\begin{tabular}{lrrr}
+\toprule
+grupo & coeficiente & $t$ & $p$ (Benjamini-Hochberg) \\
+\midrule
+concorrência & $+0{,}0022$ & $+9{,}9$ & $<10^{-21}$ \\
+parceria & $+0{,}0004$ & $+4{,}7$ & $<10^{-4}$ \\
+controle (participação, fusões e aquisições) & $+0{,}0007$ & $+4{,}1$ & $0{,}0001$ \\
+cadeia de suprimentos & $+0{,}0006$ & $+3{,}1$ & $0{,}003$ \\
+impacto & $+0{,}0003$ & $+1{,}9$ & $0{,}065$ \\
+legal e regulatória & $0{,}0000$ & $-0{,}2$ & $0{,}81$ \\
+outras (grupo residual) & $+0{,}0004$ & $+2{,}9$ & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Há uma ressalva de medida. A concorrência, o grupo de maior efeito, é também a classe em que a extração é
+menos confiável: na anotação da Seção~\ref{sec:anotacao}, a relação afirmada existe no texto em 64\% das
+tuplas dessa classe, contra 79\% no conjunto. O erro de medida num regressor atenua o seu coeficiente,
+de modo que ele não explica um efeito grande; mas parte do que a classe concorrência captura pode ser
+apenas a menção conjunta de duas empresas do mesmo ramo. Na regressão, a exposição comum e os indicadores
+de setor controlam esse efeito, e o coeficiente da concorrência continua o maior. A conclusão que os
+dados sustentam é a de H1b, que os grupos diferem; a ordenação fina entre eles deve ser lida com cautela.
+
+\paragraph{O sinal da relação.}
+\label{sec:sinal}
+A segunda parte de H1b pergunta se o sinal que o LLM atribui a cada relação indica a direção do
+co-movimento. Não indica. Na Tabela~\ref{tab:fm-residual}, a aresta direta com sinal tem coeficiente
+\emph{negativo} ($-0{,}0016$, $t=-9{,}1$): quanto mais positivas as relações entre duas empresas, menor a
+correlação residual futura. Com as arestas positivas e negativas em
+regressores separados, as duas \emph{aumentam} a correlação, as negativas mais que as positivas
+($+0{,}0025$ contra $+0{,}0010$; diferença $-0{,}0015$, $t=-7{,}3$). Os dois critérios fixados para o sinal
+não são atendidos.
+
+O mecanismo é o mesmo que torna a concorrência o grupo mais forte. As arestas negativas são, em sua
+maioria, de concorrência, classe cujo sinal médio é $-0{,}87$ (Tabela~\ref{tab:classes}): o ganho de uma
+empresa é descrito como perda da rival. Mas rivais do mesmo ramo estão expostos aos mesmos choques, e suas
+ações andam juntas. Somar arestas positivas e negativas com sinal faz as duas se cancelarem e, como as
+negativas preveem mais correlação, o coeficiente sai negativo. A existência e a intensidade do vínculo,
+sem sinal, preveem a correlação ($|w|$: $t=+12{,}2$). Esse diagnóstico foi feito depois do teste e é, por
+isso, exploratório, mas a anotação da Seção~\ref{sec:anotacao} o apoia: o sinal extraído está certo em
+mais de 90\% das relações existentes, de modo que o problema não é erro de extração. Esse é um dos
+achados centrais do trabalho: \textbf{o sinal que o LLM atribui a uma relação descreve o efeito econômico
+de uma empresa sobre a outra, e não a direção do co-movimento entre elas}.
+
+%--------------------------------------------------------------------
+\section{Síntese}
+\label{sec:sintese-h1}
+
+\textbf{H1 é confirmada, pelos dois canais.} A exposição comum a entidades não negociadas prevê a
+correlação futura além do histórico e do setor, fora da amostra no universo das ações mais citadas
+($t=8{,}8$ na correlação residual) e nos testes de pares do S\&P~500 ($t=11{,}1$; $p=0{,}001$ por permutação).
+O tipo de relação direta importa, com a concorrência à frente (Wald de 77,9; $p=0{,}001$). Duas
+qualificações limitam o alcance desse conteúdo. A informação está na \emph{existência} e na
+\emph{intensidade} dos vínculos, e não no sinal que o LLM atribui a eles. E o ganho é pequeno em magnitude:
+cerca de três décimos de ponto de $R^2$ sobre a persistência e o setor, e quatro milésimos de correlação por
+desvio-padrão de exposição comum. O Capítulo~\ref{cap:res-carteiras} investiga se esse ganho, pequeno mas
+estatisticamente sólido, sobrevive à passagem da previsão de correlações para a construção de carteiras.
+
+\clearpage

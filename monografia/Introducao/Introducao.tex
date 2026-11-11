@@ -1,0 +1,169 @@
+% !TEX root = ../Monografia.tex
+\chapter{Introdução}
+\label{cap:introducao}
+
+A matriz de covariância dos retornos é o insumo central de quase toda decisão de alocação de
+carteiras: é ela que mede quanto risco cada ativo acrescenta e quanto cada combinação de ativos
+diversifica. Ela não é observada, porém, e precisa ser estimada a partir de uma história curta de
+preços. Este trabalho investiga se as notícias financeiras, lidas por um modelo de linguagem de grande
+porte (LLM, do inglês \emph{large language model}) e convertidas num grafo de relações econômicas entre
+empresas e outros agentes, contêm informação sobre essa matriz que os preços ainda não revelam, e se
+essa informação produz carteiras melhores fora da amostra.
+
+\section{Contexto e motivação}
+\label{sec:motivacao}
+
+Na formulação de \citet{markowitz1952}, a carteira ótima depende do vetor de retornos esperados e da
+matriz de covariância $\Sigma$ dos retornos. Na prática, os dois são substituídos por estimativas, e o
+otimizador trata os erros dessas estimativas como se fossem informação: ativos cuja variância foi
+subestimada, ou cujas correlações parecem favoráveis por acaso, recebem peso excessivo. O problema
+cresce com o número de ativos. Com $p$ ativos e uma janela de $N$ observações, a covariância amostral
+$S$ tem $p(p+1)/2$ parâmetros distintos; ela é singular quando $N<p$ e mal condicionada sempre que
+$N$ não é muito maior que $p$, de modo que sua inversa, que é o que o otimizador usa, amplifica o
+ruído. \citet{kan2007} mostram que, com muitos ativos, o erro de estimação em $\Sigma$ custa tanto
+quanto o erro na média. Por isso a carteira de variância mínima global (GMV, do inglês \emph{global
+minimum variance}), cujos pesos $w\propto\Sigma^{-1}\mathbf 1$ dispensam os retornos esperados,
+tornou-se o laboratório padrão para comparar estimadores de $\Sigma$. Ainda assim, a simples divisão
+igual do capital entre os ativos (a carteira $1/N$) é difícil de superar fora da amostra
+\citep{demiguel2009}.
+
+A resposta da literatura foi impor estrutura à estimativa. \citet{elton1973} mostraram que supor
+correlação constante, inclusive por blocos de setor, prevê a correlação futura melhor que a matriz
+amostral. Modelos de fatores reduzem o número de parâmetros ao explicar a covariância por poucas
+fontes comuns de risco \citep{chan1999}. O \emph{shrinkage} de \citet{ledoit2003,ledoit2004honey,ledoit2004jmva}
+combina a matriz amostral com um alvo estruturado,
+\begin{equation}
+  \hat\Sigma = \delta\,T + (1-\delta)\,S,
+  \label{eq:shrinkage-intro}
+\end{equation}
+com a intensidade $\delta$ escolhida de forma analítica para minimizar o erro esperado. A expressão
+\eqref{eq:shrinkage-intro} admite uma leitura bayesiana: o alvo $T$ é um \emph{prior} sobre a estrutura
+de $\Sigma$, e a qualidade desse prior decide quanto se ganha. Os alvos usuais vêm dos próprios
+retornos (identidade, correlação constante, fator único) ou de classificações estáticas, como o setor.
+Há, portanto, espaço para um prior construído com informação externa aos preços.
+
+As notícias são um candidato natural para essa informação. Vínculos econômicos reais propagam
+informação entre empresas: choques em clientes chegam aos fornecedores \citep{cohen2008}, indústrias
+ligadas na cadeia produtiva se antecipam umas às outras \citep{menzly2010}, e empresas com produtos
+parecidos, medidos pelo texto dos relatórios anuais, formam redes de concorrência \citep{hoberg2016}.
+As notícias revelam esses vínculos: empresas citadas juntas preveem os retornos umas das outras
+\citep{scherbina2020}, e a cobertura conjunta gera transbordamento de atenção e co-movimento
+\citep{guo2017}. Três trabalhos levam essa ideia à matriz de covariância. \citet{tang2019} mostram que a
+coocorrência de duas empresas em notícias prevê a correlação futura entre elas, mesmo controlando a
+correlação passada, e melhora a GMV. \citet{becquin2023} usam a similaridade semântica entre empresas
+como alvo de \emph{shrinkage}. \citet{lu2024} encolhem a matriz de correlação usando as redes textuais
+de \citet{hoberg2016}. Em todos esses casos, porém, o texto entra de forma pobre: como contagem de
+co-menções, sem saber se uma empresa fornece, concorre, processa ou adquire a outra, ou como
+similaridade estática entre descrições.
+
+Os LLMs mudam o que é possível extrair. Um modelo executado localmente pode ler centenas de milhares
+de artigos e devolver, para cada um, relações estruturadas: quem afeta quem, por meio de que tipo de
+ação, com que sinal e com que intensidade. Essas relações incluem entidades que não são negociadas,
+mas que movem preços, como o Federal Reserve, o petróleo ou a China. A exposição comum de duas empresas
+a essas entidades é, em princípio, uma estrutura de fatores descrita em linguagem natural. Até onde a
+revisão deste trabalho alcançou (Capítulo~\ref{cap:revisao}), não há estudo que use relações extraídas
+por LLM, tipadas, com sinal e com entidades não negociadas, para estimar a matriz de covariância.
+
+\section{Pergunta de pesquisa e hipóteses}
+\label{sec:pergunta}
+
+A pergunta que orienta o trabalho é a seguinte:
+
+\begin{quote}
+\emph{A estrutura de relações extraída das notícias por um LLM contém informação sobre a covariância
+futura dos retornos que não está na covariância histórica nem em modelos de fatores e de setor? E essa
+informação se traduz em carteiras melhores fora da amostra?}
+\end{quote}
+
+A pergunta tem uma parte estatística e uma parte econômica, e a ordem entre elas importa. Daí as duas
+hipóteses gerais do trabalho:
+
+\begin{description}
+  \item[H1 (estatística).] Os vínculos registrados nas notícias até uma data $t$ preveem a correlação
+        futura entre duas ações além do que a correlação histórica e o setor já preveem.
+  \item[H2 (econômica).] Incorporar esse sinal à estimação de $\Sigma$ reduz a volatilidade realizada
+        da GMV e melhora carteiras que dependem de $\Sigma$, em relação a estimadores de referência
+        sem notícias.
+\end{description}
+
+H1 é condição necessária para H2. Se as notícias não previssem a correlação, um eventual ganho de
+carteira seria apenas o efeito genérico de regularizar a matriz, e não do conteúdo das relações. Para
+separar uma coisa da outra, todo estimador com notícias é comparado também a um placebo, em que os
+vínculos são embaralhados entre as empresas preservando sua esparsidade e sua distribuição. H1 é desdobrada
+em duas hipóteses específicas, uma para cada canal pelo qual a teoria de finanças diz que o grafo
+carregaria informação sobre o co-movimento: a exposição comum das empresas às mesmas entidades não
+negociadas (H1a) e o tipo das relações diretas entre elas (H1b). Com H2, são três hipóteses, apresentadas
+com sua fundamentação na Seção~\ref{sec:hipoteses}. O trabalho prefere investigar a fundo essas três a
+testar um número maior de ideias com menos rigor.
+
+\section{Objetivos}
+\label{sec:objetivos}
+
+O objetivo geral é avaliar se um grafo de relações econômicas extraído de notícias por um LLM melhora
+a estimação da matriz de covariância dos retornos de ações e o desempenho fora da amostra das carteiras
+que dependem dela. Os objetivos específicos são:
+
+\begin{enumerate}
+  \item construir, a partir do corpus público FNSPID \citep{dong2024fnspid}, uma base de relações
+        tipadas, com sinal e intensidade, extraídas por um LLM executado localmente, e associar os
+        agentes dessas relações aos códigos de negociação (\emph{tickers}) das empresas;
+  \item organizar as relações num grafo dinâmico que possa ser consultado em qualquer data sem usar
+        informação posterior a ela;
+  \item medir se atributos desse grafo preveem a correlação futura entre pares de ações além da
+        correlação histórica, do setor e da simples co-menção (H1);
+  \item incorporar o grafo à estimação de $\Sigma$ por três vias, como alvo de \emph{shrinkage}, como
+        estrutura da correlação residual de um modelo de fatores e como visões de Black-Litterman, e
+        comparar as carteiras resultantes com estimadores de referência e com um placebo (H2);
+  \item conduzir as avaliações sob um protocolo de pré-registro, com o critério de sucesso fixado
+        antes de cada execução, nível de significância reduzido a cada nova tentativa e confirmação em
+        universos e amostras diferentes.
+\end{enumerate}
+
+\section{Contribuições}
+\label{sec:contribuicoes}
+
+O trabalho traz cinco contribuições.
+
+\begin{enumerate}
+  \item \textbf{Uma base de relações econômicas extraídas por LLM.} O modelo Qwen2.5-14B-Instruct
+        \citep{qwen2024} leu 572.762 artigos, cerca de 36\% do corpus elegível, e extraiu 1.270.582
+        relações. Depois de filtradas e associadas a \emph{tickers}, elas formam um grafo com 255.384
+        nós e 1.064.801 eventos entre 2011 e 2023, consultado sempre com informação anterior à data
+        de decisão.
+  \item \textbf{Evidência de que as notícias preveem a correlação.} Os atributos do grafo preveem a
+        correlação futura entre pares de ações além da correlação histórica, do setor e da co-menção,
+        com estatística $t$ de 8,8 na correlação residual ao fator de mercado. O canal que
+        sobrevive aos controles é a exposição comum a entidades não negociadas, num universo que não
+        foi escolhido pelas notícias, e o tipo de relação importa. O efeito é estatisticamente forte, mas pequeno:
+        cerca de três décimos de ponto de $R^2$.
+  \item \textbf{Evidência negativa, robusta e pré-registrada para as carteiras.} Em nove desenhos de
+        carteira, oito deles com critério de sucesso fixado antes da execução, nenhum estimador com
+        notícias reduziu de forma significativa a volatilidade realizada ou melhorou o índice de Sharpe
+        em relação à sua referência sem notícias, em universos de 50, 100 e 200 ações. Em dois desenhos,
+        as notícias pioraram a carteira. O trabalho identifica o mecanismo: o sinal é pequeno e esparso,
+        piora o condicionamento da matriz que o otimizador inverte e, quando há restrições de peso,
+        é absorvido pela regularização que elas já impõem.
+  \item \textbf{Um achado sobre o significado do sinal extraído.} O sinal que o LLM atribui a uma
+        relação descreve o efeito econômico de uma empresa sobre a outra, e não a direção do
+        co-movimento entre elas. Concorrentes recebem relações negativas, mas suas ações andam juntas.
+  \item \textbf{Um protocolo de avaliação.} O trabalho combina pré-registro incremental dos desenhos,
+        nível de significância decrescente a cada tentativa, um placebo que preserva a distribuição dos
+        vínculos, inferência por permutação para dados de pares e um teste de vazamento de memória do
+        LLM por anonimização dos textos. O protocolo pode ser reaproveitado por outros estudos que usem LLMs
+        sobre dados financeiros históricos.
+\end{enumerate}
+
+\section{Organização do texto}
+\label{sec:organizacao}
+
+O Capítulo~\ref{cap:revisao} revisa a literatura sobre estimação de matrizes de covariância, redes e
+texto em finanças e os métodos de avaliação usados no trabalho. O Capítulo~\ref{cap:metodologia}
+apresenta a metodologia: as hipóteses, a construção dos atributos do grafo, os estimadores de $\Sigma$
+com e sem notícias, as carteiras e o protocolo de avaliação. O Capítulo~\ref{cap:dados} descreve os
+dados de notícias, preços e setores, e o Capítulo~\ref{cap:extracao}, a extração das relações pelo LLM,
+a construção do grafo e sua validação. O Capítulo~\ref{cap:res-correlacao} responde à primeira parte da
+pergunta, sobre a previsão da correlação, e o Capítulo~\ref{cap:res-carteiras}, à segunda, sobre as
+carteiras. O Capítulo~\ref{cap:conclusao} discute os resultados, as limitações e os trabalhos futuros.
+Os apêndices trazem o prompt de extração e as instruções de reprodução.
+
+\clearpage

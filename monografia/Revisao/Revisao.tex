@@ -1,0 +1,335 @@
+% !TEX root = ../Monografia.tex
+\chapter{Fundamentação Teórica e Revisão Bibliográfica}
+\label{cap:revisao}
+
+Este capítulo reúne a base teórica e os trabalhos que sustentam a pesquisa. A Seção~\ref{sec:carteiras}
+apresenta o problema de seleção de carteiras e o papel que a matriz de covariância desempenha nele. A
+Seção~\ref{sec:estimacao} revisa os estimadores dessa matriz, do mais simples ao mais estruturado. As
+Seções~\ref{sec:redes} e~\ref{sec:vinculos} tratam das redes em finanças e da evidência de que vínculos
+econômicos, revelados por texto e por notícias, propagam informação entre empresas. A
+Seção~\ref{sec:texto-sigma} detalha os três trabalhos que ligam texto à matriz de covariância, que são
+os antecedentes diretos desta pesquisa, e a Seção~\ref{sec:llm} discute o uso de modelos de linguagem
+para extrair essa informação. A Seção~\ref{sec:inferencia} apresenta os métodos de avaliação e
+inferência empregados, e a Seção~\ref{sec:lacuna} situa o trabalho em relação à literatura.
+
+%--------------------------------------------------------------------
+\section{Seleção de carteiras e o papel da matriz de covariância}
+\label{sec:carteiras}
+
+Considere $p$ ativos com vetor de retornos esperados $\mu$ e matriz de covariância $\Sigma$. Na teoria
+de média-variância de \citet{markowitz1952}, uma carteira de pesos $w$ tem retorno esperado $w^\top\mu$
+e variância $w^\top\Sigma w$, e o investidor escolhe, entre as carteiras com o mesmo retorno esperado,
+a de menor variância. Na forma com aversão ao risco $\gamma$,
+\begin{equation}
+  \max_{w}\; w^\top\mu - \frac{\gamma}{2}\, w^\top\Sigma w
+  \quad\text{sujeito a}\quad w^\top\mathbf 1 = 1 .
+  \label{eq:markowitz}
+\end{equation}
+O caso extremo, em que o investidor ignora os retornos esperados, é a carteira de variância mínima
+global (GMV):
+\begin{equation}
+  w_{\mathrm{GMV}} = \frac{\Sigma^{-1}\mathbf 1}{\mathbf 1^\top\Sigma^{-1}\mathbf 1}.
+  \label{eq:gmv}
+\end{equation}
+
+A teoria supõe $\mu$ e $\Sigma$ conhecidos. Na prática, ambos são estimados com uma história curta, e o
+otimizador explora os erros de estimação como se fossem oportunidades: um ativo com variância
+subestimada, ou com correlações que parecem baixas por acaso, recebe peso excessivo. \citet{kan2007}
+quantificam a perda de utilidade fora da amostra causada pela incerteza nos parâmetros e mostram que,
+com muitos ativos, o erro na estimação de $\Sigma$ tem impacto comparável ao erro na média. Os retornos
+esperados são notoriamente mais difíceis de estimar, e por isso o estimador de Bayes-Stein, que encolhe
+as médias amostrais para a média da carteira de variância mínima, é uma correção usual \citep{jorion1986}.
+A GMV da Equação~\eqref{eq:gmv} depende apenas de $\Sigma$ e se tornou, por isso, o laboratório padrão
+para comparar estimadores da matriz de covariância: a carteira construída com o estimador mais próximo
+da verdadeira $\Sigma$ tende a ter a menor variância realizada. \citet{engle2006} formalizam esse
+critério econômico e mostram que comparar a variância realizada de carteiras ótimas é um modo válido de
+ordenar previsões de covariância e de correlação.
+
+O tamanho do problema fica claro na comparação de \citet{demiguel2009}. Nenhum dos catorze modelos de
+otimização que avaliaram superou de forma consistente, fora da amostra, a carteira ingênua que divide o
+capital igualmente entre os $p$ ativos (a carteira $1/N$), em Sharpe, equivalente-certeza ou giro. Para
+que a otimização compensasse o erro de estimação, seriam necessárias janelas de estimação muito mais
+longas do que as disponíveis na prática. A carteira $1/N$ passou, desde então, a ser a referência
+mínima de qualquer estudo empírico.
+
+As restrições de peso também interagem com o erro de estimação. \citet{jagannathan2003} mostram que
+proibir posições vendidas na GMV equivale a encolher a covariância amostral: as restrições ativas
+reduzem as covariâncias estimadas dos ativos que o otimizador queria vender. Por isso restrições
+``erradas'', que não fazem parte das preferências do investidor, melhoram o desempenho fora da amostra.
+Esse resultado é central para interpretar comparações de estimadores em carteiras restritas, em que boa
+parte da regularização já vem das restrições.
+
+Outras carteiras dependem de $\Sigma$ de modos diferentes. A máxima diversificação de
+\citet{choueifaty2008} maximiza a razão $w^\top\sigma/\sqrt{w^\top\Sigma w}$, em que $\sigma$ é o vetor
+de volatilidades individuais. A paridade de risco iguala as contribuições de cada ativo para o risco
+total. Problemas de razão, como o máximo Sharpe e a máxima diversificação, podem ser reescritos como
+programas convexos por uma mudança de variáveis homogênea \citep{cornuejols2007}. A carteira de mínimo
+\emph{tracking error} minimiza a variância do retorno ativo em relação a um índice e depende da
+covariância conjunta entre os ativos e o índice.
+
+%--------------------------------------------------------------------
+\section{Estimação de matrizes de covariância}
+\label{sec:estimacao}
+
+\subsection{Covariância amostral e o problema da dimensão}
+
+Dada uma janela de $N$ retornos $r_1,\dots,r_N\in\mathbb R^p$, a covariância amostral
+$S=\frac{1}{N-1}\sum_t (r_t-\bar r)(r_t-\bar r)^\top$ é não viesada, mas tem $p(p+1)/2$ parâmetros
+distintos. Quando $N<p$, $S$ é singular; quando $N$ é maior que $p$, mas da mesma ordem, $S$ é mal
+condicionada. Os autovalores amostrais são mais dispersos que os verdadeiros: os maiores são
+superestimados e os menores, subestimados \citep{ledoit2004jmva}. Como a GMV usa $\Sigma^{-1}$, as
+direções de menor autovalor, justamente as mais mal estimadas, recebem o maior peso. O número de
+condição $\kappa=\lambda_{\max}/\lambda_{\min}$ mede essa fragilidade: quanto maior, mais a inversão
+amplifica o ruído \citep{lopezdeprado2016,lopezdeprado2020}.
+
+A teoria de matrizes aleatórias torna esse diagnóstico preciso. \citet{laloux1999} compararam o
+espectro de matrizes de correlação de ações com a distribuição de Marchenko-Pastur, que descreve os
+autovalores de uma matriz de correlação de séries independentes. A maior parte dos autovalores
+empíricos cai dentro da faixa prevista para ruído puro, e apenas poucos, associados ao mercado e a
+grandes setores, se destacam. \citet{bun2017} revisam os estimadores que ``limpam'' o espectro,
+preservando os autovetores amostrais e corrigindo os autovalores, entre eles o corte de autovalores
+(\emph{eigenvalue clipping}) e os estimadores rotacionalmente invariantes.
+
+\subsection{Estrutura: correlação constante, setores e fatores}
+
+A primeira resposta ao erro de estimação foi impor estrutura. \citet{elton1973} mostraram que modelos
+que supõem correlação constante entre todos os pares, ou constante dentro de grupos de empresas, preveem
+a correlação futura melhor que a correlação histórica par a par. Os modelos de fatores escrevem
+\begin{equation}
+  \Sigma = B\,F\,B^\top + D,
+  \label{eq:fatores}
+\end{equation}
+em que $B$ é a matriz $p\times k$ de exposições aos $k$ fatores, $F$ é a covariância dos fatores e $D$
+é diagonal, com as variâncias idiossincráticas. Com $k\ll p$, o número de parâmetros cai de ordem $p^2$
+para ordem $pk$. \citet{chan1999} compararam modelos de fatores na previsão de covariâncias e na
+construção de carteiras de variância mínima e encontraram que poucos fatores capturam a maior parte do
+ganho possível. O modelo de fator único, com o mercado como fator, é o caso mais simples. Os fatores
+podem ser observáveis, como mercado, setores, tamanho e momento, ou latentes, extraídos por componentes
+principais. No segundo caso, o número de fatores pode ser escolhido pelos critérios de informação de
+\citet{bai2002}.
+
+\subsection{Shrinkage linear}
+
+\citet{ledoit2003,ledoit2004honey,ledoit2004jmva} propuseram combinar a matriz amostral com um alvo
+estruturado $T$,
+\begin{equation}
+  \hat\Sigma = \delta\,T + (1-\delta)\,S,\qquad 0\le\delta\le 1,
+  \label{eq:shrinkage}
+\end{equation}
+escolhendo $\delta$ para minimizar a perda quadrática esperada
+$\mathbb E\|\hat\Sigma-\Sigma\|_F^2$. O alvo $T$ tem poucos parâmetros e por isso pouca variância, mas
+é viesado; $S$ não tem viés, mas tem muita variância. O $\delta$ ótimo equilibra as duas fontes de erro.
+Os três alvos clássicos são a identidade escalada \citep{ledoit2004jmva}, a correlação constante
+\citep{ledoit2004honey} e o fator único de mercado \citep{ledoit2003}. Para o alvo de correlação
+constante, \citet{ledoit2004honey} derivam
+\begin{equation}
+  \delta^* = \max\!\left\{0,\ \min\!\left\{\frac{\hat\kappa}{N},\ 1\right\}\right\},
+  \qquad \hat\kappa = \frac{\hat\pi - \hat\rho}{\hat\gamma},
+  \label{eq:delta-lw}
+\end{equation}
+em que $\hat\pi$ estima a soma das variâncias assintóticas dos elementos de $S$, $\hat\rho$ estima a
+covariância assintótica entre o alvo e $S$, e $\hat\gamma=\|T-S\|_F^2$ mede a distância entre os dois.
+Quanto mais ruidosa a amostra e mais próximo o alvo, maior o peso do alvo.
+
+A Equação~\eqref{eq:shrinkage} admite uma leitura de Bayes empírico: $T$ é a média de um \emph{prior}
+sobre $\Sigma$ e $\delta$ é a confiança relativa nele. É essa leitura que abre espaço para alvos
+construídos com informação externa aos retornos, como os da Seção~\ref{sec:texto-sigma}. Quando o alvo é
+uma matriz de correlação construída de fora, ela precisa ser positiva semidefinida; se não for, pode ser
+substituída pela matriz de correlação mais próxima, calculada por projeções alternadas
+\citep{higham2002}.
+
+\subsection{Outras abordagens}
+
+O \emph{shrinkage} linear move todos os autovalores na mesma proporção. \citet{ledoit2017} propõem
+encolher cada autovalor de forma diferente, mantendo os autovetores amostrais, e \citet{ledoit2020} obtêm
+uma fórmula analítica para esse estimador. O \emph{shrinkage} não linear é uma das referências mais fortes
+da literatura e, como os demais desta seção, não usa nenhuma informação além dos retornos. Outra família
+impõe esparsidade: o \emph{graphical lasso} \citep{friedman2008} penaliza a matriz de precisão
+$\Sigma^{-1}$, e o estimador POET \citep{fan2013} combina fatores latentes com um limiar na covariância
+residual.
+
+Na direção bayesiana, o modelo de \citet{black1992} combina um \emph{prior} de equilíbrio com visões do
+investidor, cada uma com sua confiança, e \citet{he1999} explicam a escolha da incerteza do \emph{prior}.
+O modelo foi formulado para os retornos esperados, mas \citet{qian2001} mostram como incorporar visões
+sobre a própria covariância. A incerteza de uma covariância estimada segue a distribuição de Wishart
+\citep{anderson2003}, o que dá uma escala natural para a confiança no \emph{prior}.
+
+%--------------------------------------------------------------------
+\section{Redes e grafos em finanças}
+\label{sec:redes}
+
+Uma linha de pesquisa trata a matriz de correlação como uma rede e filtra dela a estrutura mais
+relevante. \citet{mantegna1999} transformou correlações em distâncias,
+$d_{ij}=\sqrt{2(1-\rho_{ij})}$, e extraiu a árvore geradora mínima do grafo completo, que agrupa as ações
+por setor sem que essa informação tenha sido usada. A paridade de risco hierárquica (HRP) de
+\citet{lopezdeprado2016} leva a ideia ao otimizador: agrupa os ativos hierarquicamente pela distância de
+correlação e aloca o capital por bissecção recursiva, com pesos inversamente proporcionais à variância de
+cada grupo. A HRP nunca inverte $\Sigma$ e é, por isso, menos sensível ao mau condicionamento.
+
+As redes também podem vir de fora dos retornos. \citet{lu2023} constroem redes de co-negociação, em que
+duas ações estão ligadas quando são negociadas em momentos próximos, e usam os grupos dessa rede para
+definir quais blocos da covariância idiossincrática são estimados. O método supera blocos definidos pela
+classificação setorial em volatilidade e Sharpe. É o precedente metodológico mais próximo da ideia de usar
+uma rede externa para estruturar $\Sigma$, embora sem texto.
+
+%--------------------------------------------------------------------
+\section{Vínculos econômicos, texto e notícias}
+\label{sec:vinculos}
+
+Há evidência ampla de que vínculos econômicos reais propagam informação entre empresas com atraso, o
+que sugere que esses vínculos também moldam a estrutura de covariância. \citet{cohen2008} usam as
+relações declaradas entre empresas e seus principais clientes e mostram que o retorno dos clientes
+prevê o retorno dos fornecedores no mês seguinte, efeito que atribuem à atenção limitada dos
+investidores. \citet{menzly2010} encontram previsibilidade cruzada entre indústrias ligadas nas tabelas
+de insumo-produto, mais forte onde há menos cobertura de analistas e menos investidores institucionais.
+\citet{lee2019} documentam o mesmo fenômeno para empresas com tecnologias próximas, medidas pela
+sobreposição de patentes.
+
+O texto permite medir vínculos que nenhuma classificação oficial registra. \citet{hoberg2016} calculam
+a similaridade entre as descrições de produtos nos relatórios anuais (formulário 10-K) e definem
+indústrias por texto (TNIC), que mudam ao longo do tempo e capturam a concorrência melhor que os
+códigos SIC e NAICS. As notícias são outra fonte. \citet{scherbina2020} identificam vínculos entre
+empresas pelas co-menções em notícias e mostram que os retornos das empresas líderes preveem os das
+seguidoras, mesmo sem relação de cliente e fornecedor. \citet{guo2017} mostram que a cobertura conjunta
+gera transbordamento de atenção: notícias sobre uma empresa movem a atenção dos investidores para as
+empresas citadas junto, o que produz co-movimento e previsibilidade.
+
+%--------------------------------------------------------------------
+\section{Texto e matriz de covariância}
+\label{sec:texto-sigma}
+
+Três trabalhos levam a informação textual diretamente à estimação de $\Sigma$ e são os antecedentes
+imediatos desta pesquisa.
+
+\citet{tang2019} medem a coocorrência de pares de empresas em notícias e mostram que ela prevê a
+correlação futura entre os retornos dos pares mesmo depois de controlar a correlação passada, ou seja,
+a persistência da correlação. Incorporada à estimação da covariância, a coocorrência melhora a GMV. É a
+evidência mais direta de que as notícias carregam informação sobre $\Sigma$, mas a variável é pobre:
+conta apenas se duas empresas aparecem juntas, sem distinguir o tipo nem o sinal da relação, e
+considera só pares de empresas negociadas.
+
+\citet{becquin2023} usam a similaridade semântica entre empresas, obtida de \emph{embeddings} de
+descrições textuais e de grafos de conhecimento, para estimar a covariância. O ponto central do trabalho
+é que a similaridade não deve ser usada como estimador direto, porque é descalibrada: sua escala
+depende do modelo e da dimensão do \emph{embedding}. Ela serve, em vez disso, como alvo de
+\emph{shrinkage}. A matriz de similaridade $\mathrm{Sim}=EE^\top$, com os \emph{embeddings} normalizados,
+é lida como uma correlação; é convertida em covariância com as variâncias amostrais, $\mathrm{SimCov} =
+\mathrm{Sim}\odot\sqrt{\operatorname{diag}(S)\operatorname{diag}(S)^\top}$; tem os autovalores corrigidos
+para ser positiva semidefinida; e entra na Equação~\eqref{eq:shrinkage} com $\delta$ à maneira de
+Ledoit e Wolf. O método foi testado nos índices S\&P 500, Nasdaq-100 e Nikkei entre 2007 e 2023, com
+três meses de estimação e um de avaliação. Os autores formulam ainda a hipótese de que o ganho de um alvo
+semântico é maior quando a história de preços é pouco informativa. Esse molde técnico, com o texto como
+\emph{prior} e as variâncias vindas dos preços, é o seguido neste trabalho.
+
+\citet{lu2024} usam as redes TNIC de \citet{hoberg2016} para encolher a matriz de correlação, com a
+intensidade do encolhimento escolhida por aprendizado por reforço. Em carteiras de variância mínima com
+mais de 400 ações e vinte anos de teste, o método supera os \emph{shrinkages} padrão em volatilidade,
+Sharpe e risco de cauda, mesmo depois de custos de transação.
+
+A Tabela~\ref{tab:antecedentes} compara esses trabalhos entre si e com a proposta desta pesquisa.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Trabalhos que usam informação externa aos retornos para estimar a covariância.}
+\label{tab:antecedentes}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{2.5cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}X>{\centering\arraybackslash}p{1.4cm}>{\centering\arraybackslash}p{1.6cm}}
+\toprule
+trabalho & fonte & informação usada & tipo e sinal & entidades não negociadas \\
+\midrule
+\citet{tang2019} & notícias & coocorrência de pares & não & não \\
+\citet{becquin2023} & descrições, grafo de conhecimento & similaridade de \emph{embeddings}, como alvo de \emph{shrinkage} & não & não \\
+\citet{lu2024} & relatórios 10-K (TNIC) & similaridade de produtos, encolhimento por aprendizado por reforço & não & não \\
+\citet{lu2023} & dados de negociação & co-negociação, blocos da covariância residual & não & não \\
+este trabalho & notícias lidas por LLM & relações tipadas e datadas entre agentes & sim & sim \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+%--------------------------------------------------------------------
+\section{Modelos de linguagem e informação financeira}
+\label{sec:llm}
+
+A extração de relações a partir de texto foi, por muito tempo, uma tarefa de modelos supervisionados,
+treinados para um conjunto fixo de tipos de entidade e de relação, com dados anotados à mão. Os modelos
+de linguagem de grande porte ajustados para seguir instruções mudaram esse quadro: um mesmo modelo pode
+receber a definição da tarefa em linguagem natural e devolver relações estruturadas, com custo baixo o
+bastante para processar centenas de milhares de documentos. Isso torna possível transformar um arquivo
+de notícias num grafo de conhecimento, em que os nós são agentes econômicos e as arestas são as ações
+que os ligam, datadas pela publicação da notícia.
+
+O trabalho mais próximo desta pesquisa na construção do grafo é o de \citet{li2024findkg}, que ajustaram
+o modelo de pesos abertos Mistral~7B \citep{jiang2023mistral} para gerar um grafo de conhecimento dinâmico a
+partir de notícias financeiras. Cada fato extraído é um evento $(s,r,o,t)$: uma entidade de origem, uma
+relação entre quinze tipos fixos, uma entidade de destino e a data de publicação do artigo. As entidades
+incluem empresas, governos, reguladores, países, setores e indicadores econômicos. Aplicado a cerca de 400
+mil artigos do \emph{Wall Street Journal} entre 1999 e 2023, o método produziu o FinDKG, com 13.645
+entidades e cerca de 144 mil fatos, usado para prever arestas futuras e para montar uma carteira temática
+de inteligência artificial.
+
+O desenho do grafo desta pesquisa segue a mesma lógica: eventos datados entre agentes econômicos, tipos de
+relação, entidades que vão além das empresas negociadas e o grafo consultado em janelas que avançam no
+tempo. As diferenças são quatro. O modelo usado aqui não é ajustado: o Qwen2.5-14B-Instruct
+\citep{qwen2024} é guiado por instruções e por decodificação restrita a um esquema JSON. Cada relação tem
+tipo livre, direção e uma força entre 0 e 1, enquanto no FinDKG o sinal está embutido no tipo e não há
+intensidade. As entidades são associadas aos \emph{tickers} das empresas, o que permite cruzar o grafo com
+os preços par a par. E, sobretudo, o FinDKG é usado para informar o retorno esperado, enquanto este trabalho
+usa o grafo para estimar a matriz de covariância, um problema que o FinDKG não aborda.
+
+%--------------------------------------------------------------------
+\section{Avaliação de estimadores e inferência}
+\label{sec:inferencia}
+
+\subsection{Avaliação de previsões e de carteiras}
+
+A covariância verdadeira nunca é observada, e as previsões precisam ser comparadas com uma \emph{proxy}
+ruidosa, como a covariância realizada no período seguinte \citep{patton2011}. O critério econômico de
+\citet{engle2006}, a variância realizada da GMV, é o critério principal deste trabalho, e o $R^2$ fora da
+amostra de \citet{campbell2008} mede o ganho de uma previsão sobre uma referência. Retornos diários têm
+caudas pesadas e dependência temporal, o que invalida os testes clássicos de igualdade de variâncias e de
+índices de Sharpe. \citet{ledoit2008} propõem testar a diferença entre dois índices de Sharpe com
+\emph{bootstrap} em blocos, e \citet{ledoit2011} aplicam a mesma ideia à razão entre as variâncias de duas
+carteiras. Quando a mesma hipótese é testada mais de uma vez, a correção de Bonferroni divide o nível de
+significância pelo número de tentativas.
+
+\subsection{Inferência com dados de pares}
+
+As regressões em que a unidade é um par de ações exigem cuidado, porque pares que compartilham uma ação
+não são independentes. A regressão de \citet{fama1973} estima uma regressão em corte transversal em cada
+período e usa a série temporal dos coeficientes para a inferência, o que elimina a correlação entre pares
+do mesmo período; os erros-padrão da série são corrigidos para autocorrelação e heterocedasticidade por
+\citet{newey1987}. O procedimento de atribuição quadrática (QAP) de \citet{krackhardt1988} testa a
+associação entre redes permutando juntas as linhas e colunas de uma das matrizes, o que preserva a
+estrutura de dependência entre os pares.
+
+%--------------------------------------------------------------------
+\section{Lacuna e posicionamento do trabalho}
+\label{sec:lacuna}
+
+A literatura revisada estabelece três pontos. Primeiro, a estimação de $\Sigma$ é limitada pelo erro
+de estimação, e impor estrutura, por fatores, setores ou \emph{shrinkage}, ajuda
+(Seção~\ref{sec:estimacao}). Segundo, vínculos econômicos entre empresas, revelados por texto e por
+notícias, propagam informação e geram co-movimento (Seção~\ref{sec:vinculos}). Terceiro, essa
+informação pode entrar na estimação de $\Sigma$ como alvo de \emph{shrinkage} ou como estrutura de
+blocos (Seção~\ref{sec:texto-sigma}).
+
+Os trabalhos que ligam texto a $\Sigma$, porém, usam o texto de forma limitada: contam co-menções ou
+medem similaridade estática entre descrições. Nenhum deles distingue o tipo da relação, se uma empresa
+fornece, concorre, processa ou adquire a outra, nem o seu sinal, e nenhum considera a exposição comum
+de empresas a entidades que não são negociadas, mas que movem preços, como bancos centrais,
+\emph{commodities} e países. Até onde esta revisão alcançou, não há estudo que use relações extraídas
+por LLM, tipadas, com sinal e com entidades não negociadas, para estimar a matriz de covariância.
+
+Do lado da extração, \citet{li2024findkg} mostram que um LLM pode transformar notícias financeiras
+num grafo de conhecimento dinâmico com tipos de relação e entidades não negociadas, mas usam esse grafo
+para prever arestas e selecionar ações por tema, e não para estimar o risco conjunto dos ativos.
+
+Este trabalho ocupa essa lacuna. Em relação a \citet{tang2019}, acrescenta o tipo, o sinal e a
+exposição comum a entidades; em relação a \citet{becquin2023}, troca a similaridade estática por
+relações datadas, que formam um grafo dinâmico; em relação a \citet{li2024findkg}, leva um grafo do
+mesmo tipo da previsão de retornos para a estimação da matriz de covariância. E, diferentemente dos três antecedentes, avalia o
+grafo sob um protocolo pré-registrado, com um placebo que separa o efeito do conteúdo das relações do
+efeito genérico de regularizar a matriz, e com correção para as tentativas repetidas
+(Seção~\ref{sec:inferencia}).
+
+\clearpage

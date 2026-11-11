@@ -1,0 +1,50 @@
+% Figura do pipeline (Seção 3.1). Incluída com \input; requer tikz com
+% as bibliotecas arrows.meta, positioning e fit.
+\begin{tikzpicture}[
+  font=\footnotesize,
+  node distance=6mm and 5mm,
+  caixa/.style={draw, rounded corners=2pt, align=center, minimum height=13mm,
+                text width=24mm, inner sep=3pt, line width=0.6pt},
+  dados/.style={caixa, fill=gray!12},
+  extr/.style={caixa, fill=blue!10},
+  est/.style={caixa, fill=orange!14},
+  seta/.style={-{Stealth[length=2.2mm]}, line width=0.7pt},
+  grupo/.style={draw, dashed, rounded corners=4pt, inner sep=5pt, gray!70},
+  rotulo/.style={font=\scriptsize\itshape, text=gray!80!black},
+]
+% linha 1: das notícias ao grafo
+\node[dados] (noticias) {Notícias\\(corpus FNSPID)};
+\node[extr, right=of noticias] (llm) {Extração por LLM\\(Qwen2.5-14B)};
+\node[extr, right=of llm] (tuplas) {Tuplas datadas\\$(a,\,b,\,k,\,\pm,\,s)$};
+\node[extr, right=of tuplas] (link) {Filtro de ruído e\\ligação a \emph{tickers}};
+\node[extr, right=of link] (grafo) {Grafo dinâmico\\(eventos com\\data $<t$)};
+
+% linha 2: do grafo à avaliação (sentido inverso)
+\node[est, below=11mm of grafo] (atrib) {Atributos de par\\vínculo, exposição,\\controles};
+\node[est, left=of atrib] (sigma) {Estimação\\de $\hat\Sigma$};
+\node[est, left=of sigma] (cart) {Carteira\\(GMV e outras)};
+\node[est, left=of cart] (aval) {Avaliação fora\\da amostra};
+\node[dados, left=of aval] (ref) {Referências\\sem notícias\\e placebos};
+
+% preços
+\node[dados, below=11mm of sigma] (precos) {Preços\\(retornos diários)};
+
+% fluxo
+\draw[seta] (noticias) -- (llm);
+\draw[seta] (llm) -- (tuplas);
+\draw[seta] (tuplas) -- (link);
+\draw[seta] (link) -- (grafo);
+\draw[seta] (grafo) -- (atrib);
+\draw[seta] (atrib) -- (sigma);
+\draw[seta] (sigma) -- (cart);
+\draw[seta] (cart) -- (aval);
+\draw[seta] (ref) -- (aval);
+\draw[seta] (precos) -- node[rotulo, pos=0.3, left, font=\scriptsize] {janela antes de $t$} (sigma);
+\draw[seta] (precos.west) -| node[rotulo, pos=0.25, below, font=\scriptsize] {período após $t$} (aval.south);
+
+% grupos e capítulos
+\node[grupo, fit=(llm)(grafo)] (g1) {};
+\node[rotulo, anchor=south east] at (g1.north east) {Capítulo~\ref{cap:extracao}};
+\node[grupo, fit=(atrib)(aval)] (g2) {};
+\node[rotulo, anchor=north east] at (g2.south east) {Capítulo~\ref{cap:metodologia}};
+\end{tikzpicture}

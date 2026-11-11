@@ -101,6 +101,54 @@ Faltam:
 
 Precisão, recall, κ e a taxa de vazamento de memória só saem depois disso.
 
+### 2.3 Teste de vazamento por anonimização (7.1.3), 2026-10-28
+
+Foram 218 unidades. Nomes de empresas, variantes sem sufixo societário,
+nomes canônicos dos tickers citados, tickers e datas foram trocados por
+`[EMPRESA_X]` e `[DATA]`. Nenhum nome ou ticker conhecido ficou no texto.
+
+As unidades foram reextraídas numa RTX 3090 (Vast), com o mesmo prompt,
+schema, `max_chars` e modelo. A prompt_version `a05d0c0dc189` é idêntica à
+da extração original. Fontes: `logs/secao18_anonimizacao.json` e
+`data/anotacao/secao18_anon_pareamento.csv`.
+
+| medida | valor |
+|---|---|
+| tuplas originais / reextraídas | 872 / 795 |
+| tuplas originais reencontradas (mesmo par de agentes) | 33,7% (limpas: 34,5%) |
+| pares comparados | 294 |
+| mesma direção (sinal) | 91,2% |
+| mesmo `relation_type` (texto exato) | 55,4% |
+| força média: original / anonimizada | 0,730 / 0,728 |
+| diferença absoluta média de força | 0,045 |
+
+Alinhamento com o retorno futuro de 21 pregões do agente afetado (Spearman,
+n = 82 pares com ticker e preço):
+
+| série | ρ | p |
+|---|---|---|
+| divergência (original − anonimizada) | −0,13 | 0,26 |
+| sinal × força original | −0,02 | 0,88 |
+| sinal × força anonimizada | +0,08 | 0,47 |
+
+- **Leitura:** quando o mesmo par reaparece, o modelo dá o mesmo sinal em
+  91% dos casos e praticamente a mesma força, sem saber quem são as
+  empresas nem quando a notícia saiu.
+- **Divergências:** não se alinham com o retorno futuro.
+- **Original contra anonimizada:** a extração original não está mais
+  alinhada com o futuro que a anonimizada.
+- **Conclusão:** não há evidência de vazamento de conhecimento posterior
+  nos sinais e forças, que é o critério 10 do roteiro: "sem evidência forte
+  de vazamento".
+- **Limites:**
+  - só um terço das tuplas reaparece com o mesmo par. Agentes que não são
+    empresas mudam de nome, por exemplo "Fed" e "Federal Reserve". Além
+    disso, sem os nomes o modelo extrai menos tuplas;
+  - o teste de alinhamento tem pouco poder (n = 82).
+- **Correção pós-resultado:** em `anon_comparar`, a marca de tupla limpa
+  usava `is None` sobre NaN; agora usa `pd.isna`. Só a linha "limpas" da
+  tabela muda.
+
 ## 3. Descritivas do grafo (etapa 2)
 
 - **Portão:** o R² médio da projeção g sobre o setor é 0,017 em 156 meses.

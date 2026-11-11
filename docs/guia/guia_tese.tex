@@ -1,0 +1,1108 @@
+% Guia de escrita da tese: resumo de tudo o que foi feito no projeto NewsManager.
+% Fontes: README.md, docs/metodo_covariancia.md (seções 1-18), docs/secao18_resultados.md,
+% grafo_noticias_covariancia.md (o roteiro) e CLAUDE.md. Estado em 2026-11-10.
+% Explicação de cada equação (variáveis, domínios, unidades): docs/equacoes/equacoes.tex.
+% Compilar: tectonic guia_tese.tex   (ou pdflatex + bibtex + pdflatex x2)
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{icomma}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[round,authoryear]{natbib}
+\usepackage[hidelinks]{hyperref}
+\usepackage{xurl}
+
+\setlist{itemsep=2pt,topsep=4pt}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\DeclareUrlCommand\code{\urlstyle{tt}}
+\newcommand{\Sig}{\hat\Sigma}
+\newcommand{\pend}[1]{\textcolor{red!70!black}{\textbf{[Pendente:} #1\textbf{]}}}
+\newcommand{\nota}[1]{\textcolor{blue!60!black}{\textit{Nota para a escrita: #1}}}
+
+\title{Grafos de notícias extraídos por LLM e a estimação da matriz de covariância\\[4pt]
+\large Guia de escrita: resumo do que foi feito, referências, revisão bibliográfica, metodologia e resultados}
+\author{Gabriel Vaz Cançado Ferreira\\\small Projeto NewsManager --- TCC em Finanças}
+\date{Estado em 10 de novembro de 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent Este documento reúne, num só lugar, tudo o que o projeto produziu até agora, para servir de
+roteiro à redação do texto final. Um modelo de linguagem local (\code{qwen2.5:14b-instruct}) leu
+572.762 artigos do corpus FNSPID (cerca de 36\% do corpus elegível) e extraiu 1.270.582 relações
+tipadas, com sinal e força, entre agentes econômicos. As relações foram ligadas a tickers e
+organizadas num grafo dinâmico com 255.384 nós e 1.064.801 eventos limpos (2011--2023). A pergunta
+da tese é se esse grafo melhora a estimação da matriz de covariância dos retornos e, por meio dela,
+as carteiras. O resultado se divide em dois. \emph{Do lado estatístico}, as notícias preveem a correlação
+futura entre pares de ações além da correlação histórica e do setor (H1; $t$ até 9,7 na correlação
+residual), o tipo de relação importa, a centralidade prevê o beta de baixa e os autovetores do grafo
+apontam para as direções de risco futuro. \emph{Do lado econômico}, em nenhum dos nove desenhos de
+carteira testados, todos com critério fixado antes de rodar, a informação das notícias reduziu de
+forma significativa a variância realizada nem melhorou o Sharpe; em alguns casos piorou. O documento
+descreve os dados, a extração, o método, os resultados, os desvios declarados e o que ainda falta.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+%=====================================================================
+\section{Como usar este guia}
+%=====================================================================
+
+\begin{itemize}
+  \item Cada seção corresponde, aproximadamente, a um capítulo da tese. A seção~\ref{sec:estrutura}
+        propõe a estrutura final e indica de onde vem cada parte.
+  \item Os números foram copiados dos documentos do repositório, que são a fonte primária:
+        \code{docs/metodo_covariancia.md} (seções 1--18, com o pré-registro de cada desenho),
+        \code{docs/secao18_resultados.md}, \code{README.md} e os logs em \code{logs/}. Em caso de
+        divergência, valem os arquivos do repositório.
+  \item As notas em \textcolor{blue!60!black}{\textit{azul}} são sugestões de redação; os itens em \textcolor{red!70!black}{\textbf{vermelho}} ainda não foram feitos.
+  \item Nomenclatura: H1--H3 são as hipóteses originais da tese (seção~\ref{sec:hipoteses}); G1--G13 são as
+        hipóteses do roteiro \code{grafo_noticias_covariancia.md}, testadas no programa da seção 18
+        do método (seção~\ref{sec:prog18}); M1--M9 e B0--B11 são os modelos e as referências desse programa.
+  \item \textbf{Na monografia, o trabalho se concentra em três hipóteses}, investigadas a fundo:
+        H1a (exposição comum), H1b (tipo de relação, que reúne G1--G3) e H2 (carteiras, desenhos D1--D9).
+        O programa de carteiras da seção 18 (D10, M1--M9, B0--B11, placebos P1--P6, holdout) e as hipóteses
+        H3, G4--G13 \textbf{não fazem parte do texto}: a revisão de 2026-11-10
+        (\code{docs/revisao_monografia.md}) mostrou que o M2 não media o conteúdo das notícias (alvo quase
+        diagonal e singular nas classes de ação). Por decisão do autor, a monografia é um texto conciso (cerca
+        de 60 páginas) que não menciona esses testes nem traz análises de robustez; H1b é relatada com o QAP
+        de 1.000 permutações ($p=0{,}001$; com Holm sobre a família original de dez testes, $p\le0{,}01$).
+        Este guia mantém o registro completo do que foi rodado, com a numeração original.
+  \item O texto da tese está em \code{monografia/} (\code{Monografia.tex}, um \code{.tex} por capítulo).
+        A explicação detalhada de cada equação usada nele, com variáveis, domínios, resultados e
+        unidades de medida, está em \code{docs/equacoes/equacoes.tex} (PDF ao lado). A notação deste guia
+        segue a da monografia: $\tau$ é a meia-vida, $d^{(k)}_{ij}$ o vínculo do grupo $k$, $\tilde A$ a matriz
+        de exposição e $g_{ij}$ a exposição comum.
+\end{itemize}
+
+%=====================================================================
+\section{Introdução e pergunta de pesquisa}
+%=====================================================================
+
+\subsection{Motivação}
+
+A carteira de \citet{markowitz1952} depende da matriz de covariância $\Sigma$ dos retornos. Com $p$
+ativos e $N$ observações, a covariância amostral $S$ tem $p(p+1)/2$ parâmetros: é singular se $N<p$
+e mal condicionada se $N$ não for muito maior que $p$. O otimizador explora justamente os erros de
+estimação. A literatura respondeu com estrutura (fatores, blocos de setor) e com \emph{shrinkage},
+que combina $S$ com um alvo estruturado $T$. O alvo funciona como um \emph{prior}: é o lugar natural
+para entrar informação externa aos retornos.
+
+As notícias descrevem vínculos econômicos entre empresas (fornecimento, concorrência, aquisições,
+processos) e entre empresas e entidades não negociadas (o Fed, o petróleo, a China). Se esses
+vínculos antecipam co-movimentos, um alvo construído com eles deveria estimar $\Sigma$ melhor do
+que alvos puramente estatísticos.
+
+\subsection{Pergunta central}
+
+\begin{quote}
+A estrutura relacional extraída das notícias por um LLM contém informação sobre a covariância futura
+dos retornos que não está (i) na covariância histórica nem (ii) em modelos de fatores e de setor? E
+essa informação se traduz em carteiras melhores fora da amostra?
+\end{quote}
+
+\subsection{Contribuição}
+
+\begin{enumerate}
+  \item \textbf{Dados.} Uma base de relações econômicas extraídas por LLM de um corpus público
+        (FNSPID), tipadas, com sinal e força, incluindo entidades não negociadas, ligadas a tickers e
+        organizadas como grafo dinâmico sem \emph{look-ahead}. Até onde a revisão alcançou, não há
+        trabalho que use relações desse tipo para estimar $\Sigma$ (seção~\ref{sec:lacuna}).
+  \item \textbf{Evidência estatística.} As notícias preveem a correlação futura além da persistência e do
+        setor; a exposição comum a entidades não negociadas é o canal que sobrevive aos controles.
+  \item \textbf{Evidência econômica negativa, robusta e pré-registrada.} Nove desenhos de carteira
+        (alvo-prior, fator + resíduo, long-only com teto, cinco otimizadores, Black-Litterman na
+        covariância, e o programa walk-forward com 33 estimadores) não mostram ganho. A tese explica o
+        mecanismo: o sinal é pequeno, esparso e piora o condicionamento de $\Sig$; com restrições,
+        todos os estimadores com fator empatam.
+  \item \textbf{Método.} Um protocolo de pré-registro incremental (cada desenho é escrito e versionado
+        antes de rodar), placebos de grafo que preservam graus, separação dev/holdout e correção para
+        múltiplos testes, além de testes de vazamento de memória do LLM.
+\end{enumerate}
+
+\nota{o resultado principal é negativo para H2. Vale defini-lo cedo no texto como achado: ``a
+informação existe, mas não sobrevive à inversão de $\Sigma$'', com o placebo mostrando que o
+conteúdo não é ruído.}
+
+%=====================================================================
+\section{Revisão bibliográfica}\label{sec:revisao}
+%=====================================================================
+
+\subsection{Estimar $\Sigma$: o problema do erro de estimação}
+
+\begin{itemize}
+  \item \citet{markowitz1952} fixa o problema; o otimizador maximiza o erro de estimação.
+  \item \citet{kan2007}: com muitos ativos, o erro em $\Sigma$ pesa tanto quanto o erro na média.
+        Por isso a carteira de variância mínima global (GMV), que não usa a média, é o laboratório
+        padrão para comparar estimadores de $\Sigma$.
+  \item \textbf{Estrutura ajuda.} \citet{elton1973} mostram que impor correlação constante, inclusive por
+        blocos de setor, prevê melhor que a amostral; \citet{chan1999} chegam a conclusão parecida
+        comparando modelos de risco.
+  \item \textbf{Shrinkage linear.} $\Sig=\delta T+(1-\delta)S$ com $\delta$ ótimo analítico:
+        identidade escalada \citep{ledoit2004jmva}, correlação constante \citep{ledoit2004honey} e
+        fator único \citep{ledoit2003}. Pode ser lido como Bayes empírico, com $T$ no papel de
+        \emph{prior}. \textbf{É aqui que a tese entra: um prior vindo das notícias.}
+  \item \textbf{Shrinkage não linear} \citep{ledoit2017,ledoit2020} e \textbf{limpeza por matrizes
+        aleatórias} \citep{laloux1999,bun2017}: referências fortes, sem informação externa.
+  \item \textbf{Esparsidade e fatores latentes.} Graphical lasso na matriz de precisão
+        \citep{friedman2008}, que é o objeto que a GMV usa ($w\propto\Sigma^{-1}\mathbf 1$); POET
+        \citep{fan2013}, com número de fatores por \citet{bai2002} e limiar adaptativo
+        \citep{cai2011}. A variante \emph{weighted glasso} penaliza menos as arestas apoiadas por
+        conhecimento prévio.
+  \item \textbf{Correlação dinâmica.} DCC \citep{engle2002}; avaliação econômica de previsões de
+        correlação pela variância da carteira \citep{engle2006}.
+  \item \textbf{Restrições como regularização.} Proibir venda a descoberto e impor teto funciona como
+        shrinkage \citep{jagannathan2003}. Isso é central para interpretar os resultados long-only.
+  \item \textbf{Instabilidade da inversão.} \citet{lopezdeprado2016,lopezdeprado2020}: o número de
+        condição $\lambda_{\max}/\lambda_{\min}$ mede a fragilidade da GMV; o HRP evita a inversão.
+\end{itemize}
+
+\subsection{Redes em finanças}
+
+\begin{itemize}
+  \item Redes de correlação filtradas: MST \citep{mantegna1999} e PMFG \citep{tumminello2005}.
+  \item Ativos periféricos diversificam melhor \citep{pozzi2013}; os pesos de Markowitz são
+        negativamente ligados à centralidade \citep{peralta2016}.
+  \item HRP \citep{lopezdeprado2016}: agrupamento hierárquico pela correlação antes de alocar.
+  \item \citet{lu2023} estimam a covariância com uma rede externa aos retornos (co-negociação):
+        clusters espectrais definem os blocos da covariância idiossincrática e superam blocos GICS.
+        \textbf{É o precedente metodológico mais próximo de ``rede externa $\to$ estrutura de
+        $\Sigma$''}, embora sem texto.
+  \item Ferramentas de grafo usadas: kernels de difusão \citep{kondor2002}, espectro de grafos
+        assinados \citep{kunegis2010}, Louvain \citep{blondel2008}, aleatorização com graus fixos
+        (\emph{curveball}) \citep{strona2014}.
+\end{itemize}
+
+\subsection{Vínculos econômicos, texto e notícias}
+
+\begin{itemize}
+  \item \textbf{Vínculos reais propagam informação}: clientes e fornecedores \citep{cohen2008};
+        indústrias ligadas na cadeia \citep{menzly2010}; similaridade textual de produtos nos 10-K,
+        TNIC \citep{hoberg2016}; vínculos tecnológicos \citep{lee2019}.
+  \item \textbf{Notícias revelam vínculos}: firmas citadas juntas preveem os retornos umas das outras
+        \citep{scherbina2020}; a cobertura conjunta gera transbordamento de atenção e co-movimento
+        \citep{guo2017}.
+\end{itemize}
+
+\subsection{Os três trabalhos que ligam texto a $\Sigma$ (núcleo da revisão)}
+
+\begin{enumerate}
+  \item \citet{tang2019}: a co-ocorrência em notícias prevê a correlação futura mesmo controlando a
+        persistência e, incorporada à covariância, melhora a GMV. É a evidência direta de H1, mas usa só
+        co-menção, sem tipo, sinal ou entidades não negociadas. Na tese, a co-menção do FNSPID é o
+        ``controle Tang''.
+  \item \citet{becquin2023}: a similaridade semântica (embeddings de descrições ou de grafo de
+        conhecimento) vira \textbf{alvo de shrinkage}, não estimador direto, porque é descalibrada:
+        $\mathrm{Sim}=EE^\top$ lida como correlação, $\mathrm{SimCov}=\mathrm{Sim}\odot\sqrt{\mathrm{diag}\,S\,\mathrm{diag}\,S^\top}$,
+        correção de autovalores e $\delta$ à Ledoit-Wolf. Testado em S\&P 500, Nasdaq-100 e Nikkei
+        (2007--2023). \textbf{É o molde técnico seguido aqui.} Formulam também a hipótese de regime
+        (H3).
+  \item \citet{lu2024}: encolhem a matriz de correlação com aprendizado por reforço usando as redes
+        TNIC; em GMV, com mais de 400 ações e 20 anos, superam os shrinkages padrão, líquidos de custos.
+\end{enumerate}
+
+\subsection{LLM e grafos de empresas}
+
+A linha ``LLM $\to$ grafo de empresas $\to$ GNN'' prevê retornos \citep[entre outros]{zhou2025}. O
+extrator usado aqui é o Qwen2.5 \citep{qwen2024} sobre o FNSPID \citep{dong2024fnspid}.
+
+\subsection{Lacuna}\label{sec:lacuna}
+
+Não foi encontrado trabalho que use relações \textbf{extraídas por LLM, tipadas, com sinal e com
+entidades macro não negociadas} para estimar $\Sigma$. Em relação a \citet{tang2019}, o grafo
+acrescenta tipo, sinal e exposição comum a entidades; em relação a \citet{becquin2023}, troca a
+similaridade estática de descrições por relações datadas e dinâmicas.
+
+\pend{a revisão de ``LLM e grafos'' está fraca: completar a referência \citet{zhou2025} e buscar
+trabalhos de 2024--2026 sobre LLM em extração de relações financeiras e sobre vazamento de memória
+(``look-ahead bias'') de LLMs em finanças.}
+
+\subsection{Avaliação e inferência}
+
+\begin{itemize}
+  \item Referência ingênua 1/N \citep{demiguel2009}.
+  \item Testes robustos: Sharpe \citep{ledoit2008}; variância, com bootstrap studentizado em blocos
+        \citep{ledoit2011}; bootstrap estacionário \citep{politis1994} com bloco de
+        \citet{politis2004}.
+  \item Perdas robustas para previsões de covariância com proxy ruidosa \citep{patton2011};
+        Diebold-Mariano \citep{diebold1995} com correção HLN \citep{harvey1997}; modelos aninhados
+        \citep{clark2007}; $R^2$ fora da amostra \citep{campbell2008}.
+  \item Dados diádicos: Fama-MacBeth \citep{fama1973} com Newey-West \citep{newey1987}; QAP
+        \citep{krackhardt1988}; clusters diádicos \citep{aronow2015,cameron2011}.
+  \item Múltiplos testes e \emph{snooping}: Holm \citep{holm1979}, Benjamini-Hochberg
+        \citep{benjamini1995}, Reality Check \citep{white2000}, SPA \citep{hansen2005}, MCS
+        \citep{hansen2011}, Romano-Wolf \citep{romano2005}, Sharpe deflacionado \citep{bailey2014}.
+  \item Black-Litterman \citep{black1992,he1999}, aplicado à covariância \citep{qian2001}, com a
+        incerteza de Wishart \citep{anderson2003}; projeção para a correlação mais próxima
+        \citep{higham2002}; Bayes-Stein para a média \citep{jorion1986}; máxima diversificação
+        \citep{choueifaty2008}; reformulação convexa homogênea \citep{cornuejols2007}.
+\end{itemize}
+
+%=====================================================================
+\section{Dados}\label{sec:dados}
+%=====================================================================
+
+\subsection{Corpus de notícias: FNSPID}
+
+\begin{itemize}
+  \item Arquivo \code{nasdaq_exteral_data.csv} do FNSPID \citep{dong2024fnspid} no Hugging Face:
+        21,6 GiB (23.232.979.597 bytes), 12 colunas, uma linha por par (artigo, ticker).
+  \item O CSV nunca foi baixado inteiro: a ingestão lê por \emph{HTTP range} em fragmentos
+        independentes e retomáveis (DuckDB), grava Parquet (camadas bruta $\to$ curada) e confere o
+        tamanho e o etag do objeto remoto.
+  \item Propriedades medidas que guiaram o desenho:
+        \begin{enumerate}
+          \item artigos com quebras de linha dentro de campos entre aspas: a fronteira dos fragmentos
+                usa uma âncora estrutural (quebra de linha seguida de um número e de um timestamp ISO, campos sem aspas) que não ocorre no texto;
+                validada sem nenhuma linha quebrada;
+          \item a inferência de tipos do DuckDB lia os 21,6 GB só para escolher tipos: esquema fixo, tudo
+                \code{VARCHAR}, conversão explícita na curadoria;
+          \item duplicação por ticker (o mesmo artigo em cada ticker citado): a camada curada separa
+                \code{documents} de \code{mentions}, e cada artigo vai uma vez ao LLM;
+          \item duas eras: artigos recentes da nasdaq.com com resumos extrativos e editor/autor vazios;
+                antigos em formato de agência;
+          \item depois de $\sim$17,7 GB, um terceiro formato (índice vazio), 63\% das linhas sem ticker,
+                76\% sem corpo, e 799.037 artigos do portal russo lenta.ru (sem nenhum ticker),
+                excluídos da extração. Isso reduziu as unidades de 2.321.501 para \textbf{1.607.982}.
+        \end{enumerate}
+  \item \code{doc_id} = URL, ou hash do corpo normalizado quando não há URL; deduplicação ano a ano,
+        pulando \code{doc_id} já gravado (73 artigos sem URL reapareciam em outro ano).
+  \item Data só ao dia: todo \code{published_at} é meia-noite. Consequência: o grafo em $t$ usa apenas
+        eventos com data $<t$.
+\end{itemize}
+
+\subsection{Preços}
+
+\begin{itemize}
+  \item \code{Stock_price/full_history.zip} do próprio FNSPID (7.693 tickers, 1962--2023), conferido
+        pelo sha256 do LFS. A limpeza grava preços diários, qualidade e calendário (2005 em diante).
+  \item Problemas medidos e tratados:
+\end{itemize}
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{5.6cm}>{\raggedright\arraybackslash}p{3.6cm}L}
+\toprule
+problema & tamanho & tratamento \\
+\midrule
+coletas emendadas (2015-01-02, 2020-04-02, 2020-07-02, 2020-07-06) & 22,7 mil retornos & retorno do dia inválido \\
+lote antigo termina em 2020-07 & 3.137 tickers (BAC, FB, NFLX, MA\ldots) & marcado como truncado \\
+pico de cotação que se reverte & 7,8 mil dias & os dois dias inválidos \\
+preço parado com volume 0 & 437 mil dias & marcado \\
+pregão faltando & 81 mil & retorno de vários dias inválido \\
+\bottomrule
+\end{tabularx}
+\caption{Problemas do painel de preços do FNSPID.}
+\end{table}
+
+A emenda é o erro grave: cada lote foi ajustado por desdobramentos e dividendos só até a própria
+coleta. Em 2020-07-06 aparecem AAPL $-74{,}9\%$ (desdobramento 4:1), GOOG $-94{,}9\%$, TSLA $-92{,}4\%$. As
+datas de emenda foram identificadas pelo salto do fator $f=\text{adj\_close}/\text{close}$, que numa
+série consistente só muda em data ex-dividendo.
+
+\subsection{Universos}
+
+\begin{itemize}
+  \item \textbf{Top-$n$ por notícias} (seções 8--17): no 1º pregão de cada mês, as $n$ ações com mais eventos
+        limpos nos 365 dias anteriores, entre as que têm, nos 252 pregões anteriores, $\ge 95\%$ de
+        retornos válidos, nenhum pico, preço $\ge$ US\$ 5 e volume financeiro mediano $\ge$ US\$ 5 mi.
+        $n\in\{50,100,200\}$; com a amostra ampliada, $n=100$ tem 315 tickers distintos e troca de
+        $\sim$5\%/mês. Exceção declarada: tickers truncados pelo fim da coleta antes do fim do mês ficam fora.
+  \item \textbf{S\&P 500 point-in-time} (seção 18): membros no último registro estritamente antes de $t$,
+        com retorno válido em $\ge 95\%$ dos 252 pregões; $\sim$370--460 ações, $\sim$350 depois de 2020-07.
+  \item \textbf{Setores}: CIK pela SEC (ticker atual, ou busca de nomes no EDGAR conferida contra
+        \code{formerNames}) $\to$ SIC $\to$ Fama-French 12/49 e SIC de 2 dígitos; cobre 99,7\% das
+        ações-mês do universo top-100.
+\end{itemize}
+
+%=====================================================================
+\section{Extração de relações com LLM e construção do grafo}\label{sec:extracao}
+%=====================================================================
+
+\subsection{Tarefa e esquema}
+
+Cada artigo (truncado em 8.000 caracteres, o que preserva 85,9\% dos tokens e trunca só 6,3\% dos
+artigos) é lido por um modelo local (Ollama) que devolve até 8 tuplas
+\[
+(\text{agent\_a},\ \text{agent\_b},\ \text{relation\_type},\ \text{direction}\in\{+,-\},\ \text{strength}\in[0,1])
+\ +\ \text{published\_at}.
+\]
+O prompt (\code{prompts/extraction.txt}) define agentes econômicos (empresas, índices, bancos centrais,
+governos e reguladores, moedas, commodities, setores, instituições, pessoas relevantes) e o que
+\emph{não} é agente (métricas contábeis, grupos genéricos, a própria fonte). A direção é o efeito
+sobre \code{agent_b}; a força é calibrada por faixas (0,8--1,0 explícito e material; 0,1--0,3
+especulativo); lista vazia é resposta válida. O esquema JSON é imposto por \emph{constrained
+decoding}, então a saída é sempre JSON válido.
+
+\textbf{Versionamento.} \code{prompt_version} = hash de prompt + esquema + \code{max_chars} + modelo.
+Trocar qualquer um abre um diretório novo; resultados nunca se misturam. A versão final é
+\code{a05d0c0dc189}.
+
+\subsection{Escolha do modelo}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+nos mesmos 200 artigos & \code{deepseek-r1:14b} & \code{qwen2.5:14b-instruct} \\
+\midrule
+tuplas agente$\to$agente válidas (40 sorteadas) & $\sim$1/4 & $\sim$2/3 \\
+artigos preenchidos até o teto de 8 & 30\% & 5\% \\
+métrica como agente & 7,2\% & 2,8\% \\
+grupo genérico como agente & 10,2\% & 4,1\% \\
+velocidade (RTX 4090) & 1,19/s & 1,65/s \\
+\bottomrule
+\end{tabular}
+\caption{Comparação dos extratores. O 7B inventava relações e foi descartado.}
+\end{table}
+
+O Qwen2.5-14B-Instruct \citep{qwen2024} foi escolhido: deixa $\sim$40\% dos artigos vazios (avisos de
+ex-dividendo, listas de cotação), onde o R1 inventava relações.
+
+\subsection{Execução}
+
+\begin{itemize}
+  \item GPUs alugadas (Vast.ai, RTX 3090/4090, US\$ $\sim$0,19--0,22/h); 16 requisições simultâneas,
+        KV cache \code{q8_0}, \code{num_ctx} derivado do pior caso.
+  \item Gravação incremental sem perda: WAL JSONL com fsync, segmentos Parquet atômicos a cada 200
+        registros; partição determinística por hash entre VMs.
+  \item \textbf{Amostra}: hash determinístico e aninhado do \code{unit_id}. Primeiro 25\% (401.609 unidades,
+        882.914 relações); depois ampliada para 40\% e parada por crédito em 2026-10-15 com
+        \textbf{572.762 unidades} (35,6\% do corpus elegível), 0 falhas, \textbf{1.270.582 relações}.
+        Como a ordem de processamento era a natural do hash, a parte extraída é uma subamostra uniforme.
+\end{itemize}
+
+\subsection{Filtro de ruído}
+
+O filtro (\code{newsmanager/extract/noise.py}) \emph{marca} e não apaga. Na amostra de 25\%:
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lrl}
+\toprule
+motivo & relações & exemplo \\
+\midrule
+genérico & 7,3\% & Allakos $\to$ disappoints $\to$ investors \\
+comparação & 2,1\% & Datadog $\to$ outperforms $\to$ setor \\
+pertencimento & 1,5\% & Nasdaq 100 $\to$ includes $\to$ Tesla \\
+fonte & 1,1\% & Zacks $\to$ upgrades $\to$ Kaman \\
+laço & 0,8\% & DuPont $\to$ expands $\to$ DuPont \\
+métrica & 0,8\% & Comcast $\to$ raises $\to$ dividend \\
+organograma & 0,2\% & Bank of England $\to$ appoints $\to$ Carney \\
+\textbf{limpas} & \textbf{86,2\%} & \\
+\bottomrule
+\end{tabular}
+\caption{Motivos de ruído. Na extração final, 86,1\% das relações são limpas.}
+\end{table}
+
+Precisão do filtro em amostras de 10--15 por motivo: $\sim$9/10 ou mais. Num sorteio de 40 relações
+limpas, $\sim$70\% são relações econômicas claras. Indicadores macro e setores não são ruído.
+
+\subsection{Ligação de entidades a tickers}
+
+\begin{itemize}
+  \item Um modelo leve (\code{qwen2.5:7b-instruct}) só \emph{escolhe} entre candidatos fechados
+        (enum no esquema) ou NONE; o universo é a união dos tickers com preço no FNSPID e das marcações
+        \code{symbols}. O 3B teve a mesma velocidade e classificou tipos pior.
+  \item Depois do LLM: só \code{company}/\code{fund} levam ticker; o ticker exige nome compatível ou
+        evidência forte; uma verificação sim/não derruba colisões com tickers estrangeiros
+        (\code{link-verify}).
+  \item Resultado (versão \code{l=c49291db2953}, 304.430 nomes, 0 falhas): 773.440 menções com ticker
+        (33,9\%). Desvio declarado: 434 tickers novos aceitos por evidência (875 menções) ficaram sem
+        verificação; na rodada anterior $\sim$25\% desse grupo era rejeitado, logo $\sim$200 menções com
+        ticker errado (0,03\%).
+\end{itemize}
+
+\subsection{O grafo dinâmico}
+
+\begin{itemize}
+  \item \textbf{Nós}: um por agente. Regras: o canônico do LLM só vale se compatível com o nome; prefixo de
+        país removido (``US Federal Reserve'' $=$ ``Federal Reserve''); classes de ação fundidas
+        (GOOG/GOOGL); colisão entre slug e ticker resolvida pelo tipo (\code{CORN_COMMODITY});
+        aliases manuais (FOMC $\to$ Fed, WTI/Brent $\to$ petróleo). O Fed é um nó com 200 grafias e 31.013 menções.
+  \item \textbf{Eventos}: \code{src --classe(w)--> dst}, $w=\pm\text{strength}$; 184.035 \code{relation_type}
+        distintos mapeados por regex para 16 classes: impacto 32,1\%, concorrência 9,2\%, participação
+        7,3\%, M\&A 7,0\%, cadeia de suprimentos 6,1\%, parceria 4,4\%, legal/regulatório 4,1\%,
+        posicionamento 3,3\%, analista 3,1\%, negócios 2,9\%, financiamento 2,3\%, monetária 2,0\%,
+        política comercial 0,9\%, governança 0,9\%, retorno de capital 0,3\%, outros 14,0\%.
+  \item \textbf{Tamanho final}: \textbf{255.384 nós e 1.064.801 eventos limpos} (+44\% sobre a amostra de 25\%).
+  \item \textbf{Snapshot sem look-ahead}: o grafo em $t$ agrega eventos com data em $[t-W,t)$, com peso
+        $w_e(t)=\mathrm{sgn}_e\,s_e\,0{,}5^{(t-t_e)/\tau}$ (meia-vida $\tau$, em dias corridos; Eq.~3.1 da monografia).
+  \item \textbf{Período útil}: 2011--2023 (2006--2009 quase vazios). Arestas diretas entre ações são raras
+        (em 2018, entre os 100 tickers mais citados, 9,7\% dos pares), mas 57,9\% dos pares compartilham
+        ao menos uma entidade não negociada (Fed, petróleo, China\ldots). \textbf{O sinal relevante é a
+        exposição comum, uma estrutura de fatores semântica}, que diferencia o grafo da co-menção.
+\end{itemize}
+
+\nota{um diagrama do pipeline (FNSPID $\to$ unidades $\to$ LLM $\to$ tuplas $\to$ filtro $\to$ link $\to$
+grafo $\to$ $\Sig$ $\to$ carteira) e uma figura do grafo em torno do Fed renderiam bem neste capítulo.}
+
+%=====================================================================
+\section{Metodologia}\label{sec:metodo}
+%=====================================================================
+
+\subsection{Disciplina contra \emph{data snooping}}
+
+Este é um ponto forte e deve aparecer no texto. Cada desenho de carteira foi \textbf{escrito e
+commitado antes de rodar} (seções 10, 12, 14, 16 e 18 de \code{docs/metodo_covariancia.md}), com
+critério de sucesso, nível de significância e controles fixos. Mudanças posteriores foram
+declaradas como tal. O nível de significância cai a cada novo desenho da mesma hipótese (Bonferroni:
+0,05; 0,025; 0,01 por otimizador; 0,0125; 0,01). O programa da seção 18 tem separação dev/holdout, e
+o holdout roda uma vez (o código recusa refazer sem \code{--force}).
+
+\subsection{Hipóteses originais}\label{sec:hipoteses}
+
+\begin{description}
+  \item[H1 (estatística)] Os vínculos das notícias até $t$ preveem a correlação futura entre duas
+        ações além do que a correlação histórica já prevê.
+  \item[H2 (econômica)] Usar esse sinal na estimação de $\Sigma$ reduz a volatilidade fora da amostra
+        da GMV e melhora carteiras que dependem de $\Sigma$, em relação às referências.
+  \item[H3 (regime)] O ganho é maior quando a história de preços é pouco informativa (janela curta,
+        mudança de regime) \citep{becquin2023}.
+\end{description}
+H1 é condição para H2: sem previsão de correlação, um ganho de carteira seria só regularização
+genérica, o que os placebos separam.
+
+\subsection{Atributos de par a partir do grafo}
+
+No snapshot em $t$ (janela de 365 dias, meia-vida de 90 dias, sem calibrar):
+\begin{enumerate}
+  \item \textbf{Vínculo direto por grupo de classe}: $d^{(k)}_{ij}=\sum_{e:\,c_e\in k}|w_e(t)|$ nos dois
+        sentidos; atributo $\log(1+d^{(k)}_{ij})$; grupos cadeia, rivalidade, controle, impacto, outros.
+  \item \textbf{Exposição comum}: $\tilde A_{im}$ = soma dos eventos entre a ação $i$ e a entidade não
+        negociada $m$, ponderada por IDF $\log(p/\mathrm{df}_m)$ (``S\&P 500'' pesa pouco, ``crude
+        oil'' pesa para as petroleiras); $g_{ij}=\cos(\tilde A_i,\tilde A_j)$ (Eq.~3.2 da monografia).
+        \nota{no código (\code{newsmanager/grafo/rede.py}), o numerador do IDF é o número de nós com
+        ticker no grafo da janela, não $p$; a monografia escreve $p$. Ver a seção~\ref{sec:pendencias}.}
+  \item \textbf{Co-ocorrência no artigo extraído} e \textbf{co-menção do FNSPID} (a variável de
+        \citealt{tang2019}).
+  \item \textbf{Controles}: mesmo setor (FF49, SIC2).
+\end{enumerate}
+
+\subsection{Regressão preditiva de correlação (a ``ponte'' semântica--numérica)}
+
+Com os rebalanceamentos anteriores a $t$ (painel empilhado, janela expansiva):
+\[
+z(\rho^{\text{fut}}_{ij}) = a + b\,z(\rho^{\text{hist}}_{ij}) + \sum_k\beta_k\log(1+d^{(k)}_{ij})
+ + \gamma\, g_{ij} + \theta^\top x_{ij} + \varepsilon_{ij},
+\]
+com $z=\operatorname{atanh}$, $\rho^{\text{hist}}$ em 252 pregões e $\rho^{\text{fut}}$ no mês seguinte.
+Os $\beta_k$ e $\gamma$ traduzem cada tipo de relação em correlação. O modelo com $\beta=\gamma=0$
+é a referência de persistência. Inferência: Fama-MacBeth com Newey-West e $R^2$ fora da amostra da
+cross-section.
+
+\subsection{Shrinkage para um alvo fixo de notícias}
+
+Correlação-alvo $R_T=\tanh(\hat z)$ (projetada para PSD, \citealt{higham2002}), covariância-alvo
+$T=D^{1/2}R_TD^{1/2}$ com $D=\mathrm{diag}(S)$, e $\Sig=\delta T+(1-\delta)S$. O $\delta$ ótimo
+generaliza \citet{ledoit2004honey} trocando a correlação constante $\bar r$ por $r^T_{ij}$ fixo:
+\begin{align*}
+\hat\pi &= \textstyle\sum_{ij}\widehat{\mathrm{AsyVar}}(\sqrt N s_{ij}),\qquad
+\hat\gamma = \|T-S\|_F^2,\\
+\hat\rho &= \textstyle\sum_i\hat\pi_{ii}+\sum_{i\neq j}\frac{r^T_{ij}}{2}\Big(\sqrt{s_{jj}/s_{ii}}\,\hat\vartheta_{ii,ij}+\sqrt{s_{ii}/s_{jj}}\,\hat\vartheta_{jj,ij}\Big),\\
+\delta^* &= \max\!\big(0,\min(1,(\hat\pi-\hat\rho)/(N\hat\gamma))\big).
+\end{align*}
+Unidades: $\hat\pi$, $\hat\rho$ e $\hat\gamma$ estão em (retorno diário)$^4$ e se cancelam; $\delta^*\in[0,1]$ é
+adimensional. Definições de $\hat\pi_{ij}$ e $\hat\vartheta_{ii,ij}$ em \code{docs/equacoes/equacoes.tex}.
+
+\subsection{Os desenhos de carteira (H2)}
+
+Configuração comum (salvo indicação): 2013-01 a 2023-12 (2011--2012 só treinam os alvos), janela
+in-sample de 252 pregões, rebalanceamento mensal, custo de 10 bps sobre o giro, notícias de 365 dias
+com meia-vida de 90, coeficientes treinados só em meses cujo período de carteira já terminou
+(\code{min_train} = 24). Teste: razão de variâncias dos retornos diários líquidos, com p bicaudal por
+bootstrap circular em blocos de 10 dias (2.000 reamostragens, seed 7).
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\textwidth}{clL}
+\toprule
+& desenho & como a notícia entra \\
+\midrule
+D1 & alvo-prior (seção 9) & $R_{ij}=\tanh(\bar z+\beta^\top f_{ij})$, sem $z_{\text{hist}}$; $\beta=0$ é o LW correlação constante \\
+D2 & fator + resíduo (seção 10) & $\Sig=\sigma^2_m bb^\top+\Sig_e$, com $\Sig_e$ encolhida para $R_{\text{prior}}=\tanh(\bar z_e+\beta^\top[\text{setor},\text{notícias}])$ na correlação residual \\
+D3 & long-only, teto 10\% (seção 12) & o estimador de D2 na variância mínima restrita \\
+D4--D8 & outros otimizadores (seção 14) & Markowitz ($\gamma=5$, $\mu$ Bayes-Stein), máximo Sharpe, máxima diversificação, HRP, TE mínimo contra o SPY \\
+D9 & Black-Litterman na covariância (seção 16) & visões por par $q_{ij}=\tanh(\hat z_{ij})\sqrt{s_is_j}$, confiança $\Omega$ por classe de evidência, prior de Wishart \\
+D10 & programa walk-forward (seção 18) & 33 estimadores, dev/holdout, placebos de grafo (seção~\ref{sec:prog18}) \\
+\bottomrule
+\end{tabularx}
+\caption{Desenhos testados para H2. Em todos, a referência a bater é o estimador com setor e sem notícias, e há um placebo com as notícias permutadas entre ações.}
+\end{table}
+
+\paragraph{D2: fator de mercado + correlação residual.} Mercado $m_t$ = média igual dos retornos do
+universo; $x_{it}=a_i+b_im_t+e_{it}$ por MQO na janela; $y$ do painel = $z$ da correlação
+\emph{residual} realizada no mês. É o desenho de \citet{lu2023} com a rede de notícias no lugar da
+co-negociação. Estimadores: resíduo diagonal, correlação constante, setor (referência), notícias,
+setor + notícias (principal) e placebo. Critérios: (1) H1 residual com $t>2$; (2) razão setor + notícias
+/ setor $<1$ com $p<0{,}05$ e abaixo do placebo em $n=100$; (3) razão $<1$ em $n=50$ e $200$ e com a
+amostra ampliada.
+
+\paragraph{D9: Black-Litterman na covariância.} Prior $\Sigma_0$ = resíduo do D2 com setor;
+incerteza de Wishart $V_{(ij),(kl)}=(\sigma_{0,ik}\sigma_{0,jl}+\sigma_{0,il}\sigma_{0,jk})/T$ (análogo
+de $\tau=1/T$ de \citealt{he1999}). Confiança $\Omega$ por classe de evidência (só exposição; quartis de
+co-ocorrência), estimada no painel descontando o ruído amostral $1/(d_m-3)$:
+\[
+\mathrm{vec}\,\Sigma^{BL}_e=\mathrm{vec}\,\Sigma_0+VP^\top(PVP^\top+\Omega)^{-1}(q-P\,\mathrm{vec}\,\Sigma_0),
+\]
+resolvido por gradiente conjugado sem formar $V$. Carteira principal: GMV sem restrição. Nível
+$p<0{,}0125$.
+
+\subsection{O programa da seção 18 (roteiro de grafos)}\label{sec:prog18}
+
+\subsubsection*{Construção comum}
+\begin{itemize}
+  \item Universo S\&P 500 point-in-time; datas $t$ = 1º pregão do mês, 2011--2023.
+  \item Grafo em $[t-365\text{d},t)$, peso $\text{sign}\cdot\text{strength}\cdot 0{,}5^{\text{idade}/\tau}$.
+  \item Aresta direta $w_{ij}$ (com sinal), $w^+$, $w^-$, $d^{(k)}$ por grupo de classe.
+  \item Exposição $\tilde A_{im}$ da ação $i$ ao nó $m\notin U_t$, com sinal, IDF e linhas normalizadas;
+        projeção bipartida $g_{ij}=(\tilde A\tilde A^\top)_{ij}$, PSD por construção ($C^G$).
+  \item Normalizações: bruta, IDF, grau, PMI, $z$ contra o modelo de configuração.
+\end{itemize}
+
+\subsubsection*{Modelos}
+\begin{table}[h]
+\centering\footnotesize
+\begin{tabularx}{\textwidth}{lL}
+\toprule
+código & estimador \\
+\midrule
+B0--B6 & 1/N; amostral; LW identidade, correlação constante, fator único; \textbf{B5: blocos setoriais FF12 (referência principal)}; LW não linear \\
+B7, B8, B9 & fatores observáveis (mercado, 12 indústrias, tamanho, momentum); POET; fator + glasso residual \\
+B10, B11, R0 & EWMA ($\lambda=0{,}97$); HRP amostral; fator + resíduo setor (elo com D2) \\
+\textbf{M2} & $\delta T^G+(1-\delta)S$, $T^G=\Delta C^G\Delta$, $\delta$ analítico; $\tau$ e normalização escolhidos no dev (\textbf{modelo principal}) \\
+M2-abs/bin/res, M2+W & variantes: $|\tilde A|$, indicador, no resíduo; com kernel de difusão no Laplaciano assinado \\
+M1 & fatores Fed ($-\Delta$DGS2), petróleo, China, dólar, ouro + mercado; cargas ridge centradas na exposição das notícias \\
+M3 & POET com suporte do grafo \\
+M4 & glasso ponderado, $\lambda_{ij}=\lambda_0e^{-\gamma|\tilde w_{ij}|}$ \\
+M5 & fatores espectrais: $q$ autovetores do Laplaciano normalizado de $C^G-I$ \\
+M6 & multiplex: 14 camadas por classe e tipo de agente, pesos por MQO não negativo \\
+M8 & comunidades (Louvain) para blocos e HRP \\
+\bottomrule
+\end{tabularx}
+\caption{Estimadores do programa da seção 18. M7 (DCC-X) e M9 (centralidade como fator) ficaram fora ou viraram o teste G9.}
+\end{table}
+
+\subsubsection*{Hipóteses G1--G13 e testes}
+\begin{itemize}
+  \item \textbf{Diádicas (painel de pares, $y=z$ da correlação residual futura, $h=21$)}: Fama-MacBeth com NW
+        ($L=3+h/21$) e QAP com 200 permutações; p = maior dos dois. Controles: $z_{\text{hist}}$, mesmo FF49,
+        mesmo SIC2, distância de tamanho, atenção. G1 (aresta com sinal), G2 ($\beta^+>\beta^-$), G3
+        (Wald de igualdade de 6 grupos de classe), G6 (cobertura e tamanho, descritiva), G8 (direção
+        temporal), G9 (centralidade $\to$ beta de baixa futuro).
+  \item \textbf{G4}: exposição ao Fed $\times$ surpresa ($\Delta$DGS2) em 104 reuniões do FOMC; exploratória.
+  \item \textbf{Carteira (walk-forward)}: dev 2013--2018 (72 meses, escolhas automáticas), holdout 2019--2023
+        (60 meses, uma vez). G5 (M2 contra B5 na GMV, $p<0{,}01$), G7 (regimes, descritiva), G10
+        (M2 contra 200 placebos P2 \emph{curveball} e contra co-menção P6), G11 (M4 contra B9 em
+        log-verossimilhança), G12 (alinhamento dos autovetores do grafo com os da covariância futura),
+        G13 (HRP por comunidades contra HRP amostral).
+  \item \textbf{Placebos}: P1 posições sorteadas; P2 rewiring com graus preservados; P3 permutação dentro
+        do setor; P4 sinais aleatórios; P5 grafo de dois anos antes; P6/P6b só co-menção / co-ocorrência.
+  \item \textbf{Múltiplos testes}: família de 10 testes com Holm a 5\%; SPA, Reality Check e MCS para
+        ``o melhor modelo com grafo''; Sharpe deflacionado com o número de configurações do dev.
+  \item \textbf{Robustez}: meia-vida, normalização, kernel, janela (126/504), frequência, universo, retornos log,
+        winsorização, custos, restrições, só agentes sem ticker, sem \emph{market wraps}, bootstrap estacionário.
+\end{itemize}
+
+\subsubsection*{Validação da extração e vazamento}
+\begin{itemize}
+  \item Auditoria automática de presença dos agentes no texto da unidade.
+  \item Amostra estratificada de 800 tuplas (16 classes $\times$ 2 períodos $\times$ 25) para dois anotadores,
+        e 63 artigos inteiros para o recall.
+  \item Teste de vazamento por anonimização: nomes, tickers e datas mascarados em 218 unidades e
+        reextraídos com a mesma \code{prompt_version}.
+\end{itemize}
+
+%=====================================================================
+\section{Resultados}\label{sec:resultados}
+%=====================================================================
+
+\subsection{H1: as notícias preveem a correlação}
+
+Configuração: universo top-100, 156 rebalanceamentos (2011--2023), 772.200 pares-data; avaliação fora
+da amostra com janela expansiva em 132 meses (2013--2023). Cobertura dos pares: exposição comum 64,3\%;
+co-menção 34,7\%; co-ocorrência 23,7\%; vínculo direto 1--4\% por grupo.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+modelo & $R^2_{oos}$ & ganho sobre M0 & $t$ (NW) & meses melhores \\
+\midrule
+M0 persistência & 0,1858 & --- & --- & --- \\
+M1 + co-menção FNSPID (Tang) & 0,1873 & +0,0015 & 2,5 & 67\% \\
+M2 + co-ocorrência extraída & 0,1900 & +0,0042 & 5,7 & 74\% \\
+M3 + relações tipadas + exposição & 0,1891 & +0,0033 & 5,4 & 76\% \\
+M4 tudo & \textbf{0,1911} & \textbf{+0,0053} & 4,8 & 75\% \\
+\bottomrule
+\end{tabular}
+\caption{H1 na correlação total (amostra de 25\%). Ganho positivo nos três subperíodos.}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccc}
+\toprule
+comparação fora da amostra & ganho & $t$ (NW) & meses melhores \\
+\midrule
+setor sobre persistência & +0,0030 & 4,5 & 67\% \\
+notícias sobre persistência & +0,0053 & 4,8 & 75\% \\
+co-menção sobre persistência + setor & +0,0008 & 1,8 & 63\% \\
+\textbf{notícias sobre persistência + setor} & \textbf{+0,0031} & \textbf{4,0} & 74\% \\
+notícias sobre persistência + setor + co-menção & +0,0023 & 5,2 & 73\% \\
+\bottomrule
+\end{tabular}
+\caption{H1 com controle de setor (amostra de 25\%).}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{H1 confirmada.} O ganho é pequeno em nível (+0,5 ponto de $R^2$ sobre 18,6\%), mas estável; $y$
+        é uma correlação de 21 dias, dominada por ruído.
+  \item O grafo do LLM domina a co-menção marcada (quase 3$\times$ o ganho), e a co-menção quase some
+        depois do setor ($t=1{,}8$); as notícias, não.
+  \item A \textbf{exposição comum} é o sinal semântico que sobrevive ($t=7{,}4$ no Fama-MacBeth completo; $t=6{,}3$
+        ao lado do setor). As relações diretas tipadas quase não acrescentam; a cadeia chega a ficar
+        negativa ($t=-3{,}2$) com controle de co-ocorrência.
+  \item \textbf{Correlação residual} (pré-requisito do D2): ganho +0,0026, $t=9{,}7$, melhor em 86\% dos meses.
+  \item \textbf{Amostra ampliada (36\%)}: total +0,0033 ($t=4{,}3$); residual +0,0027 ($t=8{,}8$; 84\%). O sinal se
+        mantém com 44\% mais eventos.
+\end{itemize}
+
+\subsection{H2, desenho D1: alvo-prior}
+
+Um primeiro caminho, com a correlação histórica dentro do alvo, foi descartado por construção (o alvo
+dependia da própria amostra e $\delta\approx1$). Com alvos-prior ($\delta$ médio $\approx0{,}2$):
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+estimador & sem restrição & p & long-only & p \\
+\midrule
+LW fator único & \textbf{0,918} & 0,000 & 0,999 & 0,91 \\
+LW não linear & 0,949 & 0,005 & 1,006 & 0,79 \\
+LW identidade & 0,959 & 0,035 & 1,017 & 0,36 \\
+alvo setor & 1,008 & 0,26 & 1,006 & 0,002 \\
+alvo notícias & 1,042 & 0,000 & 1,006 & 0,20 \\
+alvo setor + notícias & 1,035 & 0,002 & 1,006 & 0,16 \\
+placebo & 1,032 & 0,015 & 1,002 & 0,39 \\
+amostral & 1,254 & 0,000 & 1,029 & 0,09 \\
+\bottomrule
+\end{tabular}
+\caption{Razão de variâncias da GMV contra LW correlação constante ($n=100$).}
+\end{table}
+
+O alvo de notícias tem o \emph{menor} erro de correlação par a par ($-0{,}09\%$ contra LW correlação
+constante; placebo $+0{,}33\%$, $t=3{,}7$ de diferença), mas não reduz a variância. O fator único é o pior
+em erro de correlação e o melhor em variância: \textbf{a GMV premia a estrutura de fatores, não a
+precisão par a par}. Isso motivou o D2, declarado como revisão motivada pelo resultado.
+
+\subsection{H2, desenhos D2 e D3: fator + resíduo, sem restrição e long-only}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{ccccccc}
+\toprule
+& \multicolumn{2}{c}{notícias / setor} & \multicolumn{2}{c}{placebo / setor} & \multicolumn{2}{c}{$\lambda_{\max}/\lambda_{\min}$} \\
+$n$ & razão & p & razão & p & setor & + notícias \\
+\midrule
+\multicolumn{7}{l}{\emph{amostra de 25\%}} \\
+50 & 0,997 & 0,57 & 1,028 & 0,08 & 102 & 109 \\
+100 & 1,001 & 0,92 & 1,028 & 0,009 & 183 & 210 \\
+200 & 1,018 & 0,10 & 1,058 & 0,000 & 375 & 533 \\
+\multicolumn{7}{l}{\emph{amostra de 36\%}} \\
+50 & 1,003 & 0,77 & 1,011 & 0,30 & 104 & 110 \\
+100 & 1,001 & 0,89 & 1,022 & 0,006 & 183 & 217 \\
+200 & 1,025 & 0,046 & 1,021 & 0,27 & 374 & 544 \\
+\bottomrule
+\end{tabular}
+\caption{D2: GMV sem restrição. Volatilidades em $n=100$: setor 12,88\%, + notícias 12,89\%, LW fator único 12,90\%, LW não linear 13,12\%, 1/N 20,1\%.}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{Critério 1 atendido; critérios 2 e 3 não.} As notícias não reduzem a variância além do setor;
+        com mais dados, em $n=200$ pioram ($p=0{,}046$).
+  \item O grafo verdadeiro bate o placebo (variância 2,8--5,8\% menor com a amostra de 25\%): o conteúdo não é ruído.
+  \item \textbf{Mecanismo}: as notícias aumentam o número de condição (+6\% a +45\%); a GMV inverte $\Sig$ e
+        o ganho se perde na inversão \citep{lopezdeprado2016}.
+  \item Achado lateral: fator de mercado + resíduo encolhido para o setor empata com o LW fator único
+        e bate o LW não linear.
+\end{itemize}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+run ($n=100$, amostra de 36\%) & vol. & Sharpe & razão contra setor & p \\
+\midrule
+fator + resíduo setor & 13,43\% & 0,778 & --- & --- \\
+setor + notícias & 13,42\% & 0,789 & 0,998 & 0,46 \\
+placebo & 13,39\% & 0,783 & 0,994 & 0,12 \\
+LW fator único & 13,39\% & 0,788 & 0,993 & 0,15 \\
+1/N & 19,94\% & 0,663 & 2,205 & 0,000 \\
+\bottomrule
+\end{tabular}
+\caption{D3: variância mínima long-only com teto de 10\%. Exigia $p<0{,}025$ e notícias abaixo do placebo.}
+\end{table}
+
+Confirmação: razões de 0,996 ($n=50$, $p=0{,}06$) e 0,996 ($n=200$, $p=0{,}09$); tetos de 5\% e 20\%: 0,995 e
+0,998. Diferenças de 0,2--0,5\% da variância, abaixo do ruído. O resultado exploratório com a amostra de
+25\% (0,994, $p=0{,}017$) \textbf{não se replicou}. Com teto, todos os estimadores com fator empatam
+\citep{jagannathan2003}.
+
+\subsection{H2, desenhos D4--D8: outros otimizadores}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{llcccc}
+\toprule
+otimizador & estatística & notícias/setor & p & placebo/setor & p \\
+\midrule
+Markowitz ($\gamma=5$) & $\Delta$ Sharpe & $-0{,}015$ & 0,16 & $+0{,}004$ & 0,62 \\
+máximo Sharpe & $\Delta$ Sharpe & $-0{,}010$ & 0,43 & $+0{,}004$ & 0,76 \\
+máxima diversificação & razão de var. & 0,992 & 0,46 & 0,921 & 0,17 \\
+HRP & razão de var. & 1,007 & 0,14 & 1,002 & 0,59 \\
+TE mínimo & razão de var. ativa & \textbf{1,214} & \textbf{0,000} & 1,008 & 0,63 \\
+\bottomrule
+\end{tabular}
+\caption{D4--D8 ($n=100$). Nível exigido: $p<0{,}01$ e melhor que o placebo.}
+\end{table}
+
+\begin{itemize}
+  \item Nenhum dos cinco atende o critério; a direção não se repete em $n=50$ e $n=200$.
+  \item No \textbf{TE mínimo} as notícias \emph{pioram} de forma crescente com $n$: +10\% ($n=50$), +21\%
+        ($n=100$), +43\% ($n=200$), $p<0{,}001$; o placebo não piora. Replicar um índice exige acertar a
+        covariância conjunta; as correlações residuais das notícias acertam a média dos pares, mas
+        distorcem o hedge (giro de 3,3 para 4,0 por ano).
+  \item \textbf{O otimizador importa muito mais que o estimador}: a volatilidade vai de 13\% (variância
+        mínima) a 25\% (Markowitz); para um otimizador fixo, trocar o estimador muda menos de 1 ponto.
+        Nenhum otimizador com retorno esperado bateu o SPY em Sharpe líquido (0,82).
+\end{itemize}
+
+\subsection{H2, desenho D9: Black-Litterman na covariância}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcccc}
+\toprule
+$\Sig$ (GMV sem restrição, $n=100$) & vol. & Sharpe & razão contra setor & p \\
+\midrule
+fator + resíduo setor & 12,83\% & 0,632 & --- & --- \\
+setor + BL notícias & 13,71\% & 0,609 & 1,143 & 0,015 \\
+BL placebo & 14,62\% & 0,556 & 1,300 & 0,012 \\
+BL $\Omega$ homogêneo & 13,61\% & 0,596 & 1,126 & 0,021 \\
+setor + notícias ($\delta$ único) & 12,83\% & 0,641 & 1,001 & 0,87 \\
+LW fator único & 12,85\% & 0,634 & 1,003 & 0,52 \\
+\bottomrule
+\end{tabular}
+\caption{D9. Confirmação: $n=50$ razão 1,10; $n=200$ razão 1,20 ($p=0{,}001$).}
+\end{table}
+
+O BL \textbf{aumenta} a variância em 14\%, mesmo com o número de condição caindo (183 $\to$ 137). As
+confianças crescem com a evidência ($\omega$ de 0,013 a 0,058 em $z$), mas o erro de cada visão é da
+mesma ordem do sinal; as milhares de visões movem covariâncias que a GMV explora. O placebo piora mais
+(1,30): a informação existe, mas não vira carteira melhor.
+
+Testes exploratórios do mesmo período, sem critério: estabilidade diária de $\Sig$ (notícias/setor =
+1,12 no $\kappa$ mediano, placebo 1,10) e fatores de sentimento por agente ($R^2$ mediano de 4,2\%, nível
+de ruído).
+
+\subsection{Programa da seção 18: validação da extração}
+
+\begin{itemize}
+  \item \textbf{Auditoria de presença} (740.467 das 1.063.603 tuplas com texto disponível, 70\%): os
+        dois agentes aparecem no texto em 72,8\% literalmente e 98,2\% por tokens distintivos (de 92,1\%
+        em retorno de capital a 99,4\% em parceria). A diferença vem da normalização de nomes pelo LLM
+        (``Apple Inc.'' contra ``Apple'').
+  \item \textbf{Vazamento por anonimização} (218 unidades; 872 tuplas originais, 795 reextraídas): quando o
+        mesmo par reaparece (294 pares; 33,7\% das tuplas originais), o sinal é o mesmo em
+        \textbf{91,2\%}, o tipo exato em 55,4\%, e a força média é 0,730 contra 0,728 (diferença absoluta
+        média 0,045). As divergências não se alinham com o retorno futuro de 21 pregões
+        (Spearman $\rho=-0{,}13$, $p=0{,}26$, $n=82$); a original não está mais alinhada com o futuro
+        ($\rho=-0{,}02$) que a anonimizada ($\rho=+0{,}08$). \textbf{Sem evidência de vazamento.} Limites:
+        só um terço das tuplas reaparece com o mesmo par, e o teste de alinhamento tem pouco poder.
+  \item \pend{anotação manual das 800 tuplas (dois anotadores) e do recall em 63 artigos: precisão de
+        entidade e de relação, acurácia de tipo e sinal, Spearman da força, $\kappa$ de Cohen e recall.}
+\end{itemize}
+
+\subsection{Programa da seção 18: descritivas do grafo}
+
+\begin{itemize}
+  \item \textbf{Portão}: $R^2$ médio da projeção $g$ sobre o setor = 0,017 em 156 meses ($<0{,}5$): o grafo
+        não é setor reescrito.
+  \item Metade das arestas entre ações liga empresas do mesmo FF12 (47--54\%), contra $\sim$10\% dos pares.
+  \item Arestas negativas: 41--53\% por ano. Jaccard ano a ano: 0,12--0,17. Cobertura cresce com o
+        tamanho (73--86\% no menor quintil, $\sim$97\% no maior). Grau mediano 1 (p90 = 6).
+\end{itemize}
+
+\subsection{Programa da seção 18: testes diádicos}
+
+Painel S\&P 500, 155 meses, $\sim$350--460 ações por mês, $h=21$.
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lcc}
+\toprule
+regressor (G1) & coef. & $t$ \\
+\midrule
+\textbf{sgnlog($w$)} & $\mathbf{-0{,}0016}$ & $\mathbf{-9{,}1}$ \\
+$g$ (projeção bipartida) & $+0{,}0038$ & $+11{,}1$ \\
+$z_{\text{hist}}$ & $+0{,}105$ & $+16{,}7$ \\
+mesmo FF49 & $+0{,}013$ & $+14{,}4$ \\
+mesmo SIC2 & $+0{,}011$ & $+15{,}3$ \\
+distância de tamanho & $-0{,}0018$ & $-4{,}2$ \\
+\bottomrule
+\end{tabular}
+\caption{G1: Fama-MacBeth na correlação residual futura.}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{G1 rejeitada}: o coeficiente da aresta com sinal é negativo nos três subperíodos e nos
+        horizontes de 63 e 126 dias. Diagnóstico (exploratório): positivas ($t=+6{,}7$) e negativas ($t=+11{,}8$)
+        \emph{ambas} aumentam a correlação; as negativas são principalmente concorrência entre rivais do
+        mesmo ramo, que andam juntos. \textbf{O sinal extraído pelo LLM descreve o efeito econômico, não a
+        direção do co-movimento.} A existência e a intensidade do vínculo preveem correlação ($|w|$:
+        $t=+12$; $g$: $t=+11$).
+  \item \textbf{G2 rejeitada}: $\beta^+-\beta^-=-0{,}0015$ ($t=-7{,}3$), o contrário do esperado.
+  \item \textbf{G3 confirmada}: Wald = 77,9 (p QAP = 0,005). Concorrência $+0{,}0022$ ($t=9{,}9$), parceria
+        $+0{,}0004$ (4,7), controle $+0{,}0007$ (4,1), cadeia $+0{,}0006$ (3,1), impacto $+0{,}0003$ (1,9),
+        legal $\approx0$. As expectativas registradas (cadeia $>0$, parceria pequena, legal $\le0$) se confirmam.
+  \item \textbf{G6} (descritiva): interação com cobertura $t=4{,}7$; o termo com sinal fica mais negativo
+        nas grandes empresas.
+  \item \textbf{G8 rejeitada}: mudanças no grafo não antecedem mudanças na correlação ($t=-2{,}2$ à frente,
+        sinal contrário; reverso nulo).
+  \item \textbf{G9 confirmada}: centralidade prevê o beta de baixa futuro ($t=2{,}9$, $p=0{,}002$), mas depende
+        da normalização (some com as normas grau e $z$).
+  \item \textbf{G4} (FOMC, exploratória): exposição ao Fed $\times$ surpresa $+0{,}0029$ ($t=1{,}8$), na direção
+        esperada, não significante.
+  \item Robustez (meia-vida 30/180/365, normalizações): vereditos de G1, G2, G3 e G8 não mudam.
+\end{itemize}
+
+\subsection{Programa da seção 18: dev e holdout}
+
+\paragraph{Escolhas congeladas no dev (2013--2018).} M2: $\tau=180$, norma $z$ (20 tentativas); POET
+$C=0{,}5$; M5 $q=10$; M1 $\kappa=1$, $c=0{,}1$ (o prior de notícias muda a QLIKE em só $10^{-5}$);
+M2+W $\alpha=0{,}25$, $\beta=2$; M4/B9 $\lambda_0=0{,}2$, $\gamma=2$ (borda da grade). No dev, o POET
+teve variância GMV $\sim$23\% menor que o melhor M2.
+
+\paragraph{Holdout (2019--2023, 60 meses, 1.257 pregões, rodado uma vez em 2026-10-28).}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccl}
+\toprule
+hipótese & p & p Holm & veredito \\
+\midrule
+G1 & 1,0 & 1,0 & rejeitada \\
+G2 & 1,0 & 1,0 & rejeitada \\
+\textbf{G3} & 0,005 & \textbf{0,045} & \textbf{confirmada} \\
+G5 & 1,0 & 1,0 & rejeitada (M2 pior que B5) \\
+G8 & 0,985 & 1,0 & rejeitada \\
+\textbf{G9} & 0,002 & \textbf{0,021} & \textbf{confirmada} \\
+G10 & 1,0 & 1,0 & rejeitada \\
+G11 & 0,83 & 1,0 & rejeitada \\
+\textbf{G12} & 0,005 & \textbf{0,045} & \textbf{confirmada} \\
+G13 & 1,0 & 1,0 & rejeitada \\
+\bottomrule
+\end{tabular}
+\caption{Família primária com Holm. Sobrevivem as duas diádicas estruturais e a espectral; nenhuma de carteira.}
+\end{table}
+
+\begin{itemize}
+  \item \textbf{G5}: razão de variâncias M2/B5 = \textbf{1,115} (IC 95\% 1,030--1,237; $p=0{,}023$): o M2 tem 11\% mais
+        variância, significativo no sentido \emph{contrário}. DM-HLN em QLIKE favorece o B5 ($p=0{,}0003$);
+        M2 fora do MCS de QLIKE; Sharpe deflacionado 0,78.
+  \item Pares modelo com notícias / controle sem notícias: M2/B3 1,071; M2/B4 1,208; M2res/R0 1,051;
+        M4/B9 1,010; M1/B7$'$ 1,016; M8blk/FF12 0,998; M5/PCA 1,52. Nenhum estimador com notícias é
+        significativamente melhor que seu controle.
+  \item O SPA aponta um modelo com notícias melhor que B5 (M4, $p=0{,}0015$), mas o ganho é do glasso: o B9
+        sem notícias faz o mesmo (G11).
+  \item \textbf{G10}: p empírico contra 200 placebos P2 = 0,81; o P3 (embaralhado dentro do setor) é melhor que
+        o grafo real na maioria das réplicas.
+  \item \textbf{G12}: cosseno médio 0,236 entre autovetores do grafo e da covariância dos 63 pregões seguintes,
+        contra p95 de 0,178 nos placebos ($p=0{,}005$).
+  \item \textbf{G13}: HRP por comunidades / HRP amostral = 1,068.
+  \item \textbf{G7}: na QLIKE o M2 erra mais em 2020Q1; na variância da GMV, piora em tempos calmos.
+  \item Robustez do G5: em nenhuma variante o M2 bate o B5; a única abaixo de 1 é a long-only (0,972, $p=0{,}30$).
+\end{itemize}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{lccccc}
+\toprule
+estimador & vol. anual & Sharpe & MDD & giro/ano & previsão de risco \\
+\midrule
+B0 (1/N) & 22,6\% & 0,67 & $-40\%$ & 1,0 & 0,95 \\
+B5 (blocos setoriais) & 15,2\% & 0,39 & $-27\%$ & 31 & 0,43 \\
+B7 (fatores observáveis) & \textbf{14,2\%} & 0,65 & $-22\%$ & 19 & 0,41 \\
+B9 (glasso) & 14,3\% & 0,62 & $-25\%$ & 14 & 0,43 \\
+M4 (glasso ponderado) & 14,4\% & 0,64 & $-25\%$ & 15 & 0,43 \\
+B6 corrigido (LW não linear) & 14,4\% & --- & --- & --- & --- \\
+B4 (LW fator único) & 14,6\% & 0,48 & $-26\%$ & 30 & 0,38 \\
+R0 & 14,7\% & 0,42 & $-25\%$ & 33 & 0,37 \\
+M2res & 15,1\% & 0,49 & $-27\%$ & 36 & 0,37 \\
+M2 & 16,0\% & 0,50 & $-28\%$ & 52 & 0,26 \\
+M5 & 19,7\% & 0,33 & $-39\%$ & 20 & 0,84 \\
+\bottomrule
+\end{tabular}
+\caption{GMV no holdout (descritivo). O B6 original (28,6\%) tinha um defeito, corrigido em análise posterior rotulada; o M3 (31,2\%) sofre de quase singularidade por desenho.}
+\end{table}
+
+%=====================================================================
+\section{Discussão}\label{sec:discussao}
+%=====================================================================
+
+\begin{enumerate}
+  \item \textbf{Informação existe.} H1 confirmada e estável (correlação total e residual, três subperíodos,
+        25\% e 36\% do corpus, controle de setor e de co-menção). O grafo bate os placebos em correlação,
+        o tipo de relação importa (G3), a centralidade prevê risco de baixa (G9) e os autovetores do grafo
+        apontam para o risco futuro (G12).
+  \item \textbf{Mas não vira carteira melhor.} Em nove desenhos (D1--D9) e no programa walk-forward com 33
+        estimadores, nenhum ganho significativo; pioras significativas na GMV com $n=200$, no TE mínimo,
+        no BL e no M2 do holdout.
+  \item \textbf{Por quê.}
+        \begin{itemize}
+          \item O ganho preditivo é pequeno ($\sim$0,3--0,5 ponto de $R^2$) e concentrado na média dos pares;
+                a GMV depende da estrutura de autovalores, não do erro médio par a par.
+          \item Sem restrição, a estrutura esparsa extra abre o leque de autovalores e a inversão consome o
+                ganho \citep{lopezdeprado2016}.
+          \item Com restrição, o teto e a proibição de venda já regularizam tanto que todos os estimadores com
+                fator empatam \citep{jagannathan2003}.
+          \item O que o grafo sabe já está, em grande parte, em setor, fatores e correlação histórica (G10:
+                o placebo dentro do setor é tão bom quanto o grafo real).
+        \end{itemize}
+  \item \textbf{O sinal do LLM não é o sinal da correlação.} Concorrentes recebem relações negativas e
+        andam juntos. Isso é uma lição para quem usa sentimento extraído por LLM como proxy de
+        co-movimento.
+  \item \textbf{Comparação com a literatura.} \citet{tang2019}, \citet{becquin2023} e \citet{lu2024}
+        relatam ganhos de carteira. Diferenças possíveis a discutir: referência a bater (aqui, sempre um
+        alvo com setor e um placebo, não só LW); pré-registro e correção para múltiplos testes; universo e
+        período; dados do FNSPID (subamostra, painel de preços com falhas).
+  \item \textbf{H3 (regime)} não foi testada como hipótese própria nos desenhos D1--D9; o G7 (descritivo) indica
+        que o M2 erra mais na previsão em 2020Q1. \pend{decidir se H3 entra como resultado (descritivo) ou como
+        limitação.}
+\end{enumerate}
+
+%=====================================================================
+\section{Limitações e desvios declarados}\label{sec:limitacoes}
+%=====================================================================
+
+\begin{itemize}
+  \item \textbf{Amostra}: 36\% do corpus elegível (corte por orçamento de GPU); cobertura desigual entre anos.
+  \item \textbf{Ruído do LLM}: $\sim$70\% das tuplas limpas são relações econômicas claras (sorteio pequeno);
+        precisão e recall formais dependem da anotação manual pendente. Sem \code{evidence_span} no esquema.
+  \item \textbf{Ligação}: tickers pequenos usados como nome (AVGO, DHI, RIG, $\sim$250 menções) e empresas
+        renomeadas ficam sem ticker; sinônimos não fundidos todos; 434 tickers novos sem verificação.
+  \item \textbf{Preços}: painel do FNSPID com emendas, truncamento em 2020-07 (BAC, FB, NFLX, MA, CSCO, MCD\ldots
+        saem do universo) e sem UNH, VZ, MRNA, SPG, BRK, SNAP; sem retorno de deslistagem; viés de sobrevivência.
+  \item \textbf{Tempo}: data sem hora (mitigado com $dt<t$); o holdout não é posterior ao \emph{cutoff} do Qwen2.5
+        (FNSPID termina em 2023), daí o teste de anonimização.
+  \item \textbf{Holdout não virgem para M2}: um notebook exploratório usou 2019--2023 com construções do tipo M2
+        antes do pré-registro (declarado na seção 18.1 do método); a escolha de hiperparâmetros continuou
+        automática no dev.
+  \item \textbf{Substituições do roteiro}: GICS $\to$ Fama-French/SIC; FF5 $\to$ fatores construídos no universo; sem
+        covariância intradiária nem perda de Stein; surpresa de Kuttner $\to$ $\Delta$DGS2; sem grafos externos
+        (Revere, TNIC); DCC fora.
+  \item \textbf{Correções pós-resultado} (todas registradas): \code{dropna} que derrubava 25\% dos pregões no
+        \code{avaliar} (conclusão igual); defeito no B6 nos pregões de emenda (corrigido como análise posterior,
+        sem mudar vereditos); \code{is None} sobre NaN no comparador de anonimização (só a linha ``limpas'' muda);
+        meses vazios nas centralidades alternativas do G9 (não corrigido, viesa para zero).
+\end{itemize}
+
+%=====================================================================
+\section{O que falta}\label{sec:pendencias}
+%=====================================================================
+
+\begin{enumerate}
+  \item \pend{anotação manual: 800 tuplas por dois anotadores e recall em 63 artigos (\code{data/anotacao/},
+        ver \code{LEIA-ME.txt}); o script que calcula as métricas já existe.}
+  \item \pend{commitar a seção 2.3 de \code{docs/secao18_resultados.md}, a correção em
+        \code{newsmanager/grafo/extracao.py} e os logs da anonimização; atualizar a seção 2.2 desse
+        documento, que ainda dá a reextração anonimizada como pendente.}
+  \item \pend{completar referências marcadas com ``conferir'' no \code{referencias.bib} (Zhou et al.\ 2025,
+        prenomes de Tang et al., autoria do FNSPID).}
+  \item \pend{figuras: pipeline; distribuição de classes; evolução do grafo por ano; vizinhança do Fed;
+        série de volatilidade das carteiras; mapa dos $t$ dos testes diádicos.}
+  \item \pend{alinhar texto e código em três fórmulas (detalhes nas notas de implementação de
+        \code{docs/equacoes/equacoes.tex}): (i) IDF, numerador $p$ no texto e número de nós com ticker
+        no grafo da janela no código; (ii) normalização pelo grau, $D^{-1/2}|W|D^{-1/2}$ no texto e divisão
+        das colunas de $\tilde A$ pela raiz do grau da entidade no código; (iii) distância da HRP,
+        $\sqrt{2(1-\rho)}$ no texto e $\sqrt{(1-\rho)/2}$ no código (mesma árvore, só uma nota). Decidir se
+        o texto descreve o código ou se o código muda (o que exigiria rodar de novo o holdout, que roda uma vez).}
+  \item Opcional: recalcular os MCS da seção 18 com o B6 corrigido (rotulado como posterior).
+\end{enumerate}
+
+%=====================================================================
+\section{Estrutura sugerida para o texto final}\label{sec:estrutura}
+%=====================================================================
+
+\begin{table}[h]
+\centering\small
+\begin{tabularx}{\textwidth}{lL}
+\toprule
+capítulo & conteúdo e fonte \\
+\midrule
+1. Introdução & seção 2 deste guia; pergunta, contribuição e resumo dos resultados \\
+2. Revisão bibliográfica & seção 3; \code{metodo_covariancia.md} §2; roteiro §11 \\
+3. Metodologia & seção 6; método §4--5, 10, 12, 14, 16, 18 \\
+4. Dados & seção 4; \code{README.md} (partes 1 e 4) \\
+5. Extração e grafo & seção 5; \code{README.md} (partes 2 e 3); \code{secao18_resultados.md} §2--3 \\
+6. Resultados I: previsão de correlação & H1 (método §8, 11, 13); diádicos G1--G9 (resultados §4--5) \\
+7. Resultados II: carteiras & D1--D9 (método §9, 11, 13, 15, 17); holdout (resultados §6--7) \\
+8. Discussão e conclusão & seções 8--9 deste guia \\
+Apêndices & prompt e esquema; reprodutibilidade (seção~\ref{sec:repro}) \\
+Documento à parte & \code{docs/equacoes/equacoes.tex}: cada equação com variáveis, domínios, resultados e unidades \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Esta é a ordem adotada em \code{monografia/} (ver \code{monografia/ORGANOGRAMA.md}): a metodologia vem antes
+dos dados.
+
+\nota{a ordem ``previsão primeiro, carteira depois'' segue a lógica H1 $\Rightarrow$ H2 e deixa claro que o
+resultado negativo de H2 não vem da falta de informação. Apresentar os desenhos D1--D9 em ordem cronológica,
+com o pré-registro de cada um, mostra a disciplina contra \emph{snooping}.}
+
+%=====================================================================
+\section{Reprodutibilidade}\label{sec:repro}
+%=====================================================================
+
+\begin{itemize}
+  \item Código: repositório \code{NewsManager} (Python, DuckDB, Ollama). Pipeline:
+\begin{verbatim}
+python -m newsmanager {probe,plan,ingest,curate,validate,serve}
+python -m newsmanager.extract {units,run,collect,filter}
+python -m newsmanager.extract {link-prep,link-run,link-verify,link-build,graph-build}
+python -m newsmanager {prices,universe,sectors,h1,backtest}
+python -m newsmanager.backtester {run,compare,notebook}
+python -m newsmanager.grafo <etapa>    # backtests/secao18/fase1.sh, fase2.sh
+\end{verbatim}
+  \item Versões: extração \code{v=a05d0c0dc189}; link \code{l=c49291db2953}; escolhas do dev com sha256
+        \code{ee9e01ad...ef91b82}.
+  \item Texto: \code{monografia/Monografia.tex}; guia das equações: \code{docs/equacoes/equacoes.tex}
+        (ambos compilam com \code{tectonic -X compile}).
+  \item Dados derivados no Google Drive (\code{gdrive:NewsManager}); estado da amostra de 25\% em
+        \code{data/archive/*_25pct/}.
+  \item Testes: ingestão real (\code{tests/test_e2e_subset.py}), extração com Ollama simulado, grafo, preços,
+        backtester (contra uma simulação dia a dia independente) e grafo da seção 18.
+\end{itemize}
+
+\sloppy
+\bibliographystyle{plainnat}
+\bibliography{referencias}
+
+\end{document}

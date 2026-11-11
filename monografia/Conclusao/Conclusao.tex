@@ -1,0 +1,174 @@
+% !TEX root = ../Monografia.tex
+\chapter{Discussão e Conclusões}
+\label{cap:conclusao}
+
+Este trabalho perguntou se a estrutura de relações que um LLM extrai das notícias contém informação sobre
+a covariância futura dos retornos que não está na covariância histórica nem nos modelos de setor e de
+fatores, e se essa informação produz carteiras melhores fora da amostra. A resposta tem duas partes. Sim,
+o grafo de notícias contém essa informação: ele prevê a correlação futura entre pares de ações além do
+histórico, do setor e da co-menção. Não, essa informação não produz carteiras melhores: em nove desenhos de
+carteira, nenhum estimador com notícias reduziu de forma significativa o risco realizado em relação à sua
+referência sem notícias, e em dois desenhos a carteira com notícias foi significativamente pior.
+
+%--------------------------------------------------------------------
+\section{Síntese dos resultados}
+\label{sec:sintese}
+
+\paragraph{A base de relações.} O Qwen2.5-14B-Instruct leu 572.762 artigos do FNSPID, cerca de 36\% do
+corpus elegível, e extraiu 1.270.582 relações, das quais 86,1\% passaram pelo filtro de ruído. Depois da
+ligação aos \emph{tickers}, elas formam um grafo dinâmico com 255.384 nós e 1.064.801 eventos entre 2011 e
+2023. Na anotação automática, cerca de quatro em cada cinco tuplas descrevem uma relação que o texto de
+fato afirma, e o sinal está certo em mais de 90\% das relações existentes.
+
+\paragraph{H1: as notícias preveem a correlação.} Na correlação residual ao fator de mercado, os atributos
+do grafo reduzem o erro de previsão fora da amostra em relação à persistência e ao setor em 84\% dos meses,
+com estatística $t$ de 8,8, e a ampliação da amostra de artigos deixou o ganho igual ou um pouco maior. Os
+dois canais previstos pela teoria aparecem nos dados. A exposição comum a entidades não negociadas é o
+mais forte e sobrevive aos controles de setor e de atenção da mídia num universo que não foi escolhido
+pelas notícias (H1a). O tipo de relação direta importa, com a concorrência à frente (H1b). Em magnitude, o
+efeito é pequeno: cerca de três décimos de ponto de $R^2$ e quatro milésimos de correlação por
+desvio-padrão de exposição comum.
+
+\paragraph{H2: as notícias não melhoram as carteiras.} A Tabela~\ref{tab:sintese-h2} mostra o padrão. Sem
+restrição de peso, as notícias empatam com a referência setorial ou a pioram (D1, D2 e D9); com
+restrições, empatam (D3 a D7); no mínimo \emph{tracking error}, pioram de forma crescente com o número de
+ações (D8). O resultado se repete em universos de 50, 100 e 200 ações e nas duas amostras de artigos, e,
+sempre que as notícias pareceram ajudar, o placebo ajudou tanto quanto elas.
+
+Os dois resultados não se contradizem. O grafo sabe algo sobre o co-movimento, mas o que ele sabe é
+pouco, está na média dos pares e já está, em boa parte, no setor e nos fatores. A carteira de variância
+mínima, por sua vez, não depende da precisão média das correlações, e sim da estrutura da matriz que o
+otimizador inverte.
+
+%--------------------------------------------------------------------
+\section{Por que a informação não vira carteira melhor}
+\label{sec:mecanismos}
+
+\paragraph{O ganho de previsão é pequeno e está no lugar errado.} O ganho das notícias melhora a correlação
+\emph{média} dos pares, enquanto a GMV depende sobretudo dos autovalores e autovetores da matriz. O D1
+mostra essa diferença de forma direta: o alvo com setor e notícias teve o menor erro quadrático de
+correlação entre todos os estimadores e, mesmo assim, uma carteira 3,7\% pior que a correlação constante; o
+fator único de \citet{ledoit2003}, ao contrário, teve o maior erro de correlação e a melhor carteira.
+Melhorar a previsão das correlações par a par não é o mesmo que melhorar a matriz para a otimização.
+
+\paragraph{A inversão amplifica o erro da estrutura acrescentada.} As notícias acrescentam uma estrutura
+esparsa e de pequena magnitude à correlação residual. No D2, essa estrutura aumentou o número de condição
+da matriz em todos os universos, de 6\% com 50 ações a 45\% com 200. Como a GMV inverte a matriz, os
+autovalores pequenos, os mais afetados pelo erro, recebem os maiores pesos, e o otimizador explora
+justamente o erro da estimativa \citep{lopezdeprado2016}. O Black-Litterman do D9 mostra que o problema
+não é só de condicionamento: nele o número de condição até caiu, mas milhares de covariâncias foram
+movidas por visões cujo erro tem a mesma ordem de grandeza do sinal que carregam, e a variância realizada
+subiu 14\%.
+
+\paragraph{As restrições já regularizam a matriz.} Com venda a descoberto proibida e teto de peso, a
+carteira de variância mínima equivale a usar uma matriz encolhida \citep{jagannathan2003}. No D3 e nos
+otimizadores do D4 ao D7, todos os estimadores baseados em fatores ficaram a menos de um ponto de
+volatilidade uns dos outros, e o placebo empatou com as notícias verdadeiras. Quando as restrições já
+fazem o trabalho de estabilizar a matriz, não sobra espaço para a informação das notícias se manifestar.
+
+\paragraph{O que o grafo sabe, o setor já sabe em boa parte.} Na regressão com todos os atributos, os
+coeficientes de setor caem a menos da metade quando as notícias entram: as duas fontes explicam, em grande
+parte, a mesma coisa. Cerca de metade das arestas entre ações liga empresas do mesmo setor, e o modelo de
+fator de mercado com resíduo encolhido para o setor, sem nenhuma notícia, já empata com o fator único de
+Ledoit e Wolf.
+
+Em conjunto, os mecanismos explicam por que o resultado negativo de H2 não vem da falta de informação. A
+informação existe e é medida com precisão (H1), mas é pequena demais e está numa dimensão da matriz, a
+média das correlações par a par, que a otimização de carteiras não valoriza. A pergunta relevante para a
+carteira não é se um sinal prevê correlações, mas se ele melhora a matriz nas direções em que o otimizador
+a usa.
+
+%--------------------------------------------------------------------
+\section{O sinal extraído pelo LLM e a correlação}
+\label{sec:sinal-llm}
+
+O resultado mais inesperado do trabalho está na análise do sinal (Seção~\ref{sec:sinal}): a aresta direta
+com sinal tem efeito \emph{negativo} sobre a correlação futura, quando o esperado era positivo. O problema
+não está na qualidade da extração, pois o sinal das relações existentes está certo em mais de 90\% dos
+casos. O problema é o que o sinal significa. Para o LLM, e para o texto que ele lê, uma relação negativa
+descreve o efeito econômico de uma empresa sobre a outra: o lançamento de um produto por um concorrente é
+ruim para a rival. Mas concorrentes do mesmo ramo estão expostos aos mesmos choques de demanda, de custo e
+de regulação, e suas ações andam juntas.
+
+O achado tem uma consequência para quem usa o sentimento extraído por LLMs como indicador de co-movimento:
+\textbf{a direção de um efeito econômico não é a direção da correlação entre os retornos}. Para estimar a
+covariância, a existência e a intensidade do vínculo são a informação útil; o sinal só seria útil numa
+janela de evento, e não numa correlação mensal. Nas carteiras, a questão do sinal não interfere: os
+atributos que alimentam os estimadores usam o módulo dos vínculos.
+
+%--------------------------------------------------------------------
+\section{Comparação com a literatura}
+\label{sec:comparacao}
+
+Os três antecedentes mais próximos relatam ganhos de carteira com informação textual
+(Seção~\ref{sec:texto-sigma}). A primeira parte desses resultados se confirma aqui: as notícias preveem a
+correlação, e o grafo extraído pelo LLM prevê mais que a simples co-menção de \citet{tang2019}. A segunda
+não se confirma, e duas diferenças de desenho ajudam a entender por quê.
+
+A primeira é a referência. Aqui, toda matriz com notícias foi comparada a uma referência que já usa o
+setor e, em quase todos os desenhos, um fator de mercado, além de um placebo com a mesma esparsidade.
+Contra referências mais fracas, as notícias também ganhariam: no D1, o alvo com notícias tem 15\% menos
+variância que a covariância amostral, mas o placebo tem a mesma vantagem. Um ganho medido contra a
+covariância amostral mistura o efeito do conteúdo do texto com o efeito genérico de impor alguma estrutura
+à matriz.
+
+A segunda é a janela. \citet{becquin2023} estimam a covariância com três meses de dados, um regime em que
+a amostra é muito pouco informativa e qualquer \emph{prior} razoável tende a ajudar. Aqui, a janela foi
+de 252 pregões, e universos maiores, com menos observações por parâmetro, desfavoreceram as notícias em
+vez de favorecê-las.
+
+O resultado converge com a literatura que mostra a dificuldade de superar estimadores simples fora da
+amostra \citep{demiguel2009}: as estruturas que funcionam bem na carteira são as que reduzem o número de
+parâmetros efetivos da matriz, e não as que acrescentam informação par a par.
+
+%--------------------------------------------------------------------
+\section{Limitações}
+\label{sec:limitacoes}
+
+\begin{itemize}
+  \item \textbf{Amostra de artigos.} Por limite de orçamento, o LLM leu cerca de 36\% dos artigos
+        elegíveis. A ampliação de 25\% para 36\% não mudou nenhuma conclusão, o que sugere, sem garantir,
+        que o corpus completo também não mudaria.
+  \item \textbf{Qualidade da extração.} A qualidade das tuplas foi medida por outro LLM, e não por
+        anotadores humanos, em 567 tuplas, e o \emph{recall} não foi medido. A classe da relação é a
+        medida mais fraca (62\% de acerto), e a concorrência, o grupo de maior efeito em H1b, é a classe
+        menos confiável.
+  \item \textbf{Preços e universos.} O painel de preços é formado por coletas emendadas, não cobre todo o
+        S\&P~500 e perde 3.137 \emph{tickers} em 2020. Essas falhas afetam igualmente os estimadores com e
+        sem notícias. O universo das carteiras é escolhido pelo número de citações, a própria variável em
+        teste, e a classificação setorial é a atual, aplicada a todo o período.
+  \item \textbf{Tempo e memória do modelo.} As notícias não têm hora de publicação, e o grafo descarta a
+        informação do próprio dia. O período avaliado não é posterior aos dados de treino do modelo de
+        linguagem; o teste de anonimização não encontrou vazamento, mas tem pouco poder estatístico.
+  \item \textbf{Alcance.} Os resultados valem para ações americanas de grande capitalização, entre 2013 e
+        2023, com rebalanceamento mensal e as carteiras estudadas.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Trabalhos futuros}
+\label{sec:futuros}
+
+\begin{enumerate}
+  \item \textbf{Usos que valorizam a correlação par a par.} A informação do grafo melhora a previsão da
+        correlação de cada par, e não a estrutura de autovalores. Aplicações em que o par importa por si,
+        como a seleção de pares para \emph{hedge} e a previsão de contágio entre empresas ligadas, podem
+        aproveitar melhor esse sinal.
+  \item \textbf{A exposição comum como fator.} H1a sugere que a exposição a entidades como o Federal
+        Reserve ou o petróleo descreve cargas em fatores de risco. Usar o grafo para escolher fatores
+        observáveis e orientar a estimação das cargas, em vez de alterar correlações residuais par a par,
+        não aumenta o número de parâmetros efetivos da matriz.
+  \item \textbf{Eventos e horizontes curtos.} Um estudo com notícias datadas por hora e janelas de evento
+        poderia testar se o sinal do LLM prevê o co-movimento nos dias seguintes à notícia, onde a direção
+        do efeito econômico deveria importar.
+  \item \textbf{Extração mais completa e auditável.} Processar o corpus inteiro, guardar o trecho que
+        justifica cada tupla e medir precisão e \emph{recall} com anotação humana permitiriam separar o
+        que é limite da informação das notícias do que é limite da extração.
+\end{enumerate}
+
+Mostrar que um sinal extraído do texto prevê alguma grandeza financeira é o primeiro passo, e não o
+último. Entre a previsão e a carteira há um otimizador que amplifica erros, restrições que já regularizam
+a matriz e referências simples difíceis de superar. Um protocolo com pré-registro, placebo e confirmação
+em amostras e universos diferentes é o que permite distinguir, nesse caminho, a informação real do efeito
+genérico de regularizar.
+
+\clearpage

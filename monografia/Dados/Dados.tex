@@ -1,0 +1,164 @@
+% !TEX root = ../Monografia.tex
+\chapter{Dados}
+\label{cap:dados}
+
+O trabalho usa três fontes de dados: o corpus de notícias e o painel de preços do conjunto FNSPID
+\citep{dong2024fnspid} e a classificação setorial das empresas, obtida dos registros da SEC, a
+comissão de valores mobiliários dos Estados Unidos. Este capítulo descreve cada fonte, os problemas
+encontrados nela e como foram tratados, e os universos de ações usados nos testes.
+Os números foram medidos sobre os arquivos usados, e não tomados da documentação do conjunto.
+
+%--------------------------------------------------------------------
+\section{O corpus de notícias FNSPID}
+\label{sec:fnspid}
+
+\subsection{Descrição do conjunto}
+
+O FNSPID (\emph{Financial News and Stock Price Integration Dataset}) reúne notícias financeiras e
+séries de preços de ações dos Estados Unidos e está disponível publicamente no repositório Hugging
+Face \citep{dong2024fnspid}. A parte de notícias é um único arquivo CSV de 21,6~GiB
+(23.232.979.597 bytes) com doze colunas: índice, data, título, \emph{ticker}, URL, editor, autor, texto
+do artigo e quatro resumos extrativos gerados por algoritmos (LSA, Luhn, TextRank e LexRank).
+
+O arquivo tem uma linha por par (artigo, \emph{ticker}): um artigo que cita cinco empresas aparece cinco
+vezes. Ele mistura formatos de fontes diferentes e, das suas 15.549.299 linhas, 63,1\% não têm
+\emph{ticker} e 75,9\% não têm texto, só título. Na parte final estão 799.037 artigos do portal russo
+lenta.ru, de notícias gerais e sem nenhum \emph{ticker}.
+
+\subsection{Ingestão e curadoria}
+
+O arquivo foi lido diretamente do repositório remoto, em fragmentos independentes, com o banco de dados
+analítico DuckDB. Como o texto dos artigos contém quebras de linha dentro de campos entre aspas, as
+fronteiras dos fragmentos são localizadas por um padrão estrutural (uma quebra de linha seguida de um
+número e de uma data) que não ocorre dentro do texto; validado em amostras de várias regiões do arquivo,
+o procedimento não produziu nenhum registro quebrado.
+
+A camada curada separa os artigos (uma linha por artigo) das suas marcações de \emph{ticker} (uma linha
+por par artigo--\emph{ticker}), o que elimina a duplicação do formato original. O identificador do artigo
+é a URL ou, quando ela não existe, um \emph{hash} do texto normalizado. As 15.549.299 linhas do arquivo se
+reduzem a 12.746.534 artigos distintos. Desses, 2.953.850 têm ao menos um \emph{ticker} marcado, somando
+5.730.655 marcações de 8.552 \emph{tickers} distintos. O número de artigos marcados cresce de 6 mil em
+2009 para 123 mil em 2011 e fica entre 120 mil e 340 mil por ano até 2023. Antes de 2010 quase não há
+artigos marcados, o que, somado à escassez de relações extraídas nesses anos
+(Capítulo~\ref{cap:extracao}), restringe o período útil do trabalho a 2011--2023.
+
+A data de publicação do corpus não tem hora: todo registro está à meia-noite. Uma notícia datada do
+dia $d$ pode, portanto, ter saído depois do fechamento do mercado em $d$. Por isso, como já dito na
+Seção~\ref{sec:visao-geral}, todas as decisões tomadas em $t$ usam apenas notícias com data anterior
+a $t$.
+
+\subsection{Unidades de extração e amostra}
+
+As unidades enviadas ao LLM são os artigos com texto, depois de três reduções: cada artigo aparece uma
+só vez, qualquer que seja o número de \emph{tickers} marcados; artigos republicados com o mesmo texto
+sob URLs diferentes são reunidos por um \emph{hash} do texto normalizado; e os 10.322.619 artigos sem
+texto ou com menos de 200 caracteres são excluídos. Os artigos do lenta.ru também foram excluídos, por estarem fora do
+escopo do trabalho, o que reduziu as unidades de 2.321.501 para \textbf{1.607.982}.
+
+Por restrição de orçamento de processamento, a extração foi feita numa amostra. A seleção é
+determinística e aninhada: cada unidade recebe um número pseudoaleatório derivado do \emph{hash} do seu
+identificador, e a amostra de fração $f$ contém as unidades com número menor que $f$. Assim, uma amostra
+maior sempre contém a menor, e ampliá-la exige processar apenas as unidades novas. A extração foi
+feita primeiro com 25\% das unidades e depois ampliada até 572.762 unidades, 35,6\% do total, quando o
+orçamento acabou. Como as unidades foram processadas em ordem do próprio \emph{hash}, a parte extraída é
+uma subamostra uniforme do corpus.
+
+%--------------------------------------------------------------------
+\section{O painel de preços}
+\label{sec:precos}
+
+Os preços vêm do próprio FNSPID: um arquivo compactado de 590~MB com um CSV por \emph{ticker}, 7.693
+\emph{tickers} e histórico de 1962 a 2023, conferido pelo \emph{hash} SHA-256 publicado. O trabalho usa
+os pregões de janeiro de 2005 a dezembro de 2023, que somam 21,5 milhões de observações. O retorno
+diário é calculado pelo preço de fechamento ajustado por proventos e desdobramentos.
+
+O arquivo tem problemas que, se ignorados, produziriam retornos absurdos e afetariam diretamente as
+covariâncias. A Tabela~\ref{tab:precos} resume o que foi encontrado e o tratamento dado.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Problemas do painel de preços do FNSPID e tratamento.}
+\label{tab:precos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{4.6cm}>{\raggedright\arraybackslash}p{3.4cm}X}
+\toprule
+problema & tamanho & tratamento \\
+\midrule
+coletas emendadas em 2015-01-02, 2020-04-02, 2020-07-02 e 2020-07-06 & 22.678 retornos & retorno do dia marcado como inválido \\
+lote antigo encerrado em 2020-07 & 3.137 \emph{tickers} & marcados como truncados; saem dos universos quando a série acaba \\
+pico de cotação que se reverte no dia seguinte & 7.760 dias & os dois retornos marcados como inválidos; ação excluída do universo se houver pico na janela \\
+preço parado com volume zero & 436.540 dias & marcados; afetam sobretudo ações pequenas \\
+pregão faltando na série & 81.050 casos & retorno de vários dias marcado como inválido \\
+duas ordens de coluna nos arquivos & --- & leitura pelo cabeçalho \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+O problema mais grave é a emenda de coletas. Cada lote de dados foi ajustado por proventos e
+desdobramentos apenas até a data da sua própria coleta, de modo que, na data em que um lote termina e o
+seguinte começa, o preço ajustado salta. Em 2020-07-06, por exemplo, aparecem quedas de 74,9\% na Apple
+(desdobramento de 4 para 1), 94,9\% na Alphabet e 92,4\% na Tesla, e quedas menores em empresas que
+pagaram dividendos depois de 2020, como Coca-Cola, ExxonMobil e Pfizer. As datas de emenda foram
+identificadas pelo fator de ajuste $f=\text{fechamento ajustado}/\text{fechamento}$, que numa série
+consistente só muda em datas ex-dividendo: nas quatro datas da tabela, entre 100 e 1.918
+\emph{tickers} têm salto de $f$ acima de 5\% no mesmo dia, contra no máximo 60 em qualquer outra data.
+Dentro de cada lote, os retornos estão corretos, e quedas reais grandes são mantidas.
+
+Depois da limpeza, restam 20.958.624 retornos válidos de 7.619 \emph{tickers}. O truncamento em
+2020-07 tem uma consequência que precisa ser declarada: ações muito citadas, como Bank of America,
+Facebook, Netflix, Mastercard, Cisco e McDonald's, ficam sem preço depois dessa data e saem dos
+universos. Além disso, o painel não inclui algumas grandes empresas, como UnitedHealth, Verizon,
+Moderna e Berkshire Hathaway, e não tem retornos de deslistagem: um retorno ausente conta como zero
+nas carteiras. Na estimação, um retorno inválido é tratado como ausente: fica fora das correlações de
+pares e, nas covariâncias da janela, entra como zero depois de centrado, o que vale igualmente para
+todos os estimadores comparados.
+
+%--------------------------------------------------------------------
+\section{Universos de ações}
+\label{sec:universos}
+
+Os testes usam dois universos, ambos definidos em cada data de rebalanceamento $t$ (o primeiro pregão
+de cada mês, de janeiro de 2011 a dezembro de 2023, 156 datas) apenas com informação anterior a $t$.
+
+\paragraph{Ações mais citadas.} Nas regressões fora da amostra e em todas as carteiras (desenhos D1 a
+D9), o universo reúne as $n$ ações com
+mais eventos no grafo nos 365 dias anteriores a $t$, entre as que, nos 252 pregões anteriores, têm ao
+menos 95\% de retornos válidos, nenhum pico, preço de pelo menos US\$~5 e volume financeiro mediano de
+pelo menos US\$~5 milhões. Fundos e índices são excluídos. Foram usados $n=50$, 100 e 200, com 166, 315
+e 651 \emph{tickers} distintos ao longo do período, respectivamente, e troca de 4\% a 5\% das ações
+por mês. Há uma exceção declarada à regra de usar só o passado: uma ação cuja série termina por
+truncamento do arquivo antes do fim do mês de carteira é excluída, porque isso é uma propriedade do
+arquivo, e não do mercado. Deslistagens reais não são filtradas.
+
+Esse universo maximiza a cobertura das notícias e mantém o número de ações abaixo do número de
+observações da janela, o que deixa a covariância amostral bem definida. Ele tem, porém, um problema: é
+escolhido pela própria variável que se quer testar, e as ações mais citadas tendem a ser grandes e
+ligadas entre si. Por isso os testes de pares usam um segundo universo.
+
+\paragraph{S\&P 500 em cada data.} Nos testes de pares de H1a e H1b (Seção~\ref{sec:testes-pares}), o
+universo é o conjunto de membros do índice S\&P~500 no último registro anterior a $t$, segundo um
+histórico público da composição do índice, com retorno válido em ao menos 95\% dos 252 pregões
+anteriores. São entre 344 e 474 ações por mês, com mediana de 390 até junho de 2020 e de 355 depois, por
+causa dos \emph{tickers} truncados; não é, portanto, o índice completo. O universo não depende das
+notícias, o que torna os testes mais limpos. Esse universo é usado apenas nas regressões de pares, e não em
+carteiras.
+
+%--------------------------------------------------------------------
+\section{Classificação setorial e índice de referência}
+\label{sec:setores}
+
+\paragraph{Setores.} O setor é o controle mais importante do trabalho, porque é a forma mais simples de
+estrutura que o grafo de notícias poderia estar apenas reproduzindo. Para cada \emph{ticker} dos
+universos, obteve-se o identificador da empresa na SEC (CIK) pela lista atual de \emph{tickers} da SEC
+ou, para empresas que mudaram de \emph{ticker} ou deixaram de ser negociadas, por busca de nome no
+sistema EDGAR, conferida contra os nomes anteriores registrados. Do CIK vem o código SIC da empresa,
+que é mapeado para as classificações de Fama e French de 12 e 49 indústrias e para o SIC de dois
+dígitos. Dos 902 \emph{tickers} dos universos, 869 receberam setor (96\%), o que cobre 99,8\% das
+combinações ação--mês do universo de 100 ações mais citadas. Pares sem setor recebem zero nos
+indicadores de mesmo setor. Como a classificação é a atual, uma empresa que mudou de ramo carrega o
+setor de hoje para todo o período; essa limitação é declarada.
+
+\paragraph{Índice de referência.} As carteiras usam como referência o SPY, fundo que replica o
+S\&P~500, do próprio painel de preços.
+
+\clearpage

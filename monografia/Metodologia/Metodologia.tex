@@ -1,0 +1,541 @@
+% !TEX root = ../Monografia.tex
+\chapter{Metodologia}
+\label{cap:metodologia}
+
+Este capítulo descreve como a pergunta de pesquisa foi transformada em testes. A lógica é a da
+Seção~\ref{sec:pergunta}: primeiro se verifica se o grafo de notícias prevê a correlação futura entre
+ações (H1) e, só então, se essa informação melhora as carteiras quando entra na estimação da matriz de
+covariância (H2). A Seção~\ref{sec:visao-geral} dá uma visão geral do processo, cujos detalhes de dados
+e de extração ficam para os Capítulos~\ref{cap:dados} e~\ref{cap:extracao}. As seções seguintes tratam
+do protocolo que protege os testes contra a seleção de resultados, das hipóteses, dos atributos
+extraídos do grafo, dos testes de previsão de correlação, dos estimadores de $\Sigma$, das referências
+e do placebo, das carteiras, do desenho experimental e dos testes estatísticos.
+
+%--------------------------------------------------------------------
+\section{Visão geral}
+\label{sec:visao-geral}
+
+O processo tem cinco etapas:
+\begin{enumerate}
+  \item \textbf{Extração.} Um LLM lê cada artigo do corpus e devolve tuplas
+        \[(\text{agente}_a,\ \text{agente}_b,\ \text{tipo},\ \text{direção},\ \text{força}),\]
+        datadas pela publicação do artigo (Capítulo~\ref{cap:extracao}).
+  \item \textbf{Grafo.} As tuplas são filtradas, os agentes são unificados e associados a
+        \emph{tickers}, e cada tupla vira um evento datado entre dois nós. O grafo numa data $t$ é a
+        agregação dos eventos anteriores a $t$ (Seção~\ref{sec:atributos}).
+  \item \textbf{Atributos de par.} Do grafo em $t$ saem medidas da ligação entre cada par de ações do
+        universo: vínculo direto, exposição comum a entidades não negociadas e coocorrência.
+  \item \textbf{Estimação de $\Sigma$.} Os atributos entram na matriz de covariância como alvo de
+        \emph{shrinkage}, estrutura residual de um modelo de fatores ou visões de Black-Litterman,
+        conforme o estimador (Seção~\ref{sec:estimadores}).
+  \item \textbf{Carteira e avaliação.} Cada $\hat\Sigma$ alimenta um otimizador, a carteira é mantida
+        até o rebalanceamento seguinte e os retornos realizados são comparados com os de estimadores de
+        referência e de um placebo (Seções~\ref{sec:carteiras-metodo} a~\ref{sec:metricas}).
+\end{enumerate}
+
+A Figura~\ref{fig:pipeline} resume o fluxo. As etapas em azul são descritas no
+Capítulo~\ref{cap:extracao}; as em laranja, neste capítulo.
+
+\begin{figure}[htbp]
+\centering
+\input{Metodologia/Figuras/pipeline}
+\caption{Visão geral do processo, das notícias à avaliação das carteiras. Em cinza, as entradas; em
+azul, a extração e a construção do grafo; em laranja, a estimação e a avaliação. Os preços entram na
+estimação apenas com a janela anterior a $t$ e, na avaliação, com o período posterior.}
+\label{fig:pipeline}
+\end{figure}
+
+Uma regra vale para todas as etapas: nada do que entra numa decisão tomada em $t$ pode depender de
+informação posterior a $t$. Como a data de publicação das notícias do corpus não tem hora
+(Capítulo~\ref{cap:dados}), uma notícia do dia $d$ pode ter saído depois do fechamento; o grafo em $t$
+usa, por isso, apenas eventos com data estritamente anterior a $t$.
+
+%--------------------------------------------------------------------
+\section{Protocolo de pré-registro}
+\label{sec:preregistro}
+
+Comparar vários estimadores, carteiras e parâmetros no mesmo período cria o risco de encontrar, por
+acaso, uma combinação que parece funcionar. Para controlar esse risco, o trabalho adotou um protocolo de
+pré-registro incremental:
+
+\begin{itemize}
+  \item cada desenho de teste foi escrito e versionado no repositório do projeto \emph{antes} de ser
+        executado com os dados reais, com o modelo, as referências, a estatística, o nível de
+        significância e o critério de sucesso fixados;
+  \item qualquer mudança feita depois da execução foi registrada como tal, com o motivo, e os
+        resultados das versões anteriores foram mantidos;
+  \item quando um desenho falhou e um novo desenho foi proposto para a mesma hipótese, o nível de
+        significância do novo foi reduzido pela correção de Bonferroni ($0{,}05/k$ para o $k$-ésimo
+        desenho), de modo que tentar de novo não aumenta a chance de um falso positivo;
+  \item os parâmetros de construção do grafo (janela de 365 dias e meia-vida de 90 dias) e a janela de
+        estimação (252 pregões) foram fixados antes do primeiro teste e não foram calibrados;
+  \item todo resultado de carteira é confrontado com um placebo e confirmado em universos de outros
+        tamanhos, e os primeiros desenhos foram refeitos depois que a amostra de artigos foi ampliada.
+\end{itemize}
+
+Os desvios em relação aos pré-registros são declarados no ponto do texto em que ocorrem, e as análises
+feitas depois de conhecido um resultado são identificadas como exploratórias.
+
+%--------------------------------------------------------------------
+\section{Hipóteses}
+\label{sec:hipoteses}
+
+As duas hipóteses gerais foram apresentadas na Seção~\ref{sec:pergunta}. H1 diz que o grafo contém
+informação sobre a correlação futura; H2, que essa informação melhora as carteiras. Para que H1 possa ser
+testada, é preciso dizer \emph{por qual canal} o grafo carregaria essa informação. A teoria de finanças
+oferece dois canais, que dão as duas hipóteses específicas de H1. São, ao todo, três hipóteses,
+resumidas na Tabela~\ref{tab:hipoteses}.
+
+\paragraph{H1a: exposição comum.} Nos modelos de fatores, duas ações covariam porque estão expostas às
+mesmas fontes de risco sistemático \citep{ross1976,chan1999}. Parte dessas fontes são entidades que não
+são negociadas como ações, como a política monetária, o preço do petróleo ou a economia chinesa, e as
+notícias registram quais empresas são afetadas por cada uma. Se duas empresas aparecem ligadas às mesmas
+entidades, elas devem ter cargas parecidas nos fatores correspondentes e, portanto, correlação maior. A
+exposição comum $g_{ij}$ da Equação~\eqref{eq:exposicao} mede essa semelhança, e a hipótese é que ela
+preveja a correlação futura do par além da correlação histórica e do setor. O setor de
+\citet{elton1973} é o controle natural, porque também é uma forma de exposição comum, só que fixa e
+grosseira.
+
+\paragraph{H1b: tipo de relação.} A literatura de vínculos econômicos mostra que relações diretas entre
+empresas transmitem choques, e que o canal depende do tipo de relação. Clientes e fornecedores dividem
+o mesmo fluxo de demanda \citep{cohen2008,menzly2010}; concorrentes disputam o mesmo mercado de produtos e
+respondem aos mesmos choques de demanda e de custo \citep{hoberg2016}; empresas com tecnologias próximas
+compartilham choques de inovação \citep{lee2019}; e participações acionárias e aquisições ligam
+diretamente os fluxos de caixa. Nem todo vínculo, porém, deveria ter o mesmo efeito: uma disputa
+judicial ou uma ação regulatória não cria exposição econômica duradoura. A hipótese é que os efeitos dos
+grupos de relação sobre a correlação residual futura sejam diferentes entre si. Como cada relação
+extraída também tem um sinal, a análise de H1b examina ainda se o sinal atribuído pelo LLM indica a
+direção do co-movimento.
+
+\paragraph{H2: as notícias como \emph{prior} da correlação.} Na leitura bayesiana do \emph{shrinkage}, o
+alvo é a média de um \emph{prior} sobre $\Sigma$, e um alvo mais próximo da covariância verdadeira dá uma
+estimativa melhor \citep{ledoit2004honey}. \citet{becquin2023} mostram que um alvo construído com texto
+pode ajudar, e \citet{lu2023}, que uma rede externa aos retornos pode estruturar a parte da covariância que
+o mercado não explica. Se H1 vale, as notícias preveem a correlação de cada par, e essa previsão é um
+\emph{prior} candidato. A hipótese é que a carteira de variância mínima construída com o \emph{prior} de
+setor e notícias tenha variância realizada menor que a construída com o \emph{prior} só de setor, a
+referência que encarna \citet{elton1973}, e que o ganho venha do conteúdo das notícias: a carteira deve
+superar também um placebo em que os atributos de notícia são embaralhados entre as ações. H2 foi testada
+numa sequência de nove desenhos (Tabela~\ref{tab:desenhos}), que variam o modo de levar as notícias à
+matriz e o otimizador.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Hipóteses do trabalho, fundamentação e teste.}
+\label{tab:hipoteses}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{3.6cm}}
+\toprule
+& hipótese & fundamentação & teste \\
+\midrule
+H1a & a exposição comum a entidades não negociadas prevê a correlação futura do par além do histórico e do setor & modelos de fatores; \citet{elton1973}, \citet{chan1999} & ganho fora da amostra (escada E0--E4) e coeficiente de $g_{ij}$ nos testes de pares \\
+H1b & os tipos de relação direta têm efeitos diferentes sobre a correlação residual futura & \citet{cohen2008}, \citet{menzly2010}, \citet{hoberg2016} & Wald da igualdade dos coeficientes de grupo \\
+H2 & a variância mínima com o \emph{prior} de setor e notícias tem variância realizada menor que com o \emph{prior} de setor e que com o placebo & \citet{ledoit2004honey}, \citet{becquin2023}, \citet{lu2023} & razão de variâncias, placebo e confirmação em outros universos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+O trabalho se limita a essas três hipóteses de propósito. Cada uma tem um mecanismo econômico descrito na
+literatura, uma previsão fixada antes do teste e uma estatística própria, e cada uma é examinada a fundo:
+com controles que separam o canal das explicações mais simples (histórico, setor, atenção da mídia), com
+inferência adequada à dependência entre pares e, nas carteiras, com placebo e confirmação em universos de
+tamanhos diferentes. Investigar poucas hipóteses bem fundamentadas
+com esse cuidado informa mais do que testar muitas ideias com menos rigor, e reduz o risco de que um
+resultado positivo surja apenas do número de tentativas.
+
+%--------------------------------------------------------------------
+\section{Atributos de par a partir do grafo}
+\label{sec:atributos}
+
+\subsection{O grafo numa data}
+
+Cada relação extraída e filtrada é um evento $e$ entre dois nós, com data $t_e$, classe de relação
+$c_e$, sinal $\mathrm{sgn}_e\in\{-1,+1\}$ e força $s_e\in[0,1]$. O grafo na data $t$ agrega os eventos
+da janela $[t-W,\,t)$, com $W=365$ dias corridos, ponderados por um decaimento exponencial de meia-vida
+$\tau$:
+\begin{equation}
+  w_e(t) = \mathrm{sgn}_e\, s_e\, 0{,}5^{\,(t-t_e)/\tau}.
+  \label{eq:peso-evento}
+\end{equation}
+A meia-vida é $\tau=90$ dias em todos os testes, valor fixado sem calibração.
+
+\subsection{Vínculo direto}
+
+Para duas ações $i$ e $j$ do universo, o vínculo direto soma os eventos entre elas, nos dois sentidos.
+Na forma com sinal, $w_{ij}=\sum_e w_e(t)$; separando por sinal, $w^+_{ij}$ e $w^-_{ij}$ são as somas,
+em módulo, dos eventos positivos e negativos; e, por grupo $k$ de classes de relação,
+$d^{(k)}_{ij}=\sum_{e:\,c_e\in k}|w_e(t)|$. Os grupos reúnem classes com efeito econômico parecido sobre
+o co-movimento. Nas regressões que alimentam as carteiras, são cinco: cadeia (\emph{supply chain} e
+parceria), concorrência, controle (participação acionária e fusões e aquisições), impacto e outros. Nos
+testes de H1b, a cadeia e a parceria são separadas e há um grupo legal e regulatório, o que dá seis
+grupos mais o residual. Como os vínculos têm cauda longa, entram nas regressões como $\log(1+d)$ ou, com
+sinal, como $\mathrm{sgnlog}(w)=\mathrm{sgn}(w)\log(1+|w|)$.
+
+\subsection{Exposição comum}
+
+Arestas diretas entre ações são raras, mas muitos pares compartilham alguma entidade que não é
+negociada, como o Federal Reserve, o petróleo ou a China (Capítulo~\ref{cap:extracao}). A exposição
+comum mede essa ligação indireta. Seja $\tilde A$ a matriz ações $\times$ entidades fora do universo, com
+$\tilde A_{im}$ igual à soma dos eventos entre a ação $i$ e a entidade $m$. Cada coluna é ponderada pelo
+inverso da frequência da entidade (IDF),
+\[
+  \mathrm{idf}_m=\log\frac{n_t}{\mathrm{df}_m},
+\]
+em que $n_t$ é o número de empresas com \emph{ticker} presentes no grafo da janela e $\mathrm{df}_m$ é o
+número delas ligadas a $m$. Assim, uma entidade ligada a quase todas as empresas, como ``S\&P 500'',
+pesa pouco, e ``petróleo'' pesa para as petroleiras. Com as linhas normalizadas para norma unitária, a
+exposição comum é o cosseno
+\begin{equation}
+  g_{ij} = \bigl(\tilde A\tilde A^\top\bigr)_{ij} = \cos(\tilde A_i,\tilde A_j).
+  \label{eq:exposicao}
+\end{equation}
+A matriz $G=[g_{ij}]$ é a projeção do grafo bipartido ações--entidades sobre as ações. Uma ação sem
+nenhuma entidade na janela tem $g_{ij}=0$ com todas as outras. Nas regressões do universo das ações mais
+citadas, $\tilde A$ usa o módulo dos eventos, e $g_{ij}\in[0,1]$; nos testes de pares do universo do
+S\&P~500, usa o sinal, e $g_{ij}\in[-1,1]$, negativo quando as duas ações se ligam às mesmas entidades com
+efeitos opostos.
+
+\subsection{Controles}
+
+Três atributos separam o conteúdo das relações de efeitos mais simples:
+\begin{itemize}
+  \item \textbf{coocorrência}: número de artigos extraídos em que $i$ e $j$ aparecem em algum evento,
+        com ou sem relação entre si; separa ``o LLM encontrou uma relação'' de ``saíram no mesmo
+        texto'';
+  \item \textbf{co-menção}: número de artigos do corpus marcados com os dois \emph{tickers}, a variável
+        de \citet{tang2019};
+  \item \textbf{setor}: indicadores de mesmo setor na classificação Fama-French de 49 indústrias e no
+        código SIC de dois dígitos, o controle de \citet{elton1973}.
+\end{itemize}
+Os testes de pares acrescentam a atenção da mídia, $\log(1+m_i)+\log(1+m_j)$ e
+$|\log(1+m_i)-\log(1+m_j)|$, em que $m_i$ é o número de eventos da ação $i$ na janela, e a distância de
+tamanho entre as duas empresas.
+
+%--------------------------------------------------------------------
+\section{Previsão de correlação e testes de pares}
+\label{sec:metodo-h1}
+
+H1 é testada de dois modos complementares. O primeiro mede, fora da amostra, quanto os atributos de
+notícia melhoram a previsão da correlação de cada par, no universo das ações mais citadas. O segundo
+estima o efeito de cada atributo com inferência adequada a dados de pares, no universo do S\&P~500, que
+não depende das notícias (Capítulo~\ref{cap:dados}).
+
+\subsection{Regressão preditiva de correlação}
+
+Em cada data de rebalanceamento $t$, para cada par $(i,j)$ do universo, a variável dependente é a
+correlação realizada no período de carteira seguinte, $\rho^{\mathrm{fut}}_{ij}$, na escala de Fisher
+$z(\rho)=\operatorname{atanh}(\rho)$, que estabiliza a variância. A especificação mais completa é
+\begin{equation}
+  z(\rho^{\mathrm{fut}}_{ij}) = a + b\,z(\rho^{\mathrm{hist}}_{ij})
+  + \sum_k \beta_k\log\bigl(1+d^{(k)}_{ij}\bigr) + \gamma\, g_{ij}
+  + \theta^\top x_{ij} + \varepsilon_{ij},
+  \label{eq:h1}
+\end{equation}
+em que $\rho^{\mathrm{hist}}_{ij}$ é a correlação nos 252 pregões anteriores a $t$ e $x_{ij}$ reúne
+coocorrência, co-menção e setor. Os coeficientes $\beta_k$ e $\gamma$ traduzem cada tipo de relação em
+correlação. As especificações testadas formam uma escada:
+\begin{itemize}
+  \item E0, persistência: só $z(\rho^{\mathrm{hist}})$;
+  \item E1: E0 com co-menção;
+  \item E2: E0 com coocorrência;
+  \item E3: E0 com vínculos diretos por grupo e exposição comum;
+  \item E4: todos os atributos.
+\end{itemize}
+E0, E1 e E4 também são estimadas com os indicadores de setor. A comparação central é entre E0 com setor e
+E4 com setor: a diferença mede o que as notícias acrescentam ao histórico e ao setor.
+
+O desempenho é medido fora da amostra. Em cada $t$, os coeficientes são estimados no painel empilhado
+dos rebalanceamentos anteriores (janela expansiva, com ao menos 24 meses) e aplicados aos pares de $t$.
+A variável dependente e os regressores são centrados em cada mês, de modo que a regressão explica a
+ordenação dos pares dentro do mês, e não o nível médio da correlação. O $R^2$ fora da amostra
+\citep{campbell2008} é
+\[
+  R^2_{oos}=1-\frac{\sum_t\sum_{(i,j)}(y_{ij,t}-\hat y_{ij,t})^2}{\sum_t\sum_{(i,j)}(y_{ij,t}-\bar y_t)^2},
+\]
+com as somas sobre todos os pares e meses de avaliação. O ganho de uma especificação sobre outra é a
+diferença dos seus $R^2_{oos}$, testada com erro-padrão de \citet{newey1987} na série mensal das
+diferenças de erro quadrático.
+
+\subsection{Correlação residual}
+
+A correlação total entre ações é dominada pelo mercado. Para isolar o que é específico de cada par,
+os testes também usam a correlação residual a um fator de mercado. Seja $m_t$ a média igual dos
+retornos do universo no dia. Na janela de estimação, cada ação é regredida no mercado,
+\begin{equation}
+  x_{it} = a_i + b_i\,m_t + e_{it},
+  \label{eq:fator-mercado}
+\end{equation}
+e a correlação residual realizada no período seguinte é calculada com os resíduos fora da amostra, com
+os $b_i$ da janela e o $m_t$ observado. A escada E0--E4 é estimada para a correlação total e para a
+residual.
+
+\subsection{Testes de pares}
+\label{sec:testes-pares}
+
+Os testes de pares usam a correlação residual dos $h=21$ pregões seguintes como variável dependente e
+todos os meses de 2011 a 2023. A regressão é
+\begin{equation}
+  z(\rho^{\mathrm{fut}}_{e,ij}) = a + b\,z(\rho^{\mathrm{hist}}_{e,ij}) + \gamma\,g_{ij}
+  + \sum_k \beta_k\log\bigl(1+d^{(k)}_{ij}\bigr) + \theta^\top c_{ij} + \varepsilon_{ij},
+  \label{eq:pares}
+\end{equation}
+em que $\rho_e$ é a correlação residual e $c_{ij}$ reúne os indicadores de mesmo setor (Fama-French~49 e
+SIC de dois dígitos), a distância de tamanho e os dois termos de atenção. Na análise do sinal, a soma
+sobre os grupos é trocada por $\beta\,\mathrm{sgnlog}(w_{ij})$ ou por
+$\beta^+\log(1+w^+_{ij})+\beta^-\log(1+w^-_{ij})$.
+
+Pares que compartilham uma ação não são independentes. Por isso a inferência usa a regressão de
+\citet{fama1973}: uma regressão em corte transversal em cada mês, com os regressores padronizados no
+mês, e a média dos coeficientes mensais, com erro-padrão de \citet{newey1987} com $L=3+h/21$ defasagens.
+Cada coeficiente mede, assim, a variação de $z(\rho)$ por um desvio-padrão do regressor. Como segunda
+inferência, o procedimento QAP \citep{krackhardt1988} permuta juntas as linhas e colunas de todas as
+matrizes de notícia em cada mês e refaz o Fama-MacBeth; o $p$ é a fração de permutações com estatística ao
+menos tão extrema quanto a observada, com 1.000 permutações, o que limita o menor $p$ possível a
+$1/1001\approx0{,}001$. O $p$ de cada teste é o maior entre o de Fama-MacBeth e o do QAP. A
+Tabela~\ref{tab:testes-diadicos} resume a estatística de cada teste.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Estatísticas e critérios dos testes de pares.}
+\label{tab:testes-diadicos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{1.6cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{4.2cm}}
+\toprule
+& estatística & sucesso \\
+\midrule
+H1a & coeficiente $\gamma$ da exposição comum, com a aresta direta e os controles & positivo e significativo \\
+H1b & teste de Wald da igualdade dos seis coeficientes de grupo $\beta_k$, com covariância de Newey-West & igualdade rejeitada \\
+H1b, sinal & coeficiente de $\mathrm{sgnlog}(w)$ e diferença $\beta^+-\beta^-$ & positivos e significativos \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+%--------------------------------------------------------------------
+\section{Estimadores da matriz de covariância com notícias}
+\label{sec:estimadores}
+
+Três modos de levar as notícias à matriz de covariância foram testados. Em todos, as variâncias vêm dos
+preços, e as notícias atuam apenas sobre as correlações.
+
+\subsection{Alvo de shrinkage com notícias}
+
+O primeiro modo segue \citet{becquin2023}: as notícias definem a correlação-alvo. A correlação prevista
+para o par $(i,j)$ é
+\begin{equation}
+  R^T_{ij} = \tanh\!\bigl(\bar z + \beta^\top f_{ij}\bigr),\qquad R^T_{ii}=1,
+  \label{eq:alvo-prior}
+\end{equation}
+em que $\bar z$ é a correlação média da janela em escala $z$, $f_{ij}$ são os atributos de notícias (e de
+setor) e $\beta$ é estimado por mínimos quadrados no painel dos meses anteriores, com $y$ e $f$
+centrados no mês. A correlação histórica do par não entra em \eqref{eq:alvo-prior}: com ela, o alvo
+dependeria da mesma amostra que $S$, o que viola a hipótese de alvo fixo da fórmula de $\delta$. Com
+$\beta=0$, o alvo é a correlação constante de \citet{ledoit2004honey}; como $\bar z$ é a média da janela,
+o alvo preserva o nível médio da correlação, isto é, o modo de mercado. Se $R^T$ não for positiva
+semidefinida, é substituída pela correlação mais próxima \citep{higham2002}. A covariância-alvo é
+$T=D^{1/2}R^TD^{1/2}$, com $D=\operatorname{diag}(S)$, e o estimador é a Equação~\eqref{eq:shrinkage}.
+
+O $\delta$ ótimo generaliza a fórmula de \citet{ledoit2004honey}, trocando a correlação constante
+$\bar r$ pela correlação-alvo $r^T_{ij}$ de cada par:
+\begin{align}
+  \hat\pi &= \sum_{i,j}\widehat{\mathrm{AsyVar}}\bigl(\sqrt N s_{ij}\bigr), \qquad
+  \hat\gamma = \|T-S\|_F^2, \nonumber\\
+  \hat\rho &= \sum_i\hat\pi_{ii} + \sum_{i\neq j}\frac{r^T_{ij}}{2}
+     \left(\sqrt{\frac{s_{jj}}{s_{ii}}}\,\hat\vartheta_{ii,ij} + \sqrt{\frac{s_{ii}}{s_{jj}}}\,\hat\vartheta_{jj,ij}\right),
+  \label{eq:delta-geral}\\
+  \delta^* &= \max\!\left\{0,\ \min\!\left\{\frac{\hat\pi-\hat\rho}{N\hat\gamma},\ 1\right\}\right\}, \nonumber
+\end{align}
+em que $\hat\pi_{ij}=\frac1N\sum_t[(r_{it}-\bar r_i)(r_{jt}-\bar r_j)-s_{ij}]^2$ estima a variância
+assintótica de $\sqrt N s_{ij}$ e
+$\hat\vartheta_{ii,ij}=\frac1N\sum_t[(r_{it}-\bar r_i)^2-s_{ii}][(r_{it}-\bar r_i)(r_{jt}-\bar r_j)-s_{ij}]$
+estima a covariância assintótica entre $\sqrt N s_{ii}$ e $\sqrt N s_{ij}$. Como em
+\citet{ledoit2004honey}, o alvo usa as variâncias amostrais, as covariâncias entre as variâncias e os
+elementos fora da diagonal entram em $\hat\rho$, e $S$ é calculada com divisor $N$ nessas fórmulas.
+
+\subsection{Fator de mercado e correlação residual}
+
+O segundo modo aplica as notícias à parte da covariância que o mercado não explica, como na
+Equação~\eqref{eq:fatores} com um fator. Com o modelo \eqref{eq:fator-mercado} estimado na janela,
+\begin{equation}
+  \hat\Sigma = \hat\sigma_m^2\, b\, b^\top + \hat\Sigma_e,
+  \label{eq:fator-residuo}
+\end{equation}
+em que $\hat\sigma_m^2$ é a variância do mercado, $b$ é o vetor de betas e $\hat\Sigma_e$ é a covariância
+dos resíduos $E$, encolhida para uma correlação residual \emph{a priori} $R_{\mathrm{prior}}$ pela fórmula
+\eqref{eq:delta-geral}. O que muda entre os estimadores é $R_{\mathrm{prior}}$:
+\begin{itemize}
+  \item identidade: o modelo de fator único puro;
+  \item correlação constante $\bar r_e$: a referência estatística;
+  \item $\tanh(\bar z_e+\beta^\top\text{setor})$: a \textbf{referência a bater};
+  \item $\tanh(\bar z_e+\beta^\top[\text{setor},\text{notícias}])$: o \textbf{modelo principal};
+  \item o anterior com os atributos de notícia permutados entre as ações: o placebo.
+\end{itemize}
+Aqui, $\beta$ é estimado com $y$ igual à correlação residual realizada no mês. É o desenho de
+\citet{lu2023}, com a rede de notícias no lugar da rede de co-negociação. Como o fator de mercado fica
+fora do \emph{prior}, as notícias não precisam descrever o modo comum a todas as ações, apenas o que os
+pares têm em comum além dele, que é onde H1 mostra que elas informam.
+
+\subsection{Black-Litterman na covariância}
+
+Nos dois modos anteriores, um único $\delta$ vale para todos os pares: um par com centenas de eventos e
+um par ligado só por exposição comum recebem o mesmo peso da notícia. O terceiro modo dá a cada par a
+confiança que a sua evidência justifica, na estrutura de \citet{black1992} aplicada à covariância
+\citep{qian2001}. Apenas a covariância residual $\Sigma_e$ da Equação~\eqref{eq:fator-residuo} é
+atualizada.
+
+\begin{itemize}
+  \item \textbf{Prior.} $\Sigma_0$ é a covariância residual do modelo com setor, a referência a bater,
+        com variâncias $s_i=(\Sigma_0)_{ii}$. A incerteza do prior sobre os elementos fora da diagonal é
+        a covariância de Wishart da covariância amostral \citep{anderson2003}, avaliada em $\Sigma_0$
+        com $N=252$ pregões:
+        \begin{equation}
+          V_{(ij),(kl)} = \frac{\sigma_{0,ik}\,\sigma_{0,jl} + \sigma_{0,il}\,\sigma_{0,jk}}{N},
+          \label{eq:wishart}
+        \end{equation}
+        o análogo, na covariância, da convenção de \citet{he1999} de tomar a incerteza do \emph{prior}
+        como o inverso do tamanho da amostra. Uma visão sobre o par $(i,j)$ move também os pares $(i,l)$
+        e $(j,l)$, na proporção das covariâncias do prior.
+  \item \textbf{Visões.} Há uma visão para cada par com algum atributo de notícia não nulo. Seu valor é a
+        correlação prevista pelo modelo com setor e notícias, na escala da covariância:
+        $q_{ij}=\tanh(\hat z_{ij})\sqrt{s_is_j}$. A matriz $P$ seleciona o elemento $(i,j)$ de
+        $\operatorname{vec}\Sigma_e$, de modo que a visão é linear em $\Sigma_e$.
+  \item \textbf{Confiança.} Cada par com visão cai numa classe de evidência $c$: só exposição comum ou
+        co-menção ($c=0$), ou um dos quatro quartis de coocorrência ($c=1,\dots,4$). Para cada classe,
+        o erro da visão em escala $z$ é estimado no painel dos meses de treino, descontado o ruído
+        amostral de uma correlação de $d_m$ pregões,
+        \begin{equation}
+          \omega_c = \overline{\hat e^2}\big|_c - \overline{1/(d_m-3)},\qquad \omega_c\ge \frac{1}{N-3},
+          \label{eq:omega}
+        \end{equation}
+        e levado à escala da covariância pelo método delta,
+        $\Omega_{ij}=(1-\tanh^2\hat z_{ij})^2\,s_is_j\,\omega_{c(ij)}$.
+  \item \textbf{Posterior.} É a média do Black-Litterman na forma de filtro de Kalman,
+        \begin{equation}
+          \operatorname{vec}\Sigma_e^{BL} = \operatorname{vec}\Sigma_0
+          + VP^\top\bigl(PVP^\top+\Omega\bigr)^{-1}\bigl(q-P\operatorname{vec}\Sigma_0\bigr),
+          \label{eq:bl}
+        \end{equation}
+        resolvida por gradiente conjugado sem formar $V$, e projetada para a correlação positiva
+        semidefinida mais próxima, com as variâncias de volta.
+\end{itemize}
+
+%--------------------------------------------------------------------
+\section{Estimadores de referência e placebo}
+\label{sec:referencias}
+
+Cada estimador com notícias tem uma referência sem notícias que só difere dele pela informação do
+grafo: o alvo de setor, no primeiro modo, e o fator de mercado com resíduo encolhido para o setor, nos
+outros dois. Essa referência encarna o resultado de \citet{elton1973} e é a hipótese nula natural para um
+grafo que, como se verá, liga sobretudo empresas do mesmo setor. Para situar os resultados na literatura,
+as tabelas trazem também as referências estatísticas usuais: a carteira $1/N$ \citep{demiguel2009}, a
+covariância amostral, o \emph{shrinkage} linear de Ledoit e Wolf com os três alvos clássicos (identidade,
+correlação constante e fator único) e o \emph{shrinkage} não linear \citep{ledoit2020}.
+
+Superar a referência não basta: o ganho poderia vir apenas de regularizar a matriz com qualquer
+estrutura esparsa. O placebo testa se o \emph{conteúdo} das relações importa. Em cada mês, as ações são
+permutadas ao acaso nas matrizes de atributos de notícia, com a mesma permutação em todos os atributos,
+enquanto o setor e os retornos ficam no lugar; os coeficientes $\beta$ são os treinados com os dados
+reais. O placebo tem, portanto, a mesma distribuição de vínculos, a mesma esparsidade e a mesma
+intensidade de \emph{shrinkage} que as notícias verdadeiras, mas liga as empresas erradas. Se as notícias
+fossem só regularização genérica, o placebo empataria com elas.
+
+%--------------------------------------------------------------------
+\section{Carteiras}
+\label{sec:carteiras-metodo}
+
+Os estimadores foram avaliados nas seguintes carteiras, todas com soma dos pesos igual a um:
+\begin{itemize}
+  \item \textbf{GMV sem restrição}, Equação~\eqref{eq:gmv}: a carteira em que o erro de $\hat\Sigma$
+        passa inteiro para os pesos; é a carteira principal;
+  \item \textbf{variância mínima restrita}: sem venda a descoberto e com teto de 10\% por ativo,
+        resolvida por gradiente projetado (FISTA);
+  \item \textbf{Markowitz}, Equação~\eqref{eq:markowitz} com $\gamma=5$, e \textbf{máximo Sharpe}, com
+        retornos esperados de Bayes-Stein \citep{jorion1986} calculados na janela;
+  \item \textbf{máxima diversificação} \citep{choueifaty2008};
+  \item \textbf{HRP} \citep{lopezdeprado2016}, com a distância de correlação $\sqrt{(1-\rho_{ij})/2}$, a
+        mesma da Seção~\ref{sec:redes} a menos de uma constante;
+  \item \textbf{mínimo \emph{tracking error}} contra o SPY, com a covariância entre ativos e índice
+        estimada na janela.
+\end{itemize}
+Os problemas de razão (máximo Sharpe e máxima diversificação) com restrições foram resolvidos pela
+reformulação convexa homogênea \citep{cornuejols2007} por pontos interiores.
+
+%--------------------------------------------------------------------
+\section{Desenho experimental}
+\label{sec:desenho}
+
+\subsection{Configuração comum}
+
+Todas as avaliações de carteira seguem a mesma configuração:
+\begin{itemize}
+  \item universo das $n$ ações mais citadas nas notícias (Capítulo~\ref{cap:dados}), com $n=100$ no
+        teste principal e $n=50$ e $n=200$ como confirmação; com a janela de 252 pregões, há sempre mais
+        observações que ações;
+  \item rebalanceamento no primeiro pregão de cada mês, com a carteira mantida até o rebalanceamento
+        seguinte;
+  \item janela de estimação de 252 pregões anteriores ao rebalanceamento;
+  \item período avaliado de janeiro de 2013 a dezembro de 2023; os anos de 2011 e 2012 servem apenas
+        para treinar os coeficientes que transformam notícias em correlação, que exigem ao menos 24
+        meses de histórico;
+  \item coeficientes treinados só com meses cujo período de carteira terminou antes de $t$;
+  \item custo de transação de 10 pontos-base sobre o giro, medido contra os pesos que a carteira teria
+        depois de variar com os preços desde o último rebalanceamento;
+  \item SPY como índice de referência.
+\end{itemize}
+
+\subsection{Os desenhos testados para H2}
+
+A Tabela~\ref{tab:desenhos} lista os desenhos na ordem em que foram testados, com o critério de sucesso
+de cada um. Cada desenho surgiu do resultado do anterior, e o nível de significância caiu a cada nova
+tentativa (Seção~\ref{sec:preregistro}). O D1 foi exploratório; o D2 é o teste principal de H2, com três
+critérios fixados antes da execução; os demais perguntam se o resultado do D2 muda com restrições de
+peso, com outro otimizador ou com outro modo de combinar as notícias.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Desenhos testados para H2, na ordem de execução.}
+\label{tab:desenhos}
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{0.9cm}>{\raggedright\arraybackslash}p{3.6cm}X}
+\toprule
+& desenho & critério de sucesso \\
+\midrule
+D1 & alvo de notícias, GMV & exploratório, sem critério fixado \\
+D2 & fator + resíduo, GMV sem restrição & (i) as notícias preveem a correlação residual além do setor, com $t>2$; (ii) razão de variâncias contra o setor $<1$ com $p<0{,}05$ e abaixo do placebo em $n=100$; (iii) razão $<1$ em $n=50$ e $200$ e com a amostra ampliada de notícias \\
+D3 & fator + resíduo, variância mínima sem venda a descoberto e teto de 10\% & razão $<1$ com $p<0{,}025$ e abaixo do placebo em $n=100$; razão $<1$ em $n=50$ e $200$ \\
+D4--D8 & fator + resíduo em Markowitz, máximo Sharpe, máxima diversificação, HRP e mínimo \emph{tracking error} & melhora com $p<0{,}01$ por otimizador e melhor que o placebo; mesma direção em $n=50$ e $200$ \\
+D9 & Black-Litterman na covariância, GMV sem restrição & razão $<1$ com $p<0{,}0125$ e abaixo do placebo em $n=100$; razão $<1$ em $n=50$ e $200$ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+A melhora é medida pela razão de variâncias dos retornos líquidos (variância mínima, máxima
+diversificação, HRP), pela diferença de Sharpe líquido (Markowitz, máximo Sharpe) ou pela razão de
+variâncias do retorno ativo (mínimo \emph{tracking error}).
+
+%--------------------------------------------------------------------
+\section{Métricas e testes estatísticos}
+\label{sec:metricas}
+
+\paragraph{Razão de variâncias.} A estatística principal das carteiras é a razão entre as variâncias dos
+retornos diários líquidos de duas carteiras nos pregões em comum, com a carteira com notícias no numerador:
+valores abaixo de 1 favorecem as notícias. O $p$-valor bicaudal e o intervalo de confiança vêm de um
+\emph{bootstrap} circular em blocos de 10 dias, com 2.000 reamostragens dos pares de retornos
+\citep{ledoit2011}, o que preserva a dependência temporal e a correlação entre as duas carteiras. A
+diferença de índices de Sharpe é testada da mesma forma \citep{ledoit2008}.
+
+\paragraph{Erro de correlação.} A qualidade de $\hat\Sigma$ como previsão é medida pelo erro quadrático
+médio entre as correlações estimadas e as realizadas no mês seguinte. A diferença entre dois estimadores
+é testada na série mensal, com erro-padrão de Newey-West, como no teste de \citet{diebold1995}.
+
+\paragraph{Critérios e tentativas repetidas.} H1a tem dois critérios: ganho fora da amostra positivo com
+$t>2$ na escada E0--E4 e coeficiente positivo e significativo a 5\% nos testes de pares. H1b é avaliada
+pelo teste de Wald, e os coeficientes individuais dos grupos são corrigidos pelo método de
+\citet{benjamini1995}. Para H2, o nível de significância cai a cada novo desenho pela correção de
+Bonferroni (Seção~\ref{sec:preregistro}).
+
+\paragraph{Diagnóstico de estabilidade.} O número de condição $\lambda_{\max}/\lambda_{\min}$ da correlação
+estimada é registrado mês a mês para cada estimador \citep{lopezdeprado2016}. Ele não é critério de
+sucesso, mas mede quanto a inversão da matriz amplifica o erro e ajuda a explicar por que um estimador
+que prevê melhor as correlações pode produzir uma carteira pior.
+
+\clearpage

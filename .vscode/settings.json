@@ -1,0 +1,23 @@
+{
+  // LaTeX Workshop compilando com tectonic (o Mac não tem espaço para MacTeX).
+  "latex-workshop.latex.tools": [
+    {
+      "name": "tectonic",
+      "command": "/opt/homebrew/bin/tectonic",
+      "args": ["-X", "compile", "--synctex", "--keep-logs", "%DOC_EXT%"],
+      "env": {}
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    { "name": "tectonic", "tools": ["tectonic"] }
+  ],
+  "latex-workshop.latex.recipe.default": "first",
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.outDir": "%DIR%",
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.synctex.afterBuild.enabled": true,
+  "latex-workshop.latex.autoClean.run": "never",
+  "[latex]": {
+    "editor.wordWrap": "on"
+  }
+}
